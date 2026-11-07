@@ -27,7 +27,7 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
 </main>
 <script>
 'use strict';
-const NAMES={BTCUSDT:'BTC',ETHUSDT:'ETH',XRPUSDT:'XRP',SOLUSDT:'SOL',ALGOUSDT:'ALGO',SHIBUSDT:'SHIB',DOGEUSDT:'DOGE',XAUTUSDT:'Золото XAUT'};
+const NAMES={BTCUSDT:'BTC',ETHUSDT:'ETH',XRPUSDT:'XRP',SOLUSDT:'SOL',ALGOUSDT:'ALGO',1000SHIBUSDT:'1000 SHIB',DOGEUSDT:'DOGE',XAUTUSDT:'Золото XAUT'};
 const $=id=>document.getElementById(id);
 let latest=null,busy=false;
 const format=(x)=>Number(x).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:Math.abs(x)<0.01?8:Math.abs(x)<1?5:2});
