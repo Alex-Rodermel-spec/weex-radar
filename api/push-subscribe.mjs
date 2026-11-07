@@ -25,8 +25,24 @@ export default async function handler(req,res){
   if(!secureEqual(proof,expected))return res.status(403).json({error:'Invalid receipt signature'});
   const at=Date.now();
   try{
-    await put('receipts/'+subscriberId+'.json',JSON.stringify({result,kind,at}),
+    await put('receipts/'+subscriberId+'.json',JSON.stringify({result,kind,at,id}),
       {access:'private',allowOverwrite:true,contentType:'application/json'});
+    if(kind==='signal'){
+      // Map a signed Chrome acknowledgement to every signal in a batched notification.
+      // The set of marks is server-owned; no untrusted paths come from the worker.
+      const sent=await get('push-deliveries/'+id+'.json',{access:'private'});
+      if(sent?.stream){
+        const batch=JSON.parse(await new Response(sent.stream).text());
+        if(batch.subscriberId!==subscriberId||!Array.isArray(batch.marks)||batch.marks.length>16)
+          throw Error('Invalid signal delivery batch');
+        for(const mark of batch.marks){
+          if(typeof mark!=='string'||!/^delivered\/[a-f0-9]{64}\.txt$/.test(mark))throw Error('Invalid signal marker');
+          const hash=createHash('sha256').update(mark).digest('hex');
+          await put('receipts/signals/'+hash+'.json',JSON.stringify({result,at,id}),
+            {access:'private',allowOverwrite:true,contentType:'application/json'});
+        }
+      }
+    }
   }catch(e){
     console.warn('WEEX_RADAR receipt storage failed',String(e.message||e).slice(0,100));
     return res.status(503).json({error:'Receipt storage unavailable'});

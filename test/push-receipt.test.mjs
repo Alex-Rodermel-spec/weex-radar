@@ -43,3 +43,19 @@ test('background push test is queued, sent through cron and acknowledged indepen
  assert.match(html,/scheduleBackgroundPushTest/);
  assert.match(html,/pageshow/);
 });
+
+test('signals without worker receipt are retried at most once before expiry',()=>{
+ const dispatch=read('../api/push-dispatch.mjs');
+ const subscribe=read('../api/push-subscribe.mjs');
+ assert.match(dispatch,/async function mayRetrySignal\(mark,signal\)/);
+ assert.match(dispatch,/now-sent\.firstSentAt<55000/);
+ assert.match(dispatch,/signal\.expiresAt<now\+30000/);
+ assert.match(dispatch,/signalReceiptPath\(mark\)/);
+ assert.match(dispatch,/allowOverwrite:false/);
+ assert.match(dispatch,/if\(await mayRetrySignal\(mark,signal\)\)/);
+ assert.match(dispatch,/pending\.push\(\{signal,mark,retry:true\}\)/);
+ assert.match(dispatch,/push-deliveries\//);
+ assert.match(subscribe,/kind==='signal'/);
+ assert.match(subscribe,/batch\.marks/);
+ assert.match(subscribe,/receipts\/signals\//);
+});

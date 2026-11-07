@@ -27,6 +27,29 @@ async function loadSubscriptions(){
 }
 function key(x){return createHash('sha256').update(x).digest('hex')}
 
+function isConflict(e){return /exist|already|conflict|409/i.test(String(e?.message||e));}
+function signalReceiptPath(mark){return 'receipts/signals/'+key(mark)+'.json';}
+async function mayRetrySignal(mark,signal){
+ const now=Date.now();
+ // One retry only, after enough time for Chrome to acknowledge the original.
+ if(!Number.isFinite(signal.expiresAt)||signal.expiresAt<now+30000)return false;
+ const original=await get(mark,{access:'private'});
+ if(!original?.stream)return false;
+ let sent;
+ try{sent=JSON.parse(await new Response(original.stream).text())}catch{return false}
+ if(!Number.isFinite(sent.firstSentAt)||now-sent.firstSentAt<55000)return false;
+ const ack=await get(signalReceiptPath(mark),{access:'private'});
+ if(ack?.stream){
+   try{const row=JSON.parse(await new Response(ack.stream).text());if(row.result==='shown')return false}catch{}
+ }
+ try{
+  await put('retries/'+key(mark)+'.txt','1',
+    {access:'private',contentType:'text/plain',addRandomSuffix:false,allowOverwrite:false});
+  return true;
+ }catch(e){if(isConflict(e))return false;throw e;}
+}
+
+
 async function sendDueBackgroundTests(){
  const jobs=await list({prefix:'background-tests/',limit:15});
  const now=Date.now();
@@ -98,7 +121,7 @@ export default async function handler(req,res){
   const entries=await loadSubscriptions();
   if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0});
   webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
-  let delivered=0,failed=0,duplicates=0;
+  let delivered=0,failed=0,duplicates=0,retried=0;
   for(const blob of entries){
    try{
     const record=await get(blob.pathname,{access:'private'});
@@ -110,15 +133,28 @@ export default async function handler(req,res){
     const pending=[];
     for(const signal of signals){
      const mark='delivered/'+key(subscriber.endpoint+signal.exchange+signal.symbol+signal.candleCloseTime+signal.direction)+'.txt';
-     try{await put(mark,'1',{access:'private',contentType:'text/plain',addRandomSuffix:false});}
-     catch(e){if(/exist|already|conflict/i.test(String(e.message))){duplicates++;continue}throw e}
-     pending.push({signal,mark});
+     try{
+      await put(mark,JSON.stringify({firstSentAt:Date.now()}),
+        {access:'private',contentType:'application/json',addRandomSuffix:false,allowOverwrite:false});
+      pending.push({signal,mark});
+     }catch(e){
+      if(!isConflict(e))throw e;
+      duplicates++;
+      // FCM acceptance without a signed Chrome receipt is not proof of delivery.
+      // Re-attempt one time only while the signal is still fresh.
+      if(await mayRetrySignal(mark,signal)){
+       pending.push({signal,mark,retry:true});retried++;
+      }
+     }
     }
     if(!pending.length)continue;
     const selected=pending.map(item=>item.signal);
     const primary=selected[0],strong=selected.some(s=>s.level==='STRONG');
     const deliveryId=key(subscriber.endpoint+'|'+pending.map(({mark})=>mark).join('|')).slice(0,32);
     const subscriberId=key(subscriber.endpoint);
+    await put('push-deliveries/'+deliveryId+'.json',
+      JSON.stringify({subscriberId,marks:pending.map(({mark})=>mark)}),
+      {access:'private',allowOverwrite:true,contentType:'application/json'});
     const deliveryProof=createHmac('sha256',process.env.PUSH_CRON_KEY).update(deliveryId+'|'+subscriberId+'|signal').digest('hex');
     const title=selected.length===1
       ?(strong?'🟣 СИЛЬНЫЙ':'Сигнал')+' '+primary.symbol+' '+primary.direction
@@ -137,17 +173,18 @@ export default async function handler(req,res){
      // Accepted by the push gateway is not confirmation of receipt on Android.
      await webpush.sendNotification(subscriber,JSON.stringify(message),{TTL:150,urgency:'high'});
      delivered++;
-     console.info('WEEX_RADAR_PUSH_GATEWAY '+JSON.stringify({id:deliveryId.slice(0,12),count:selected.length,accepted:true}));
+     console.info('WEEX_RADAR_PUSH_GATEWAY '+JSON.stringify({id:deliveryId.slice(0,12),count:selected.length,accepted:true,retry:pending.some(p=>p.retry)}));
     }catch(e){
      failed++;
      // Revert all pending markers on a failed gateway request to permit a retry.
-     for(const {mark} of pending){
+     for(const {mark,retry} of pending){
+      if(retry)continue; // Retried signals retain their original first-send marker.
       try{await del(mark)}catch{console.warn('WEEX_RADAR unable to reset failed push marker')}
      }
      if(e.statusCode===404||e.statusCode===410)await del(blob.pathname);
     }
    }catch(e){failed++;console.warn('Push item failed',e.message)}
   }
-  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates});
+  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried});
  }catch(e){console.error('Push check failed:',e.message);return reply(res,source,503,{error:'Scan or notification delivery unavailable'})}
 }
