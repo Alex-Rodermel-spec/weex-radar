@@ -18,7 +18,7 @@ export default async function handler(req,res){
   if(req.headers.origin&&req.headers.origin!==ORIGIN)return res.status(403).json({error:'Origin not allowed'});
   const {id,proof,result,subscriberId,kind}=req.body.receipt;
   if(!/^[a-f0-9]{32}$/.test(id||'')||!/^[a-f0-9]{64}$/.test(proof||'')||
-     !/^[a-f0-9]{64}$/.test(subscriberId||'')||!['signal','test','background_test','signal_test'].includes(kind)||
+     !/^[a-f0-9]{64}$/.test(subscriberId||'')||!['signal','test','background_test','signal_test','early_watch'].includes(kind)||
      !['shown','show_error','expired'].includes(result))return res.status(400).json({error:'Invalid receipt'});
   if(!process.env.PUSH_CRON_KEY||!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Receipts unavailable'});
   const expected=createHmac('sha256',process.env.PUSH_CRON_KEY).update(id+'|'+subscriberId+'|'+kind).digest('hex');
@@ -76,7 +76,7 @@ export default async function handler(req,res){
         const receipt=await get('receipts/'+id+'.json',{access:'private'});
         if(receipt?.stream){
           const row=JSON.parse(await new Response(receipt.stream).text());
-          if(['shown','show_error','expired'].includes(row.result)&&['test','signal','background_test','signal_test'].includes(row.kind)&&Number.isFinite(row.at))
+          if(['shown','show_error','expired'].includes(row.result)&&['test','signal','background_test','signal_test','early_watch'].includes(row.kind)&&Number.isFinite(row.at))
             lastReceipt={result:row.result,kind:row.kind,at:row.at};
         }
       }catch(e){console.warn('WEEX_RADAR receipt lookup unavailable',String(e.message||e).slice(0,80));}

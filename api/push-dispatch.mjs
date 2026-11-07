@@ -3,6 +3,7 @@ import {get,list,put,del} from '@vercel/blob';
 import webpush from 'web-push';
 import {jwtVerify,createRemoteJWKSet} from 'jose';
 import {_test as marketSafety} from './signals.mjs';
+import {sendEarlyPush} from '../lib/early-push.mjs';
 const JWKS=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 function secureEquals(a,b){if(!a||!b)return false;let x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
 async function authorized(req){
@@ -109,6 +110,17 @@ export function dispatchAudit(source,http,body,checkedAt=Date.now()){
    subscribers:Number.isSafeInteger(body?.subscribers)?body.subscribers:null,
    duplicates:Number.isSafeInteger(body?.duplicates)?body.duplicates:0});
 }
+async function safeEarlyPush(){
+ try{
+  const early=await sendEarlyPush();
+  if(early.earlySignals||early.failed)
+   console.info('WEEX_RADAR_EARLY_DISPATCH '+JSON.stringify(early));
+  return early;
+ }catch(e){
+  console.warn('WEEX_RADAR_EARLY_SCAN_FAILED '+String(e.message||e).slice(0,110));
+  return {checked:0,earlySignals:0,delivered:0,failed:1};
+ }
+}
 function reply(res,source,http,body){
  console.info('WEEX_RADAR_DISPATCH '+dispatchAudit(source,http,body));
  return res.status(http).json(body);
@@ -142,9 +154,9 @@ export default async function handler(req,res){
   const signals=checked.filter(Boolean);
   if(candidates.length>signals.length)console.info('WEEX_RADAR_ENTRY_FILTER '+
     JSON.stringify({candidates:candidates.length,accepted:signals.length,blocked:candidates.length-signals.length}));
-  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background});
+  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await safeEarlyPush()});
   const entries=await loadSubscriptions();
-  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0});
+  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await safeEarlyPush()});
   webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
   let delivered=0,failed=0,duplicates=0,retried=0;
   for(const blob of entries){
@@ -216,6 +228,6 @@ export default async function handler(req,res){
     }
    }catch(e){failed++;console.warn('Push item failed',e.message)}
   }
-  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried});
+  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried,early:await safeEarlyPush()});
  }catch(e){console.error('Push check failed:',e.message);return reply(res,source,503,{error:'Scan or notification delivery unavailable'})}
 }
