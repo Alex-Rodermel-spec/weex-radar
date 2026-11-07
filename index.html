@@ -24,12 +24,12 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
 <section aria-label="Главная"><div class="eyebrow">СКАНЕР ФЬЮЧЕРСОВ · 5M + 15M</div><h1>Сигналы <span class="highlight">LONG / SHORT</span><br>без догадок</h1><p class="sub">Только закрытые свечи, подтверждение тренда и пробоя. Сильные сигналы — фиолетовым. Если условий нет, честно показываем «ЖДАТЬ».</p></section>
 <div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary">🔔 Включить push в фоне</button><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
 <section class="summary" aria-live="polite"><div class="summary-top"><span class="eyebrow">АКТУАЛЬНЫЕ СИГНАЛЫ</span><small id="updated">Обновление: —</small></div><div id="signal-container"><strong>Проверяем рынок…</strong><small>Вход без подтверждения не предлагаем.</small></div></section>
-<section><div class="summary-top"><h2>Рынок · 8 инструментов</h2><small class="muted">WEEX → Bybit</small></div><div id="markets" class="market-grid" aria-live="polite"></div></section>
-<section class="footnotes"><div class="footer-line"><span>Автообновление: раз в 60 сек., пока эта страница открыта.</span><span>Срок действия сигнала: 3 мин. после закрытия свечи.</span></div><p>⚠️ Это учебный сканер, а не команда к сделке. Уровни TP/SL примерные, исходя из ATR; цены двух бирж могут отличаться. Уведомления при открытой странице доступны сразу. Фоновые push после разрешения работают через Android/браузер, но проверка в фоне примерно раз в 5 минут может пропустить сигнал со сроком 3 минуты. Звук контролируется настройками Android. Автоматические сделки не подключены. При высоком плече возможна полная потеря маржи.</p></section>
+<section><div class="summary-top"><h2>Рынок · 11 инструментов</h2><small class="muted">WEEX → Bybit</small></div><div id="markets" class="market-grid" aria-live="polite"></div></section>
+<section class="footnotes"><div class="footer-line"><span>Автообновление: раз в 60 сек., пока эта страница открыта.</span><span>Срок действия сигнала: 3 мин. после закрытия свечи.</span></div><p>⚠️ Это учебный сканер, а не команда к сделке. Уровни TP/SL примерные, исходя из ATR; цены двух бирж могут отличаться. Уведомления при открытой странице доступны сразу. Фоновые push после разрешения работают через Android/браузер; внешний планировщик cron-job.org должен запускать проверку примерно раз в минуту, GitHub используется как резерв. При задержках планировщика или Android сигнал со сроком 3 минуты можно пропустить. Звук контролируется настройками Android. Автоматические сделки не подключены. При высоком плече возможна полная потеря маржи.</p></section>
 </main>
 <script>
 'use strict';
-const NAMES={BTCUSDT:'BTC',ETHUSDT:'ETH',XRPUSDT:'XRP',SOLUSDT:'SOL',ALGOUSDT:'ALGO','1000SHIBUSDT':'1000 SHIB',DOGEUSDT:'DOGE',XAUTUSDT:'Золото XAUT'};
+const NAMES={BTCUSDT:'BTC',ETHUSDT:'ETH',XRPUSDT:'XRP',SOLUSDT:'SOL',ALGOUSDT:'ALGO','1000SHIBUSDT':'1000 SHIB',DOGEUSDT:'DOGE',XAUTUSDT:'Золото XAUT',ZECUSDT:'ZEC','1000PEPEUSDT':'1000 PEPE',HYPEUSDT:'HYPE'};
 const $=id=>document.getElementById(id);
 let latest=null,busy=false;
 const format=(x)=>Number(x).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:Math.abs(x)<0.01?8:Math.abs(x)<1?5:2});
@@ -60,7 +60,7 @@ async function update(){
   latest=data;draw();emitNotifications();
   const valid=data.symbols.filter(s=>s.status==='ok').length;
   const fallback=data.symbols.filter(s=>s.exchange==='Bybit').length;
-  $('status').innerHTML=`<i class="dot ${valid?'ok':'err'}"></i> ${valid}/8 источников доступны${fallback?' · резерв Bybit: '+fallback:''}`;
+  $('status').innerHTML=`<i class="dot ${valid?'ok':'err'}"></i> ${valid}/${data.symbols.length} источников доступны${fallback?' · резерв Bybit: '+fallback:''}`;
  }catch(e){$('status').innerHTML=`<i class="dot err"></i> Ошибка: ${safe(e.name==='AbortError'?'Превышено время ожидания':e.message)}. Попробуйте обновить.`;if(!latest)$('signal-container').innerHTML='<strong>Сигналы недоступны</strong><small>Никаких вымышленных данных. Проверьте /api/signals после размещения проекта.</small>';}
  finally{clearTimeout(t);busy=false;$('refresh').disabled=false;$('refresh').textContent='↻ Проверить сейчас';}
 }
