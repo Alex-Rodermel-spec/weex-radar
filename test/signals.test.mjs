@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-const {SYMBOLS,normalizeRows,rsi,ema,atr,getAnalysis}=(await import('../api/signals.mjs'))._test;
+const {SYMBOLS,normalizeRows,rsi,ema,atr,getAnalysis,breakoutQuality,currentPriceQuality,fetchCurrentQuote}=(await import('../api/signals.mjs'))._test;
 const step=300000;
 function sample(count=125,period=step){
  const end=Math.floor((Date.now()-1000)/period)*period-period;
@@ -23,7 +23,6 @@ test('16 unique WEEX radar markets retain existing coins and add 5 established f
 });
 
 test('fresh quote blocks long/short after reversal and after chasing a spike',()=>{
- const {currentPriceQuality}=await import('../api/signals.mjs').then(m=>m._test);
  assert.equal(currentPriceQuality('LONG',100,0.2,99.8).ok,false);
  assert.equal(currentPriceQuality('LONG',100,0.2,100.5).ok,false);
  assert.equal(currentPriceQuality('LONG',100,0.2,100.04).ok,true);
@@ -33,14 +32,12 @@ test('fresh quote blocks long/short after reversal and after chasing a spike',()
  assert.equal(currentPriceQuality('LONG',100,0.2,null).ok,false);
 });
 test('anti-chase rejects exhausted breakout and candle with late bearish wick',()=>{
- const {breakoutQuality}=await import('../api/signals.mjs').then(m=>m._test);
  const good={open:100,close:100.18,high:100.22,low:99.95};
  assert.equal(breakoutQuality('LONG',good,100.1,99.8,100.02,0.2).ok,true);
  assert.equal(breakoutQuality('LONG',{...good,high:100.55},100.1,99.8,100.02,0.2).ok,false);
  assert.equal(breakoutQuality('LONG',{...good,close:100.45,high:100.46},100.1,99.8,100.02,0.2).ok,false);
 });
 test('WEEX and Bybit fresh futures quotes are validated independently',async()=>{
- const {fetchCurrentQuote}=await import('../api/signals.mjs').then(m=>m._test);
  const now=Date.now(),mock=payload=>async()=>({ok:true,json:async()=>payload});
  const weex=await fetchCurrentQuote('ALGOUSDT','WEEX',mock([{symbol:'ALGOUSDT',bidPrice:'0.09490',askPrice:'0.09492',time:now}]),now);
  assert.equal(weex.price,0.09491);
