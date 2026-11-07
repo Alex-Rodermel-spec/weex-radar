@@ -3,7 +3,7 @@
 import {get,put,del} from '@vercel/blob';
 import {_test} from './signals.mjs';
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
-  verifyAccount,checkPositions,checkOrders,checkSymbolSettings,marketPlan,
+  verifyAccount,checkAvailableMargin,checkPositions,checkOrders,checkSymbolSettings,marketPlan,
   orderPayload,isAccepted,fingerprint} from '../lib/weex-order.mjs';
 const LOCK='trading/execution-global.lock';
 function isBlobConflict(e){return /already.?exists|conflict|blobalreadyexists|409/i.test(String(e?.message||e));}
@@ -67,11 +67,11 @@ export default async function handler(req,res){
     if(signal.status!=='ok'||signal.exchange!=='WEEX'||
        signal.direction!==plan.direction||signal.candleCloseTime!==plan.candleCloseTime)
       throw Error('Signal changed. No order was sent.');
-    const [account,positions,orders,info,book,settings]=await Promise.all([
+    const [account,positions,orders,info,book,settings,balance]=await Promise.all([
       weex.account(),weex.positions(),weex.openOrders(),weex.info(plan.symbol),
-      weex.book(plan.symbol),weex.symbolConfig(plan.symbol)
+      weex.book(plan.symbol),weex.symbolConfig(plan.symbol),weex.balance()
     ]);
-    verifyAccount(account);checkPositions(positions,plan.symbol);checkOrders(orders);
+    verifyAccount(account);checkAvailableMargin(balance);checkPositions(positions,plan.symbol);checkOrders(orders);
     const fresh=marketPlan(signal,info,book);
     if(fresh.quantity!==plan.quantity||fresh.stopLoss!==plan.stopLoss||
        fresh.takeProfit!==plan.takeProfit||
@@ -90,7 +90,13 @@ export default async function handler(req,res){
         Number(leveraged?.isolatedShortLeverage)!==10)throw Error('Cannot set 10x isolated leverage');
       checkSymbolSettings(await weex.symbolConfig(plan.symbol),plan.symbol);
     }
-    const order=orderPayload(fresh);
+    const newQuote=await weex.book(plan.symbol);
+    const finalPlan=marketPlan(signal,info,newQuote);
+    if(finalPlan.quantity!==plan.quantity||finalPlan.stopLoss!==plan.stopLoss||
+      finalPlan.takeProfit!==plan.takeProfit||
+      Math.abs(finalPlan.entryEstimate/plan.entryEstimate-1)>0.002)
+      throw Error('Price moved while configuring leverage. Prepare a new trade.');
+    const order=orderPayload(finalPlan);
     tradeClientId=order.newClientOrderId;
     // Idempotency is by signal candle + direction; never open the same signal twice.
     const signalHash=fingerprint(tradeClientId);

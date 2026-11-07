@@ -3,14 +3,14 @@ import {randomBytes} from 'node:crypto';
 import {put} from '@vercel/blob';
 import {_test} from './signals.mjs';
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
-  verifyAccount,checkPositions,checkOrders,marketPlan,fingerprint} from '../lib/weex-order.mjs';
+  verifyAccount,checkAvailableMargin,checkPositions,checkOrders,marketPlan,fingerprint} from '../lib/weex-order.mjs';
 async function createProposal(symbol) {
   const s=await _test.scanSymbol(symbol);
   if(s.status!=='ok'||s.exchange!=='WEEX'||!s.direction)throw Error('Нет нового подтверждённого сигнала WEEX');
-  const [info,book,account,positions,orders]=await Promise.all([
-    weex.info(symbol),weex.book(symbol),weex.account(),weex.positions(),weex.openOrders()
+  const [info,book,account,positions,orders,balance]=await Promise.all([
+    weex.info(symbol),weex.book(symbol),weex.account(),weex.positions(),weex.openOrders(),weex.balance()
   ]);
-  verifyAccount(account);
+  verifyAccount(account);checkAvailableMargin(balance);
   const opened=checkPositions(positions,symbol);
   checkOrders(orders);
   const plan=marketPlan(s,info,book);
