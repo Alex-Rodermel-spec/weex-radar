@@ -53,7 +53,7 @@ function emitNotifications(){
  if(!latest||!('Notification'in window)||Notification.permission!=='granted'||document.visibilityState!=='visible')return;
  for(const s of currentSignals()) {
    const key=`weex-radar-${s.exchange}-${s.symbol}-${s.candleCloseTime}-${s.direction}`;
-   try{if(localStorage.getItem(key))continue;localStorage.setItem(key,'1');new Notification(`${s.level==='STRONG'?'✦ СИЛЬНЫЙ':'Обычный'} ${s.direction}: ${NAMES[s.symbol]||s.symbol}`,{body:`${s.exchange} · закрытие ${format(s.price)} · действие до ${clock(s.expiresAt)}`,tag:key})}catch(e){console.warn('Browser notifications unavailable:',e)}
+   try{if(localStorage.getItem(key))continue;localStorage.setItem(key,'1');new Notification(`${s.level==='STRONG'?'✦ СИЛЬНЫЙ':'Обычный'} ${s.direction}: ${NAMES[s.symbol]||s.symbol} · вкладка открыта`,{body:`${s.exchange} · закрытие ${format(s.price)} · действие до ${clock(s.expiresAt)}`,tag:key})}catch(e){console.warn('Browser notifications unavailable:',e)}
  }
 }
 async function update(){
@@ -224,12 +224,43 @@ async function setupPush(interactive=false){
  }finally{pushBusy=false;button.disabled=false}
 }
 $('notify').onclick=()=>setupPush(true);
+async function inspectExistingPush(){
+ // Check an existing subscription only: do not request permission or silently subscribe.
+ if(!('serviceWorker' in navigator)||!('Notification' in window))return;
+ if(Notification.permission!=='granted'){
+  $('push-diagnostics').textContent=Notification.permission==='denied'
+   ?'❌ Уведомления Chrome заблокированы. Разреши сайт и нажми 🔔.'
+   :'⚠️ Фоновые уведомления не подключены. Нажми 🔔.';
+  return;
+ }
+ try{
+  const reg=await navigator.serviceWorker.getRegistration('/');
+  const sub=await reg?.pushManager?.getSubscription();
+  if(!sub){
+   $('push-diagnostics').textContent='⚠️ Разрешение есть, но фоновой Push-подписки НЕТ. Нажми 🔔, чтобы подключить.';
+   return;
+  }
+  const checked=await savePushSubscription(sub,true);
+  if(checked.present){
+   backgroundPushReady=true;
+   localStorage.setItem('weex-push-active','1');
+   $('notify').textContent='🔔 Подписка найдена · проверить снова';
+   showPushHealth(checked);showBackgroundHealth(checked);showSignalDeliveryHealth(checked);
+  }else{
+   $('push-diagnostics').textContent='⚠️ Подписка Chrome отсутствует на сервере. Нажми 🔔 для восстановления.';
+  }
+ }catch{
+  $('push-diagnostics').textContent='⚠️ Проверить фоновый Push не удалось. Нажми 🔔 для повторного подключения.';
+ }
+}
 if(localStorage.getItem('weex-push-active')==='1'){
  $('notify').textContent=('Notification'in window)&&Notification.permission==='denied'?
    '🔕 Chrome заблокировал push — измени разрешение сайта':'🔔 Проверить push ещё раз';
  // Recover previously approved push subscription when owner visits the RADAR.
  // Never request browser permissions or create subscriptions without prior consent.
  if(('Notification'in window)&&Notification.permission==='granted')setupPush(false);
+}else{
+ inspectExistingPush();
 }
 
 update();setInterval(()=>{if(document.visibilityState==='visible')update()},60000);
