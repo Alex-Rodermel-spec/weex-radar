@@ -74,6 +74,11 @@ const $=id=>document.getElementById(id);
 const coin=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 $('symbol').innerHTML=coin.map(x=>'<option value="'+x+'">'+x+'</option>').join('');
 $('symbol').value='XRPUSDT';
+const symbolFromSignal=new URLSearchParams(window.location.search).get('symbol');
+if(coin.includes(symbolFromSignal)){
+ $('symbol').value=symbolFromSignal;
+ $('messages').textContent='Монета '+symbolFromSignal+' выбрана из сигнала. Проверь свежесть сигнала и план. Ордер не отправлен.';
+}
 let approvalToken=null,expiresAt=0,busy=false;
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const number=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:8});

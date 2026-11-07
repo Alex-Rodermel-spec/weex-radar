@@ -89,7 +89,8 @@ export default async function handler(req,res){
       exchange:primary.exchange,
       direction:selected.length===1?primary.direction:'MULTI',
       candleCloseTime:primary.candleCloseTime,expiresAt:Math.min(...selected.map(s=>s.expiresAt)),
-      deliveryId,deliveryProof};
+      deliveryId,deliveryProof,
+      url:selected.length===1&&primary.exchange==='WEEX'?'/trade.html?symbol='+encodeURIComponent(primary.symbol):'/'};
     try{
      // Accepted by the push gateway is not confirmation of receipt on Android.
      await webpush.sendNotification(subscriber,JSON.stringify(message),{TTL:150,urgency:'high'});
