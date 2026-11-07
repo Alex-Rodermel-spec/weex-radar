@@ -3,7 +3,7 @@
 ## Current architecture (2026-11-07)
 - App: https://weex-radar.vercel.app
 - Source: https://github.com/Alex-Rodermel-spec/weex-radar
-- Radar: `GET /api/signals` — 8 symbols; WEEX primary, Bybit fallback; 5m closes, 15m confirmation.
+- Radar: `GET /api/signals` — 16 symbols; WEEX primary, Bybit fallback; 5m closes, 15m confirmation.
 - Android: Chrome push is subscribed and a real push has previously arrived with sound/vibration.
 - Push sender: `POST /api/push-dispatch`; verifies fresh 3-minute signals, sends with Web Push and stores delivered markers in private Vercel Blob.
 - Server authorization is restricted to GitHub Actions OIDC (`schedule` / `workflow_dispatch` on `main`) **or** `x-radar-cron-key` matching Vercel's secret `PUSH_CRON_KEY`.
@@ -26,7 +26,10 @@ Use https://cron-job.org/ (external provider; no account exists/has been verifie
 - Keep GitHub backup enabled initially. Existing Blob delivered markers attempt to suppress duplicate sends from different schedulers. Reconsider the GitHub schedule only after independent cron has proven stable.
 
 ## Critical safety/security notes
-- No trading keys are stored in this project; the radar is read-only and places no trades.
+- The project contains encrypted WEEX account API variables for a separately protected trading interface; real trading remains disabled. Public signal scanning and push dispatch remain read-only. Never enable live trading while order safety is unverified.
 - No trading performance has been validated; `STRONG` is a screening label, not a verified win probability.
 - Never expose `PUSH_CRON_KEY`, `BLOB_READ_WRITE_TOKEN`, or VAPID private key in messages, screenshots or source code.
 - External scheduler registration/consent must be completed by the project owner (or via an approved browser-assisted workflow). The connected GitHub/Vercel integrations here cannot create cron-job.org accounts or jobs without a supported connection.
+
+## Scheduler audit log
+Authorized cron-job.org requests emit `WEEX_RADAR_DISPATCH` with `source:cron` in Vercel runtime logs; GitHub emits `source:github`. Each event includes HTTP status and counts only; no secrets or subscriber identities. Use Vercel logs over the last 30 minutes to distinguish an actual minute scheduler from the irregular GitHub fallback. These logs do not confirm Android delivery. Transient push failures now clear the duplicate-suppression marker so a future scan may retry.

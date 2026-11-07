@@ -12,6 +12,9 @@
     },
     "api/trade-release.mjs": {
       "maxDuration": 30
+    },
+    "api/push-dispatch.mjs": {
+      "maxDuration": 60
     }
   }
 }
