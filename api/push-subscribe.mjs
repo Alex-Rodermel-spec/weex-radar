@@ -18,7 +18,7 @@ export default async function handler(req,res){
   if(req.headers.origin&&req.headers.origin!==ORIGIN)return res.status(403).json({error:'Origin not allowed'});
   const {id,proof,result,subscriberId,kind}=req.body.receipt;
   if(!/^[a-f0-9]{32}$/.test(id||'')||!/^[a-f0-9]{64}$/.test(proof||'')||
-     !/^[a-f0-9]{64}$/.test(subscriberId||'')||!['signal','test'].includes(kind)||
+     !/^[a-f0-9]{64}$/.test(subscriberId||'')||!['signal','test','background_test'].includes(kind)||
      !['shown','show_error'].includes(result))return res.status(400).json({error:'Invalid receipt'});
   if(!process.env.PUSH_CRON_KEY||!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Receipts unavailable'});
   const expected=createHmac('sha256',process.env.PUSH_CRON_KEY).update(id+'|'+subscriberId+'|'+kind).digest('hex');
@@ -49,18 +49,44 @@ export default async function handler(req,res){
   // reinserted with the same stale endpoint.
   if(req.body?.checkOnly===true){
     const present=r.blobs.some(b=>b.pathname===path);
-    let lastReceipt=null;
+    let lastReceipt=null,backgroundTest=null;
     if(present){
       try{
         const receipt=await get('receipts/'+id+'.json',{access:'private'});
         if(receipt?.stream){
           const row=JSON.parse(await new Response(receipt.stream).text());
-          if(['shown','show_error'].includes(row.result)&&['test','signal'].includes(row.kind)&&Number.isFinite(row.at))
+          if(['shown','show_error'].includes(row.result)&&['test','signal','background_test'].includes(row.kind)&&Number.isFinite(row.at))
             lastReceipt={result:row.result,kind:row.kind,at:row.at};
         }
       }catch(e){console.warn('WEEX_RADAR receipt lookup unavailable',String(e.message||e).slice(0,80));}
     }
-    return res.status(200).json({ok:true,present,lastReceipt});
+    if(present){
+      try{
+        const job=await get('background-tests/'+id+'.json',{access:'private'});
+        if(job?.stream){
+          const t=JSON.parse(await new Response(job.stream).text());
+          if(['queued','sent','failed'].includes(t.status)&&Number.isFinite(t.dueAt))
+            backgroundTest={status:t.status,dueAt:t.dueAt,queuedAt:t.queuedAt||0,sentAt:t.sentAt||null,error:t.error||null};
+        }
+      }catch(e){console.warn('WEEX_RADAR background test lookup unavailable',String(e.message||e).slice(0,80));}
+    }
+    return res.status(200).json({ok:true,present,lastReceipt,backgroundTest});
+  }
+  if(req.body?.queueBackgroundTest===true){
+    if(!r.blobs.some(b=>b.pathname===path))return res.status(409).json({error:'Activate push subscription first'});
+    const jobPath='background-tests/'+id+'.json';
+    let previous=null;
+    try{
+      const saved=await get(jobPath,{access:'private'});
+      if(saved?.stream)previous=JSON.parse(await new Response(saved.stream).text());
+    }catch(e){console.warn('WEEX_RADAR background test previous state unavailable',String(e.message||e).slice(0,70));}
+    if(previous&&Number.isFinite(previous.queuedAt)&&Date.now()-previous.queuedAt<240000)
+      return res.status(429).json({error:'Background test already scheduled recently'});
+    const now=Date.now();
+    const job={id:randomBytes(16).toString('hex'),subscriberId:id,queuedAt:now,dueAt:now+75000,status:'queued'};
+    await put(jobPath,JSON.stringify(job),{access:'private',allowOverwrite:true,contentType:'application/json'});
+    console.info('WEEX_RADAR_BACKGROUND_TEST_SCHEDULED '+JSON.stringify({dueAt:job.dueAt}));
+    return res.status(200).json({ok:true,scheduled:true,dueAt:job.dueAt});
   }
   if(r.blobs.length>=10&&!r.blobs.some(b=>b.pathname===path))return res.status(429).json({error:'Subscription limit reached'});
   await put(path,JSON.stringify({subscription:sub,createdAt:Date.now()}),{access:'private',allowOverwrite:true,contentType:'application/json',cacheControlMaxAge:60});

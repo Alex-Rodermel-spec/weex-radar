@@ -26,3 +26,20 @@ test('interactive push checks also carry a worker receipt token',()=>{
  assert.match(html,/function showPushHealth\(checked\)/);
  assert.match(html,/Баннер и звук Android отдельно не подтверждены/);
 });
+
+test('background push test is queued, sent through cron and acknowledged independently of a page',()=>{
+ const dispatch=read('../api/push-dispatch.mjs');
+ const subscribe=read('../api/push-subscribe.mjs');
+ const worker=read('../sw.js');
+ const html=read('../index.html');
+ assert.match(subscribe,/queueBackgroundTest===true/);
+ assert.match(subscribe,/background-tests\//);
+ assert.match(dispatch,/async function sendDueBackgroundTests/);
+ assert.match(dispatch,/background-test-locks\//);
+ assert.match(dispatch,/kind:'background_test'/);
+ assert.match(dispatch,/sendDueBackgroundTests\(\)/);
+ assert.match(worker,/background_test/);
+ assert.match(html,/id="bg-test"/);
+ assert.match(html,/scheduleBackgroundPushTest/);
+ assert.match(html,/pageshow/);
+});

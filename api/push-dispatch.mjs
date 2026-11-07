@@ -26,6 +26,45 @@ async function loadSubscriptions(){
  return rows.slice(0,20);
 }
 function key(x){return createHash('sha256').update(x).digest('hex')}
+
+async function sendDueBackgroundTests(){
+ const jobs=await list({prefix:'background-tests/',limit:15});
+ const now=Date.now();
+ let accepted=0,failed=0;
+ webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
+ for(const blob of jobs.blobs){
+  try{
+   const row=await get(blob.pathname,{access:'private'});
+   if(!row)continue;
+   const task=JSON.parse(await new Response(row.stream).text());
+   if(task.status!=='queued'||!Number.isFinite(task.dueAt)||task.dueAt>now||now-task.dueAt>600000)continue;
+   if(!/^[a-f0-9]{32}$/.test(task.id||'')||!/^[a-f0-9]{64}$/.test(task.subscriberId||''))continue;
+   try{await put('background-test-locks/'+task.id+'.txt','1',{access:'private',allowOverwrite:false,addRandomSuffix:false})}
+   catch(e){if(/exist|already|conflict|409/i.test(String(e.message||e)))continue;throw e}
+   try{
+    const subscriberFile=await get('subscribers/'+task.subscriberId+'.json',{access:'private'});
+    if(!subscriberFile)throw Error('SUBSCRIBER_MISSING');
+    const subscriber=JSON.parse(await new Response(subscriberFile.stream).text()).subscription;
+    if(!subscriber?.endpoint||key(subscriber.endpoint)!==task.subscriberId)throw Error('SUBSCRIBER_CHANGED');
+    const deliveryProof=createHmac('sha256',process.env.PUSH_CRON_KEY)
+      .update(task.id+'|'+task.subscriberId+'|background_test').digest('hex');
+    const message={title:'🌙 WEEX RADAR — тест в фоне',
+      body:'Это уведомление отправил сервер без открытой вкладки Chrome.',
+      symbol:'TEST',candleCloseTime:Date.now(),deliveryId:task.id,deliveryProof,
+      subscriberId:task.subscriberId,kind:'background_test'};
+    await webpush.sendNotification(subscriber,JSON.stringify(message),{TTL:180,urgency:'high'});
+    accepted++;task.status='sent';task.sentAt=Date.now();
+    console.info('WEEX_RADAR_BACKGROUND_TEST_GATEWAY '+JSON.stringify({id:task.id.slice(0,12),accepted:true}));
+   }catch(e){
+    failed++;task.status='failed';task.error=Number(e?.statusCode)?'PUSH_HTTP_'+Number(e.statusCode):'SEND_FAILED';
+    console.warn('WEEX_RADAR background test failed',task.error);
+   }
+   await put(blob.pathname,JSON.stringify(task),{access:'private',allowOverwrite:true,contentType:'application/json'});
+  }catch(e){failed++;console.warn('WEEX_RADAR background-test job failure',String(e.message||e).slice(0,90))}
+ }
+ return {accepted,failed};
+}
+
 // Audit scheduling without storing secrets, subscriber addresses or balances.
 // Log each authorized run, including healthy scans with zero trading signals.
 export function dispatchAudit(source,http,body,checkedAt=Date.now()){
@@ -48,12 +87,14 @@ export default async function handler(req,res){
  if(!source)return res.status(401).json({error:'Unauthorized'});
  if(!process.env.BLOB_READ_WRITE_TOKEN||!process.env.VAPID_PRIVATE_KEY||!process.env.VAPID_PUBLIC_KEY||!process.env.PUSH_CRON_KEY)return res.status(503).json({error:'Push not configured'});
  try{
+  let background={accepted:0,failed:0};
+  try{background=await sendDueBackgroundTests()}catch(e){console.warn('WEEX_RADAR background test check unavailable',String(e.message||e).slice(0,90))}
   const response=await fetch('https://weex-radar.vercel.app/api/signals',{cache:'no-store',signal:AbortSignal.timeout(26000)});
   if(!response.ok)throw Error('Radar API '+response.status);
   const result=await response.json();
   if(!Number.isFinite(result.generatedAt)||Math.abs(Date.now()-result.generatedAt)>90000||!Array.isArray(result.symbols))throw Error('Stale/invalid scan');
   const signals=result.symbols.filter(s=>s.status==='ok'&&['LONG','SHORT'].includes(s.direction)&&s.expiresAt>Date.now()+15000&&s.exchange&&s.candleCloseTime);
-  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0});
+  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background});
   const entries=await loadSubscriptions();
   if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0});
   webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
