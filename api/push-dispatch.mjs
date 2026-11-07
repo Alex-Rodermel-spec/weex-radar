@@ -77,7 +77,8 @@ export default async function handler(req,res){
     const selected=pending.map(item=>item.signal);
     const primary=selected[0],strong=selected.some(s=>s.level==='STRONG');
     const deliveryId=key(subscriber.endpoint+'|'+pending.map(({mark})=>mark).join('|')).slice(0,32);
-    const deliveryProof=createHmac('sha256',process.env.PUSH_CRON_KEY).update(deliveryId).digest('hex');
+    const subscriberId=key(subscriber.endpoint);
+    const deliveryProof=createHmac('sha256',process.env.PUSH_CRON_KEY).update(deliveryId+'|'+subscriberId+'|signal').digest('hex');
     const title=selected.length===1
       ?(strong?'🟣 СИЛЬНЫЙ':'Сигнал')+' '+primary.symbol+' '+primary.direction
       :(strong?'🟣 СИЛЬНЫЕ':'Сигналы')+' WEEX · '+selected.length+' монет';
@@ -89,7 +90,7 @@ export default async function handler(req,res){
       exchange:primary.exchange,
       direction:selected.length===1?primary.direction:'MULTI',
       candleCloseTime:primary.candleCloseTime,expiresAt:Math.min(...selected.map(s=>s.expiresAt)),
-      deliveryId,deliveryProof,
+      deliveryId,deliveryProof,subscriberId,kind:'signal',
       url:selected.length===1&&primary.exchange==='WEEX'?'/trade.html?symbol='+encodeURIComponent(primary.symbol):'/'};
     try{
      // Accepted by the push gateway is not confirmation of receipt on Android.

@@ -15,6 +15,7 @@ main{max-width:1110px;padding:25px 17px;margin:auto}header{display:flex;justify-
 h1{font-size:clamp(29px,5vw,54px);line-height:1.06;letter-spacing:-.06em;margin:10px 0 13px;font-weight:850}.highlight{color:#bf96ff}.sub{color:var(--muted);max-width:650px;margin:0 0 25px}.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:22px}.btn{border:1px solid #574b76;background:#7852b0;color:white;border-radius:13px;padding:11px 16px;font:inherit;font-weight:650;cursor:pointer}.btn:disabled{opacity:.5;cursor:wait}.btn.secondary{background:#1d1b2b;border:1px solid #444052;color:#e8defa}.status{margin-left:auto;color:#9ba3b6;font-size:12px;display:flex;align-items:center;gap:7px}.dot{height:7px;width:7px;border-radius:50%;background:var(--gold);display:inline-block}.dot.ok{background:var(--green)}.dot.err{background:var(--red)}
 .summary{border:1px solid #3b3450;background:linear-gradient(122deg,#1d192c,#131522 70%);border-radius:21px;padding:19px;margin-bottom:22px;box-shadow:0 8px 44px #080a1222}.summary-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:13px}.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#beacdb;font-weight:700}.summary strong{font-size:23px;letter-spacing:-.03em}.summary small{color:var(--muted);display:block}.signals{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.signal{padding:14px;border:1px solid #3b3748;background:#171725;border-radius:14px}.signal.STRONG{border-color:#bd87ff;background:linear-gradient(125deg,#38224c,#1b1828);box-shadow:0 0 25px #ac78ff1c}.signal-header{display:flex;justify-content:space-between;align-items:center}.signal h3{margin:2px 0 8px;font-size:22px}.signal .direction{font-size:20px;font-weight:800}.signal small{font-size:12px}.signal-trade-link{display:block;color:#f3d6ff;margin-top:12px;padding:10px;border:1px solid #805aa0;border-radius:9px;text-align:center;text-decoration:none;background:#51316c}.level{font-size:11px;letter-spacing:.07em;font-weight:800;border:1px solid #534364;border-radius:20px;padding:4px 8px;color:#d1b3ff}.level.STRONG{color:#f3d8ff;border-color:#b074f5;background:#7c30a04a}.long{color:var(--green)}.short{color:var(--red)}.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.stats div{background:#00000022;padding:9px;border-radius:8px}.stats span{display:block;color:#a4a6b6;font-size:11px}.stats b{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}.meter{height:5px;background:#302c40;border-radius:10px;overflow:hidden;margin-top:8px}.meter i{display:block;height:100%;background:linear-gradient(90deg,#7a64ef,#bb70ed)}
 h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:11px}.market{background:#151723;border:1px solid #292d3b;border-radius:17px;padding:15px;min-height:144px}.market-top{display:flex;align-items:center;justify-content:space-between;gap:6px}.market-title{font-size:16px;font-weight:800}.market-title span{font-size:12px;font-weight:500;color:var(--muted);margin-left:6px}.exchange{padding:3px 7px;background:#252538;border-radius:6px;font-size:11px;color:#c3bfd0;border:1px solid #343448}.market-price{font-size:23px;letter-spacing:-.035em;font-weight:750;font-variant-numeric:tabular-nums;margin:13px 0 6px}.market-footer{display:flex;justify-content:space-between;gap:9px;color:#9da4b6;font-size:12px}.muted{color:var(--muted)}.market-price.missing{font-size:17px;color:#ffc1c9}.chip{padding:3px 8px;border-radius:7px;background:#282836;color:#c1bcd0;font-size:11px;font-weight:750}.chip.LONG{color:#7cf0c6;background:#103e35}.chip.SHORT{color:#ffa8b4;background:#4a1f30}.chip.ERROR{color:#ffb4b4;background:#422531}.chip.STRONG{background:#673a82;color:#f3d7ff}.footnotes{color:#878b9c;font-size:12px;line-height:1.7;margin-top:22px;padding-top:17px;border-top:1px solid #262937}.footer-line{display:flex;flex-wrap:wrap;justify-content:space-between;gap:7px}.loader{width:12px;height:12px;border:2px solid #747094;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.push-diagnostics{font-size:12px;line-height:1.55;color:#c6c0d3;margin:-9px 0 21px;padding:10px 13px;border-left:2px solid #8258a5;background:#171522}
 @media(max-width:500px){main{padding-top:20px}.status{flex-basis:100%;margin-left:0}.toolbar .btn{flex:1}.summary{padding:16px}.market-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.market{padding:12px;min-height:151px}.market-title{font-size:14px}.market-title span{display:block;margin:0}.market-price{font-size:18px}.market-footer{display:block}.exchange{font-size:10px}.footnotes{font-size:11px}}
 @media(max-width:360px){.market-grid{grid-template-columns:1fr}.market-title span{display:inline}}
 </style>
@@ -23,6 +24,7 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
 <header><div class="brand"><span class="brandmark">◈</span><span>WEEX <span style="color:#b48dff">SIGNAL RADAR</span></span></div><div class="top-pill">WEEX <b>основной</b> · Bybit резерв</div></header>
 <section aria-label="Главная"><div class="eyebrow">СКАНЕР ФЬЮЧЕРСОВ · 5M + 15M</div><h1>Сигналы <span class="highlight">LONG / SHORT</span><br>без догадок</h1><p class="sub">Только закрытые свечи, подтверждение тренда и пробоя. Сильные сигналы — фиолетовым. Если условий нет, честно показываем «ЖДАТЬ».</p></section>
 <div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary">🔔 Включить push в фоне</button><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/trade.html">💼 План сделки</a><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
+<p id="push-diagnostics" class="push-diagnostics" role="status" aria-live="polite">Push: проверка доступна через кнопку 🔔. Подтверждение Chrome не гарантирует звук или баннер Android.</p>
 <section class="summary" aria-live="polite"><div class="summary-top"><span class="eyebrow">АКТУАЛЬНЫЕ СИГНАЛЫ</span><small id="updated">Обновление: —</small></div><div id="signal-container"><strong>Проверяем рынок…</strong><small>Вход без подтверждения не предлагаем.</small></div></section>
 <section><div class="summary-top"><h2>Рынок · 16 инструментов</h2><small class="muted">WEEX → Bybit</small></div><div id="markets" class="market-grid" aria-live="polite"></div></section>
 <section class="footnotes"><div class="footer-line"><span>Автообновление: раз в 60 сек., пока эта страница открыта.</span><span>Срок действия сигнала: 3 мин. после закрытия свечи.</span></div><p>⚠️ Это учебный сканер, а не команда к сделке. Уровни TP/SL примерные, исходя из ATR; цены двух бирж могут отличаться. Уведомления при открытой странице доступны сразу. Фоновые push после разрешения работают через Android/браузер; внешний планировщик cron-job.org должен запускать проверку примерно раз в минуту, GitHub используется как резерв. При задержках планировщика или Android сигнал со сроком 3 минуты можно пропустить. Звук контролируется настройками Android. Автоматические сделки не подключены. При высоком плече возможна полная потеря маржи.</p></section>
@@ -81,6 +83,25 @@ async function savePushSubscription(subscription,checkOnly=false){
  if(!response.ok)throw Error('Ошибка подписки '+response.status);
  return response.json();
 }
+function showPushHealth(checked){
+ const el=$('push-diagnostics');
+ if(!checked?.present){el.textContent='⚠️ Push-подписка не найдена на сервере. Нажми 🔔 для восстановления.';return;}
+ const receipt=checked.lastReceipt;
+ if(!receipt){el.textContent='Подписка есть, но подтверждения обработки Push пока нет. Нажми 🔔 для нового теста.';return;}
+ const kind=receipt.kind==='test'?'тестовое уведомление':'торговый сигнал';
+ const time=Number.isFinite(receipt.at)?clock(receipt.at):'—';
+ el.textContent=receipt.result==='shown'
+   ?'✅ '+time+' Chrome обработал '+kind+' и вызвал показ уведомления. Баннер и звук Android отдельно не подтверждены.'
+   :'❌ '+time+' Chrome не смог показать '+kind+'. Проверь разрешения уведомлений для сайта в Android.';
+}
+async function refreshPushHealth(){
+ if(!backgroundPushReady||document.visibilityState!=='visible')return;
+ try{
+  const reg=await navigator.serviceWorker.ready;
+  const sub=await reg.pushManager.getSubscription();
+  if(sub)showPushHealth(await savePushSubscription(sub,true));
+ }catch(e){$('push-diagnostics').textContent='Проверка доставки недоступна: '+String(e.message||e);}
+}
 async function setupPush(interactive=false){
  const button=$('notify');
  if(pushBusy)return;
@@ -111,7 +132,8 @@ async function setupPush(interactive=false){
      const checked=await savePushSubscription(subscription,true);
      if(checked.present){
        backgroundPushReady=true;
-       button.textContent='🔔 Подписка активна · доставка не подтверждена';
+       button.textContent='🔔 Подписка активна · проверить снова';
+       showPushHealth(checked);
        return;
      }
      // Removed by Vercel after a 404/410 from the push gateway.
@@ -131,6 +153,10 @@ async function setupPush(interactive=false){
    localStorage.setItem('weex-push-active','1');
    backgroundPushReady=Boolean(result.testSent);
    button.textContent=result.testSent?'🔔 Тест отправлен · проверь телефон':'⚠ Push: проверь подключение';
+   $('push-diagnostics').textContent=result.testSent
+     ?'Тест принят Push-сервисом. Ждём подтверждения Chrome (это ещё не подтверждение баннера Android).'
+     :'⚠️ Тестовый Push не принят: '+String(result.testError||'UNKNOWN');
+   if(result.testSent)setTimeout(refreshPushHealth,3500);
    if(!result.testSent&&interactive){
      alert('Push не подтвердился: '+String(result.testError||'UNKNOWN')+
        '. Попробуй ещё раз и проверь разрешения Android.');
@@ -152,6 +178,7 @@ if(localStorage.getItem('weex-push-active')==='1'){
 
 update();setInterval(()=>{if(document.visibilityState==='visible')update()},60000);
 setInterval(()=>{if(latest)draw()},1000);
+setInterval(()=>{if(document.visibilityState==='visible'&&backgroundPushReady)refreshPushHealth()},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')update()});
 </script>
 </body></html>

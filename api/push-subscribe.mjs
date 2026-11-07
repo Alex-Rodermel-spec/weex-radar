@@ -1,5 +1,5 @@
 import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
-import {put,list,del} from '@vercel/blob';
+import {get,put,list,del} from '@vercel/blob';
 import webpush from 'web-push';
 const ORIGIN='https://weex-radar.vercel.app';
 function secureEqual(a,b){if(!a||!b)return false;const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
@@ -16,12 +16,22 @@ export default async function handler(req,res){
  // Vercel Hobby's 12-function limit. It is not a browser notification guarantee.
  if(req.method==='POST'&&req.body?.receipt){
   if(req.headers.origin&&req.headers.origin!==ORIGIN)return res.status(403).json({error:'Origin not allowed'});
-  const {id,proof,result}=req.body.receipt;
-  if(!/^[a-f0-9]{32}$/.test(id||'')||!/^[a-f0-9]{64}$/.test(proof||'')||!['shown','show_error'].includes(result))return res.status(400).json({error:'Invalid receipt'});
-  if(!process.env.PUSH_CRON_KEY)return res.status(503).json({error:'Receipts unavailable'});
-  const expected=createHmac('sha256',process.env.PUSH_CRON_KEY).update(id).digest('hex');
+  const {id,proof,result,subscriberId,kind}=req.body.receipt;
+  if(!/^[a-f0-9]{32}$/.test(id||'')||!/^[a-f0-9]{64}$/.test(proof||'')||
+     !/^[a-f0-9]{64}$/.test(subscriberId||'')||!['signal','test'].includes(kind)||
+     !['shown','show_error'].includes(result))return res.status(400).json({error:'Invalid receipt'});
+  if(!process.env.PUSH_CRON_KEY||!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Receipts unavailable'});
+  const expected=createHmac('sha256',process.env.PUSH_CRON_KEY).update(id+'|'+subscriberId+'|'+kind).digest('hex');
   if(!secureEqual(proof,expected))return res.status(403).json({error:'Invalid receipt signature'});
-  console.info('WEEX_RADAR_PUSH_WORKER '+JSON.stringify({id:id.slice(0,12),result,at:Date.now()}));
+  const at=Date.now();
+  try{
+    await put('receipts/'+subscriberId+'.json',JSON.stringify({result,kind,at}),
+      {access:'private',allowOverwrite:true,contentType:'application/json'});
+  }catch(e){
+    console.warn('WEEX_RADAR receipt storage failed',String(e.message||e).slice(0,100));
+    return res.status(503).json({error:'Receipt storage unavailable'});
+  }
+  console.info('WEEX_RADAR_PUSH_WORKER '+JSON.stringify({id:id.slice(0,12),result,kind,at}));
   return res.status(200).json({ok:true});
  }
  if(req.headers.origin!==ORIGIN)return res.status(403).json({error:'Origin not allowed'});
@@ -37,9 +47,21 @@ export default async function handler(req,res){
   // push gateway previously rejected and removed this exact endpoint.
   // A missing subscription must be recreated in the browser, not silently
   // reinserted with the same stale endpoint.
-  if(req.body?.checkOnly===true)return res.status(200).json({
-    ok:true,present:r.blobs.some(b=>b.pathname===path)
-  });
+  if(req.body?.checkOnly===true){
+    const present=r.blobs.some(b=>b.pathname===path);
+    let lastReceipt=null;
+    if(present){
+      try{
+        const receipt=await get('receipts/'+id+'.json',{access:'private'});
+        if(receipt?.stream){
+          const row=JSON.parse(await new Response(receipt.stream).text());
+          if(['shown','show_error'].includes(row.result)&&['test','signal'].includes(row.kind)&&Number.isFinite(row.at))
+            lastReceipt={result:row.result,kind:row.kind,at:row.at};
+        }
+      }catch(e){console.warn('WEEX_RADAR receipt lookup unavailable',String(e.message||e).slice(0,80));}
+    }
+    return res.status(200).json({ok:true,present,lastReceipt});
+  }
   if(r.blobs.length>=10&&!r.blobs.some(b=>b.pathname===path))return res.status(429).json({error:'Subscription limit reached'});
   await put(path,JSON.stringify({subscription:sub,createdAt:Date.now()}),{access:'private',allowOverwrite:true,contentType:'application/json',cacheControlMaxAge:60});
   let testSent=false;
@@ -48,8 +70,8 @@ export default async function handler(req,res){
    if(!process.env.VAPID_PUBLIC_KEY||!process.env.VAPID_PRIVATE_KEY)throw Error('VAPID_KEYS_MISSING');
    webpush.setVapidDetails(ORIGIN,process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
    const deliveryId=randomBytes(16).toString('hex');
-   const deliveryProof=process.env.PUSH_CRON_KEY?createHmac('sha256',process.env.PUSH_CRON_KEY).update(deliveryId).digest('hex'):null;
-   const payload={title:'🔔 WEEX RADAR — проверка связи',body:'Проверка фоновых уведомлений. Если сообщение видно — связь работает.',symbol:'TEST',candleCloseTime:Date.now(),deliveryId,deliveryProof};
+   const deliveryProof=process.env.PUSH_CRON_KEY?createHmac('sha256',process.env.PUSH_CRON_KEY).update(deliveryId+'|'+id+'|test').digest('hex'):null;
+   const payload={title:'🔔 WEEX RADAR — проверка связи',body:'Проверка фоновых уведомлений. Если сообщение видно — связь работает.',symbol:'TEST',candleCloseTime:Date.now(),deliveryId,deliveryProof,subscriberId:id,kind:'test'};
    await webpush.sendNotification(sub,JSON.stringify(payload),{TTL:90,urgency:'high'});
    testSent=true;
    console.info('WEEX_RADAR_TEST_GATEWAY '+JSON.stringify({id:deliveryId.slice(0,12),accepted:true}));

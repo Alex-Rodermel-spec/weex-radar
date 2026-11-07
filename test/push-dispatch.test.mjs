@@ -53,3 +53,17 @@ test('RADAR home page browser script is valid JavaScript',async()=>{
  assert.ok(match,'missing main page script');
  assert.doesNotThrow(()=>new Script(match[1],{filename:'index.html'}));
 });
+
+test('signed push receipts distinguish subscriber and signal/test and are visible in health check',()=>{
+ const dispatch=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
+ const subscribe=readFileSync(new URL('../api/push-subscribe.mjs',import.meta.url),'utf8');
+ const worker=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
+ const ui=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(dispatch,/subscriberId=key\(subscriber\.endpoint\)/);
+ assert.match(dispatch,/deliveryId\+'\|'\+subscriberId\+'\|signal'/);
+ assert.match(subscribe,/deliveryId\+'\|'\+id\+'\|test'/);
+ assert.ok(subscribe.includes("'receipts/'+subscriberId+'.json'"));
+ assert.match(subscribe,/lastReceipt/);
+ assert.match(worker,/subscriberId:msg\.subscriberId,kind:msg\.kind,result/);
+ assert.match(ui,/function showPushHealth\(checked\)/);
+});
