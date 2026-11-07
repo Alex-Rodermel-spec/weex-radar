@@ -3,6 +3,15 @@
   "functions": {
     "api/signals.mjs": {
       "maxDuration": 30
+    },
+    "api/trade-prepare.mjs": {
+      "maxDuration": 40
+    },
+    "api/trade-confirm.mjs": {
+      "maxDuration": 60
+    },
+    "api/trade-release.mjs": {
+      "maxDuration": 30
     }
   }
 }
