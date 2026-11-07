@@ -8,6 +8,11 @@
     "test": "node --test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22 <27"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.3.0",
+    "web-push": "^3.6.7",
+    "jose": "^6.1.0"
   }
 }
