@@ -41,3 +41,16 @@ test('the existing cron dispatch protects 5m notifications even if the 1m scan f
  assert.match(receiver,/'early_watch'/);
  assert.doesNotMatch(early,/trade-confirm|trade-prepare|\/capi\/v3\/order/);
 });
+
+test('updated worker activates new early-watch notifications on an existing phone',()=>{
+ const sw=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
+ assert.match(sw,/self\\.addEventListener\\('install'/);
+ assert.match(sw,/self\\.skipWaiting\\(\\)/);
+ assert.match(sw,/self\\.clients\\.claim\\(\\)/);
+ assert.match(sw,/msg\\.kind==='early_watch'/);
+});
+test('cron audits early scan even when there is no early alert',()=>{
+ const code=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
+ assert.match(code,/WEEX_RADAR_EARLY_DISPATCH/);
+ assert.doesNotMatch(code,/if\\(early\\.earlySignals\\|\\|early\\.failed\\)/);
+});

@@ -1,4 +1,7 @@
 /* WEEX RADAR push service worker: reports when Chrome actually handles push. */
+// Activate new early-watch notification support without closing old browser tabs.
+self.addEventListener('install',event=>{event.waitUntil(self.skipWaiting())});
+self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim())});
 self.addEventListener('push',event=>{
  let msg={};try{msg=event.data?.json()||{}}catch{msg={title:'WEEX RADAR',body:event.data?.text()||''}}
  const title=String(msg.title||'WEEX RADAR');

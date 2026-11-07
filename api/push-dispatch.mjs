@@ -113,8 +113,8 @@ export function dispatchAudit(source,http,body,checkedAt=Date.now()){
 async function safeEarlyPush(){
  try{
   const early=await sendEarlyPush();
-  if(early.earlySignals||early.failed)
-   console.info('WEEX_RADAR_EARLY_DISPATCH '+JSON.stringify(early));
+  // Audit scans even when no early signal is found.
+  console.info('WEEX_RADAR_EARLY_DISPATCH '+JSON.stringify(early));
   return early;
  }catch(e){
   console.warn('WEEX_RADAR_EARLY_SCAN_FAILED '+String(e.message||e).slice(0,110));
