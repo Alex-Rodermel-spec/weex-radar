@@ -163,3 +163,17 @@ test('OIDC probe inspects trading prerequisites using read-only WEEX calls only'
  for(const method of ['placeOrder','setLeverage','marginIsolated','closeById'])
    assert.ok(!code.includes('weex.'+method+'('),method+' should never run in probe');
 });
+
+test('order prepare and confirm require listing in WEEX Futures API trading symbols',()=>{
+ for(const file of ['trade-prepare.mjs','trade-confirm.mjs']){
+  const code=readFileSync(new URL('../api/'+file,import.meta.url),'utf8');
+  assert.match(code,/weex\.apiTradingSymbols\(\)/);
+  assert.match(code,/apiTradingSymbols\.includes\(/);
+ }
+});
+test('OIDC dry-run exercises pure market plan and order payload without a real order',()=>{
+ const code=readFileSync(new URL('../api/weex-auth-probe.mjs',import.meta.url),'utf8');
+ assert.match(code,/marketPlan\(synthetic/);
+ assert.match(code,/orderPayload\(plan\)/);
+ assert.doesNotMatch(code,/weex\.placeOrder\(/);
+});

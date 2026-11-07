@@ -7,9 +7,11 @@ import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
 async function createProposal(symbol) {
   const s=await _test.scanSymbol(symbol);
   if(s.status!=='ok'||s.exchange!=='WEEX'||!s.direction)throw Error('Нет нового подтверждённого сигнала WEEX');
-  const [info,book,account,positions,orders,balance]=await Promise.all([
-    weex.info(symbol),weex.book(symbol),weex.account(),weex.positions(),weex.openOrders(),weex.balance()
+  const [info,book,account,positions,orders,balance,apiTradingSymbols]=await Promise.all([
+    weex.info(symbol),weex.book(symbol),weex.account(),weex.positions(),weex.openOrders(),weex.balance(),weex.apiTradingSymbols()
   ]);
+  if(!Array.isArray(apiTradingSymbols)||!apiTradingSymbols.includes(symbol))
+    throw Error('WEEX API Futures trading is not available for this symbol');
   verifyAccount(account);checkAvailableMargin(balance);
   const opened=checkPositions(positions,symbol);
   checkOrders(orders);

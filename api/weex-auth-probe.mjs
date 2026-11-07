@@ -1,7 +1,7 @@
 // GitHub-OIDC-only, read-only WEEX Futures connection probe.
 // Never expose credentials, balances, account IDs, positions, or raw exchange replies.
 import {jwtVerify,createRemoteJWKSet} from 'jose';
-import {weex,configured} from '../lib/weex-order.mjs';
+import {weex,configured,marketPlan,orderPayload} from '../lib/weex-order.mjs';
 const jwks=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 export async function validProbeToken(token,verify=jwtVerify) {
   if(typeof token!=='string'||!token||token.length>8000)return false;
@@ -63,6 +63,32 @@ export default async function handler(req,res) {
   check.exchangeInfo=summarize(info,x=>Array.isArray(x?.symbols));
   check.bookTicker=summarize(book,x=>(Array.isArray(x)?x.length>0:Boolean(x&&typeof x==='object')));
   check.apiTradingSymbols=summarize(apiSymbols,Array.isArray);
+  // Dry-run: build a *synthetic* local plan from real market metadata.
+  // This never submits an order and is not an investment signal.
+  // The GitHub diagnostic receives only pass/fail, never account data.
+  let dryRunPlan=false;
+  if(info.status==='fulfilled'&&book.status==='fulfilled'&&
+     apiSymbols.status==='fulfilled'&&Array.isArray(apiSymbols.value)&&
+     apiSymbols.value.includes('XRPUSDT')) {
+    try {
+      const quote=(Array.isArray(book.value)?book.value:[book.value])
+        .find(x=>x?.symbol==='XRPUSDT');
+      const ask=Number(quote?.askPrice),now=Date.now();
+      if(Number.isFinite(ask)&&ask>0){
+        const synthetic={symbol:'XRPUSDT',status:'ok',exchange:'WEEX',
+          level:'NORMAL',direction:'LONG',price:ask,
+          stop:ask*0.99,take:ask*1.02,
+          candleCloseTime:now-15000,expiresAt:now+120000};
+        const plan=marketPlan(synthetic,info.value,book.value,now);
+        const prepared=orderPayload(plan); // local data object, NO HTTP call
+        dryRunPlan=prepared.symbol==='XRPUSDT'&&prepared.type==='MARKET'&&
+          prepared.quantity===plan.quantity&&
+          prepared.tpTriggerPrice===String(plan.takeProfit)&&
+          prepared.slTriggerPrice===String(plan.stopLoss);
+      }
+    }catch{}
+  }
+  check.dryRunPlan=dryRunPlan?'authenticated':'unavailable';
   const ok=Object.values(check).every(v=>v==='authenticated');
   return res.status(ok?200:502).json({
     ok,stage:ok?'authenticated':'three_endpoint_diagnosis',code:ok?null:

@@ -67,10 +67,12 @@ export default async function handler(req,res){
     if(signal.status!=='ok'||signal.exchange!=='WEEX'||
        signal.direction!==plan.direction||signal.candleCloseTime!==plan.candleCloseTime)
       throw Error('Signal changed. No order was sent.');
-    const [account,positions,orders,info,book,settings,balance]=await Promise.all([
+    const [account,positions,orders,info,book,settings,balance,apiTradingSymbols]=await Promise.all([
       weex.account(),weex.positions(),weex.openOrders(),weex.info(plan.symbol),
-      weex.book(plan.symbol),weex.symbolConfig(plan.symbol),weex.balance()
+      weex.book(plan.symbol),weex.symbolConfig(plan.symbol),weex.balance(),weex.apiTradingSymbols()
     ]);
+    if(!Array.isArray(apiTradingSymbols)||!apiTradingSymbols.includes(plan.symbol))
+      throw Error('WEEX Futures API trading unavailable for this symbol');
     verifyAccount(account);checkAvailableMargin(balance);checkPositions(positions,plan.symbol);checkOrders(orders);
     const fresh=marketPlan(signal,info,book);
     if(fresh.quantity!==plan.quantity||fresh.stopLoss!==plan.stopLoss||
