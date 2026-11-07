@@ -35,3 +35,5 @@ jobs:
           fi
 
 # Last verified after API key update (read-only probe, 2026-11-07)
+
+# Read-only recheck after credential whitespace normalization, 2026-11-07
