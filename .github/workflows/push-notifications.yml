@@ -12,9 +12,9 @@ concurrency:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 7
     steps:
-      - name: Trigger push scanner using GitHub OIDC
+      - name: Scan every minute inside each scheduled five-minute window
         shell: bash
         run: |
           set -euo pipefail
@@ -23,7 +23,36 @@ jobs:
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=weex-radar-push")"
           jwt="$(echo "$response" | jq -r '.value')"
           test -n "$jwt" && test "$jwt" != null
-          curl --fail --silent --show-error --retry 2 --max-time 70 \
-            -X POST -H "Authorization: Bearer ${jwt}" \
-            -H 'Accept: application/json' \
-            'https://weex-radar.vercel.app/api/push-dispatch'
+
+          checks=5
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then checks=1; fi
+          passed=0
+          started="$(date +%s)"
+          for ((i=1; i<=checks; i++)); do
+            echo "::group::WEEX RADAR scan $i/$checks"
+            body="$(mktemp)"
+            http="$(curl --silent --show-error --retry 2 --max-time 70 \
+              -o "$body" -w '%{http_code}' -X POST \
+              -H "Authorization: Bearer ${jwt}" \
+              -H 'Accept: application/json' \
+              'https://weex-radar.vercel.app/api/push-dispatch')" || http="000"
+            if [[ "$http" == "200" ]] && jq -e '.ok == true' "$body" >/dev/null 2>&1; then
+              jq -c '{ok,signals,subscribers,delivered,failed}' "$body"
+              passed=$((passed+1))
+            else
+              echo "::warning::WEEX RADAR dispatch failed (HTTP $http)"
+              head -c 400 "$body" || true
+              echo
+            fi
+            rm -f "$body"
+            echo "::endgroup::"
+            if (( i < checks )); then
+              target=$((started + i*60))
+              now="$(date +%s)"
+              if (( target > now )); then sleep "$((target-now))"; fi
+            fi
+          done
+          if (( passed == 0 )); then
+            echo "::error::All scheduled scanner calls failed"
+            exit 1
+          fi
