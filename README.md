@@ -31,3 +31,15 @@ Read-only dashboard for WEEX Futures with Bybit fallback. No API keys, no orders
 
 - WEEX: https://www.weex.com/api-doc/contract/Market_API/GetKlines
 - Bybit: https://bybit-exchange.github.io/docs/v5/market/kline
+## Фоновые push для Android
+
+Сайт использует Web Push и service worker (`/sw.js`). Подписки сохраняются в отдельном **private Vercel Blob** store. В репозитории нет VAPID-private key, токенов хранения или секретов.
+
+- Откройте https://weex-radar.vercel.app **в Google Chrome на Android**. Нажмите кнопку «🔔 Включить push в фоне» и разрешите уведомления.
+- При первой подписке отправляется **тестовое уведомление**. Его получение зависит от Android/браузера, режима «Не беспокоить» и энергосбережения.
+- Проверки из GitHub Actions выполняются по расписанию **раз в 5 минут**; GitHub может задержать или пропустить плановый запуск. Сигналы действуют 3 минуты, поэтому некоторые сигналы неизбежно будут пропущены.
+- GitHub Actions использует **OIDC** без статических секретов и вызывает защищённый `POST /api/push-dispatch`. Также поддерживается `x-radar-cron-key` для доверенного внешнего планировщика (например, cron-job.org, каждую минуту), но его нужно подключить отдельно.
+- Нужные переменные Vercel в Production: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `BLOB_READ_WRITE_TOKEN`, `PUSH_CRON_KEY`.
+- Сайт **не гарантирует** доставку push за конкретное время, не отправляет сделки на биржу и не гарантирует прибыль.
+
+Все исходные файлы находятся в GitHub. Пока проект Vercel **не привязан к GitHub для автоматического деплоя**: изменения в репозитории не опубликованы до отдельного развёртывания.
