@@ -37,3 +37,5 @@ jobs:
 # Last verified after API key update (read-only probe, 2026-11-07)
 
 # Read-only recheck after credential whitespace normalization, 2026-11-07
+
+# Read-only authentication recheck after WEEX_API_SECRET update (2026-11-07)
