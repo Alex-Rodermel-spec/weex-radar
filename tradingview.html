@@ -56,8 +56,13 @@ code{background:#30283f;border-radius:5px;padding:2px 5px}
 <div id="radar-status" role="status">Проверяем свежие данные WEEX RADAR…</div>
 <p class="muted">Проверка сайта раз в минуту при открытой странице. Фоновый Push и Cron остаются на главной странице WEEX RADAR. Разные источники данных не смешиваются.</p>
 </section>
+<section class="panel" id="early-watch-panel">
+<h2>⚡ Ранний радар 1м — работает автоматически</h2>
+<div id="early-watch-status" role="status">Проверяем закрытые минутные свечи WEEX…</div>
+<p class="muted">Без регистрации TradingView и вставки кода. Раннее предупреждение появляется только при совпадении пробоя, объёма, тренда 15м и свежей котировки WEEX. Проверка примерно каждые 20 секунд, пока страница открыта. Это не готовая торговая рекомендация и не Push.</p>
+</section>
 <section class="panel">
-<h2>⚡ Ранний сигнал на 1-минутном графике</h2>
+<h2>Дополнительно: Pine-индикатор в своём аккаунте TradingView</h2>
 <p>Я добавил собственный индикатор <b>WEEX RADAR Early 1m</b> для TradingView Pine Script v6. Он проверяет тренд 15м, пробой, RSI, объём и форму свечи. Результат — <b>EARLY WATCH</b>, то есть предупреждение, а не разрешение на вход.</p>
 <div class="actions">
 <button class="primary" type="button" id="copy-pine">📋 Скопировать Pine Script</button>
@@ -68,7 +73,7 @@ code{background:#30283f;border-radius:5px;padding:2px 5px}
 </section>
 <section class="panel warning">
 <h2>Статус интеграции</h2>
-<p>✅ Графики WEEX TradingView и Pine Script встроены в RADAR. ✅ Существующие Push, Cron и торговые настройки не меняются.</p>
+<p>✅ График TradingView работает. ✅ Отдельный ранний радар 1м проверяет WEEX API автоматически. ✅ Существующие Push, Cron и торговые настройки не меняются.</p>
 <p>⚠️ Автоматическая пересылка оповещений TradingView в Push WEEX RADAR <strong>пока не подключена</strong>: для этого надо создать оповещения в твоём аккаунте TradingView и отдельно защитить Webhook. Не передавай пароли или API-ключи через Webhook. Никаких ордеров эта страница не создаёт.</p>
 </section>
 </main>
@@ -126,7 +131,23 @@ async function fetchRadar(){
     (active?' · Сигнал действителен до '+new Date(signal.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'}):'');
  }catch{output.textContent='WEEX RADAR временно не ответил. График TradingView работает отдельно.'}
 }
-symbolSelect.addEventListener('change',()=>{selected=symbolSelect.value;if(!SYMBOLS.includes(selected))return;showChart();fetchRadar()});
+async function fetchEarlyWatch(){
+ const code=selected,output=$('early-watch-status');
+ try{
+  const response=await fetch('/api/early-watch?symbol='+encodeURIComponent(code),
+   {cache:'no-store',signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw Error('Данные не получены');
+  const result=await response.json();
+  if(code!==selected)return;
+  const active=result.level==='EARLY_WATCH'&&['LONG','SHORT'].includes(result.direction)&&result.expiresAt>Date.now();
+  output.textContent=code+' · '+(active?'⚡ EARLY WATCH '+result.direction+' (предварительно)':'⏳ ЖДАТЬ')+
+   ' · '+result.reason+
+   ' · Закрытие свечи: '+new Date(result.candleCloseTime).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})+
+   (result.livePrice?' · Цена WEEX: '+formatPrice(result.livePrice):'')+
+   (active?' · Действует до '+new Date(result.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'}):'');
+ }catch{if(code===selected)output.textContent=code+' · ⚠️ Данные раннего радара временно недоступны. Не входить по старому предупреждению.'}
+}
+symbolSelect.addEventListener('change',()=>{selected=symbolSelect.value;if(!SYMBOLS.includes(selected))return;showChart();fetchRadar();fetchEarlyWatch()});
 for(const btn of document.querySelectorAll('[data-interval]'))btn.addEventListener('click',()=>{interval=btn.dataset.interval;showChart()});
 $('copy-pine').addEventListener('click',async()=>{
  try{
@@ -136,6 +157,9 @@ $('copy-pine').addEventListener('click',async()=>{
   $('copy-status').textContent='✅ Код скопирован. Вставь его в TradingView → Pine Editor.';
  }catch{$('copy-status').textContent='Скопировать не удалось. Нажми «Скачать код» и открой его в Pine Editor.'}
 });
-showChart();fetchRadar();setInterval(()=>{if(document.visibilityState==='visible')fetchRadar()},60000);
+showChart();fetchRadar();fetchEarlyWatch();
+setInterval(()=>{if(document.visibilityState==='visible')fetchRadar()},60000);
+setInterval(()=>{if(document.visibilityState==='visible')fetchEarlyWatch()},20000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')fetchEarlyWatch()});
 </script>
 </body></html>

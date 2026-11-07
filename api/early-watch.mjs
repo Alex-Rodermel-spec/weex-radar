@@ -1,0 +1,95 @@
+// WEEX RADAR early-watch: independent read-only one-minute analysis.
+// Never sends trading orders and never labels one-minute watches as confirmed signals.
+import {_test as indicators} from './signals.mjs';
+
+const MS1=60_000,MS15=900_000;
+function closed(rows,duration,now){
+ if(!Array.isArray(rows))throw Error('Invalid WEEX candles');
+ const unique=new Map();
+ for(const v of rows){
+  if(!Array.isArray(v)||v.length<6)continue;
+  const [time,open,high,low,close,volume]=v.slice(0,6).map(Number);
+  if(![time,open,high,low,close,volume].every(Number.isFinite)||
+     open<=0||high<=0||low<=0||close<=0||volume<0||
+     high<Math.max(open,close,low)||low>Math.min(open,close)||time>now+duration||
+     time<now-45*86400000||time+duration>now-1000)continue;
+  unique.set(time,{time,closeTime:time+duration,open,high,low,close,volume});
+ }
+ const candles=[...unique.values()].sort((a,b)=>a.time-b.time);
+ if(candles.length<60)throw Error('Too few completed WEEX candles');
+ if(now-candles.at(-1).closeTime>duration*2+30000)throw Error('Stale WEEX candle feed');
+ return candles;
+}
+function scanEarly(one,fifteen,now=Date.now(),livePrice=null){
+ const last=one.at(-1),prev=one.at(-2);
+ const out={status:'ok',exchange:'WEEX',interval:'1m',contextInterval:'15m',
+   level:'WAIT',direction:null,candleCloseTime:last.closeTime,expiresAt:null,
+   closePrice:last.close,livePrice:Number.isFinite(livePrice)&&livePrice>0?livePrice:null,
+   reason:'Нет раннего пробоя, ждём',indicators:{}};
+ if(now-last.closeTime>MS1){out.reason='Сигнал минутной свечи уже устарел';return out;}
+ const prices=one.map(x=>x.close),htf=fifteen.map(x=>x.close);
+ const {ema,rsi,atr,breakoutQuality,currentPriceQuality}=indicators;
+ const fast=ema(prices,20),slow=ema(prices,50),fast15=ema(htf,20),slow15=ema(htf,50);
+ const vol=atr(one),r=rsi(prices);
+ const previous=one.slice(-13,-1),upper=Math.max(...previous.map(x=>x.high)),lower=Math.min(...previous.map(x=>x.low));
+ const volumeAverage=one.slice(-21,-1).reduce((sum,x)=>sum+x.volume,0)/20;
+ const volumeRatio=volumeAverage>0?last.volume/volumeAverage:0;
+ const priorBeforePrev=one.slice(-14,-2);
+ const previousHigh=Math.max(...priorBeforePrev.map(x=>x.high));
+ const previousLow=Math.min(...priorBeforePrev.map(x=>x.low));
+ out.indicators={rsi:Number(r.toFixed(1)),volumeRatio:Number(volumeRatio.toFixed(2)),trend15:fast15>slow15?'UP':'DOWN'};
+ const trendLong=fast>slow&&fast15>slow15&&fifteen.at(-1).close>fast15;
+ const trendShort=fast<slow&&fast15<slow15&&fifteen.at(-1).close<fast15;
+ const firstLongBreak=prev.close<=previousHigh&&last.close>upper;
+ const firstShortBreak=prev.close>=previousLow&&last.close<lower;
+ const candidate=trendLong&&firstLongBreak&&r>=52&&r<=72?'LONG':
+   trendShort&&firstShortBreak&&r>=28&&r<=48?'SHORT':null;
+ if(!candidate)return out;
+ if(volumeRatio<1.15){out.reason='Пробой без достаточного объёма — пропущен';return out;}
+ const candle=breakoutQuality(candidate,last,upper,lower,fast,vol);
+ if(!candle.ok){out.reason=candle.reason;return out;}
+ if(livePrice===null){out.reason='Требуется свежая котировка WEEX';return out;}
+ const priceCheck=currentPriceQuality(candidate,last.close,vol,livePrice);
+ if(!priceCheck.ok){out.reason=priceCheck.reason;return out;}
+ out.level='EARLY_WATCH';out.direction=candidate;
+ out.expiresAt=last.closeTime+MS1;
+ out.reason='Минутный пробой · объём · 15м тренд · свежая цена WEEX. Не готовый вход.';
+ return out;
+}
+async function fetchCandles(symbol,interval){
+ const url='https://api-contract.weex.com/capi/v3/market/klines?symbol='+
+   encodeURIComponent(symbol)+'&interval='+interval+'&limit=125';
+ const response=await fetch(url,{signal:AbortSignal.timeout(7000),
+   cache:'no-store',headers:{Accept:'application/json','User-Agent':'WEEX-RADAR/1.0'}});
+ if(!response.ok)throw Error('WEEX candle API '+response.status);
+ const data=await response.json();
+ if(!Array.isArray(data))throw Error('Unexpected WEEX candle format');
+ return data;
+}
+export default async function handler(req,res){
+ res.setHeader('X-Content-Type-Options','nosniff');
+ res.setHeader('Cache-Control','no-store');
+ if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
+ const symbol=typeof req.query?.symbol==='string'?req.query.symbol:
+  new URL(req.url,'https://weex-radar.vercel.app').searchParams.get('symbol');
+ if(!indicators.SYMBOLS.includes(symbol))
+  return res.status(400).json({error:'Unsupported WEEX futures symbol'});
+ try{
+  const now=Date.now();
+  const [oneRows,fifteenRows]=await Promise.all([
+   fetchCandles(symbol,'1m'),fetchCandles(symbol,'15m')]);
+  const one=closed(oneRows,MS1,now),fifteen=closed(fifteenRows,MS15,now);
+  const candidate=scanEarly(one,fifteen,now);
+  if(candidate.reason!=='Требуется свежая котировка WEEX')
+   return res.status(200).json({symbol,generatedAt:Date.now(),...candidate});
+  let livePrice=null;
+  try{const quote=await indicators.fetchCurrentQuote(symbol,'WEEX');livePrice=quote.price;}
+  catch{ /* Fail closed: never emit a watch without a fresh WEEX quote. */ }
+  return res.status(200).json({symbol,generatedAt:Date.now(),
+   ...scanEarly(one,fifteen,Date.now(),livePrice)});
+ }catch(e){
+  return res.status(503).json({symbol,status:'unavailable',level:'UNAVAILABLE',
+   direction:null,reason:'Не удалось проверить минутные свечи WEEX'});
+ }
+}
+export const _test={closed,scanEarly};

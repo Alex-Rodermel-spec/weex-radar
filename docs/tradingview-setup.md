@@ -27,3 +27,9 @@
 - The Pine code is an original educational indicator, not backtested and not validated with a running TradingView Pine compiler. Its 15m context uses the previous confirmed HTF candle via `request.security(..., expression[1], lookahead=barmerge.lookahead_on)`.
 - TradingView widget renders in the client. On restricted browsers, use the external chart link. Site remains functional if TradingView is blocked.
 - The Vercel backend, current 16-symbol scanner, browser service worker, push-dispatch authentication, and cron endpoints remain unchanged.
+
+## Automatic 1m watch on the WEEX RADAR website
+
+- The dedicated, independent read-only `/api/early-watch?symbol=ALGOUSDT` now evaluates *completed* WEEX 1m candles, the latest completed WEEX 15m trend, RSI, volume, candle quality and the live WEEX futures bid/ask before returning `EARLY_WATCH`.
+- `tradingview.html` displays this live watch panel without requiring a TradingView account or installing Pine. It refreshes about every 20 seconds while the page is visible. It does **not** draw custom Pine inside the embedded TradingView chart (unsupported) and does **not** send push notifications or trading orders.
+- Early-watch alerts are intentionally separate from 5m confirmed push signals; they are not trading instructions or empirically validated forecasts.
