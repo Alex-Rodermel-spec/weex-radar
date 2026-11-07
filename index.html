@@ -31,7 +31,7 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
 'use strict';
 const NAMES={BTCUSDT:'BTC',ETHUSDT:'ETH',XRPUSDT:'XRP',SOLUSDT:'SOL',ALGOUSDT:'ALGO','1000SHIBUSDT':'1000 SHIB',DOGEUSDT:'DOGE',XAUTUSDT:'Золото XAUT',ZECUSDT:'ZEC','1000PEPEUSDT':'1000 PEPE',HYPEUSDT:'HYPE',BNBUSDT:'BNB',ADAUSDT:'ADA',LINKUSDT:'LINK',SUIUSDT:'SUI',AVAXUSDT:'AVAX'};
 const $=id=>document.getElementById(id);
-let latest=null,busy=false;
+let latest=null,busy=false,backgroundPushReady=false;
 const format=(x)=>Number(x).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:Math.abs(x)<0.01?8:Math.abs(x)<1?5:2});
 const clock=t=>new Date(t).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit'});
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -44,6 +44,8 @@ function draw(){
  $('markets').innerHTML=latest.symbols.map(s=>`<article class="market"><div class="market-top"><div class="market-title">${NAMES[s.symbol]||s.symbol}<span> / USDT</span></div><span class="exchange">${s.exchange||'—'}</span></div><div class="market-price ${s.status!=='ok'?'missing':''}">${s.status==='ok'?format(s.price):'Нет данных'}</div><div class="market-footer"><span class="chip ${s.status!=='ok'?'ERROR':(s.direction&&s.expiresAt>Date.now())?(s.level==='STRONG'?'STRONG':s.direction):''}">${s.status!=='ok'?'ОШИБКА':(s.direction&&s.expiresAt>Date.now())?(s.level==='STRONG'?'✦ СИЛЬНЫЙ '+s.direction:s.direction):'ЖДАТЬ'}</span><span>${s.status==='ok'?'Свеча: '+clock(s.candleCloseTime):'Источник недоступен'}</span></div></article>`).join('');
 }
 function emitNotifications(){
+ // Avoid two Android notifications for the same candle when background push is active.
+ if(backgroundPushReady)return;
  if(!latest||!('Notification'in window)||Notification.permission!=='granted'||document.visibilityState!=='visible')return;
  for(const s of currentSignals()) {
    const key=`weex-radar-${s.exchange}-${s.symbol}-${s.candleCloseTime}-${s.direction}`;
@@ -82,6 +84,7 @@ async function savePushSubscription(subscription,checkOnly=false){
 async function setupPush(interactive=false){
  const button=$('notify');
  if(pushBusy)return;
+ backgroundPushReady=false;
  if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){
    button.textContent='Для push нужен Google Chrome';return;
  }
@@ -93,7 +96,7 @@ async function setupPush(interactive=false){
  try{
    const permission=interactive?await Notification.requestPermission():Notification.permission;
    if(permission!=='granted'){
-     button.textContent=permission==='denied'?'Push запрещён в Android':'Разреши уведомления';
+     button.textContent=permission==='denied'?'🔕 Chrome заблокировал push — разреши для этого сайта':'Разреши уведомления';
      return;
    }
    const configResponse=await fetch('/api/push-public',{cache:'no-store'});
@@ -107,6 +110,7 @@ async function setupPush(interactive=false){
    if(subscription&&!interactive){
      const checked=await savePushSubscription(subscription,true);
      if(checked.present){
+       backgroundPushReady=true;
        button.textContent='🔔 Push подключён';
        return;
      }
@@ -125,6 +129,7 @@ async function setupPush(interactive=false){
      result=await savePushSubscription(subscription);
    }
    localStorage.setItem('weex-push-active','1');
+   backgroundPushReady=Boolean(result.testSent);
    button.textContent=result.testSent?'✓ Push подключён — тест отправлен':'⚠ Push: проверь подключение';
    if(!result.testSent&&interactive){
      alert('Push не подтвердился: '+String(result.testError||'UNKNOWN')+
@@ -138,7 +143,8 @@ async function setupPush(interactive=false){
 }
 $('notify').onclick=()=>setupPush(true);
 if(localStorage.getItem('weex-push-active')==='1'){
- $('notify').textContent='🔔 Проверить push ещё раз';
+ $('notify').textContent=('Notification'in window)&&Notification.permission==='denied'?
+   '🔕 Chrome заблокировал push — измени разрешение сайта':'🔔 Проверить push ещё раз';
  // Recover previously approved push subscription when owner visits the RADAR.
  // Never request browser permissions or create subscriptions without prior consent.
  if(('Notification'in window)&&Notification.permission==='granted')setupPush(false);
