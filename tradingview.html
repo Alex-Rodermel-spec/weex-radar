@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0c13">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="description" content="TradingView графики фьючерсов WEEX и минутный индикатор ранних предупреждений для WEEX RADAR.">
+<title>WEEX RADAR · TradingView</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0c13;--panel:#181725;--line:#39344c;--text:#f2effa;--muted:#a4a7b9;--purple:#b98dff}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top left,#211a32,transparent 35%),var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{width:min(1080px,100%);margin:auto;padding:20px 15px 46px}
+a{color:#d4b8ff}h1{font-size:clamp(27px,5vw,38px);margin:12px 0 6px;letter-spacing:-.03em}
+h2{font-size:19px;margin:0 0 9px}
+p{margin:9px 0}.muted{color:var(--muted)}
+.panel{border:1px solid var(--line);border-radius:17px;background:var(--panel);padding:16px;margin-top:17px}
+.panel.warning{border-color:#866752;background:#221c22}
+label{display:block;font-size:13px;color:#cac5d5;font-weight:650;margin-bottom:7px}
+select,button,.action{background:#282339;border:1px solid #5b4a71;border-radius:11px;padding:10px 12px;color:#f4f0ff;font:inherit}
+select{width:100%}
+button{cursor:pointer}.action{display:inline-block;text-decoration:none}
+button.active{background:#68469d;border-color:#ac85ec}
+button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #c693ff;outline-offset:2px}
+.controls{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:14px;align-items:end;margin-bottom:12px}
+.periods{display:flex;gap:7px;flex-wrap:wrap}
+#chart{min-height:460px;height:clamp(460px,65vh,720px);position:relative;background:#11121c;border:1px solid #2c2b39;border-radius:12px;overflow:hidden}
+.tradingview-widget-container{width:100%;height:100%}
+.tradingview-widget-container__widget{height:calc(100% - 26px);width:100%}
+.tradingview-widget-copyright{height:26px;font-size:11px;text-align:right;padding:3px 10px;color:#bcaed4}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+#radar-status{line-height:1.6}
+.note{border-left:3px solid #bc88ee;padding-left:12px;color:#ccc0dc;margin:15px 0}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+button.primary,.action.primary{background:#67429a;border-color:#9c6ad7}
+code{background:#30283f;border-radius:5px;padding:2px 5px}
+@media(max-width:620px){.controls{grid-template-columns:1fr}#chart{height:520px}main{padding:15px 10px}.panel{padding:12px}.periods button{flex:1}}
+</style>
+</head>
+<body><main>
+<header><a href="/">← Назад к WEEX RADAR</a></header>
+<h1>📊 TradingView + WEEX RADAR</h1>
+<p class="muted">Графики фьючерсов WEEX на TradingView. Раннее предупреждение на 1м — не подтверждённый сигнал и не команда на сделку.</p>
+<section class="panel" aria-label="График TradingView">
+<div class="controls">
+<div><label for="symbol">Монета WEEX Futures</label><select id="symbol"></select></div>
+<div><label>Таймфрейм</label><div class="periods" aria-label="Интервал графика"><button type="button" data-interval="1">1м</button><button type="button" data-interval="5">5м</button><button type="button" data-interval="15">15м</button></div></div>
+</div>
+<div class="bar"><span class="muted" id="tv-label">Загрузка TradingView…</span><a id="tv-open" href="https://www.tradingview.com/" rel="noopener noreferrer" target="_blank">Открыть в TradingView</a></div>
+<div id="chart" aria-label="Внешний график TradingView"></div>
+<p class="note">График загружает сторонний сервис TradingView. Для некоторых тикеров данные могут отсутствовать. Цена TradingView не используется для расчёта сигналов WEEX RADAR, а контракты с префиксом 1000 могут иметь другой масштаб.</p>
+</section>
+<section class="panel">
+<h2>Сигнал нашего радара</h2>
+<div id="radar-status" role="status">Проверяем свежие данные WEEX RADAR…</div>
+<p class="muted">Проверка сайта раз в минуту при открытой странице. Фоновый Push и Cron остаются на главной странице WEEX RADAR. Разные источники данных не смешиваются.</p>
+</section>
+<section class="panel">
+<h2>⚡ Ранний сигнал на 1-минутном графике</h2>
+<p>Я добавил собственный индикатор <b>WEEX RADAR Early 1m</b> для TradingView Pine Script v6. Он проверяет тренд 15м, пробой, RSI, объём и форму свечи. Результат — <b>EARLY WATCH</b>, то есть предупреждение, а не разрешение на вход.</p>
+<div class="actions">
+<button class="primary" type="button" id="copy-pine">📋 Скопировать Pine Script</button>
+<a class="action" href="/tradingview/weex-radar-early-1m.pine" download>Скачать код</a>
+<a class="action" href="https://www.tradingview.com/" rel="noopener noreferrer" target="_blank">Открыть Pine Editor</a>
+</div>
+<p id="copy-status" role="status" class="muted">В TradingView открой Pine Editor, вставь код, нажми «Добавить на график» и при желании создай отдельное оповещение в TradingView.</p>
+</section>
+<section class="panel warning">
+<h2>Статус интеграции</h2>
+<p>✅ Графики WEEX TradingView и Pine Script встроены в RADAR. ✅ Существующие Push, Cron и торговые настройки не меняются.</p>
+<p>⚠️ Автоматическая пересылка оповещений TradingView в Push WEEX RADAR <strong>пока не подключена</strong>: для этого надо создать оповещения в твоём аккаунте TradingView и отдельно защитить Webhook. Не передавай пароли или API-ключи через Webhook. Никаких ордеров эта страница не создаёт.</p>
+</section>
+</main>
+<script>
+'use strict';
+const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
+const $=id=>document.getElementById(id);
+const qs=new URLSearchParams(location.search);
+let selected=SYMBOLS.includes(qs.get('symbol'))?qs.get('symbol'):'ALGOUSDT';
+let interval=['1','5','15'].includes(qs.get('interval'))?qs.get('interval'):'1';
+const symbolSelect=$('symbol');
+for(const code of SYMBOLS){const opt=document.createElement('option');opt.value=code;opt.textContent=code;symbolSelect.appendChild(opt)}
+symbolSelect.value=selected;
+function tradingViewTicker(symbol){return 'WEEX:'+symbol+'.P'}
+function showChart(){
+ const ticker=tradingViewTicker(selected);
+ $('tv-label').textContent=ticker+' · '+interval+' мин · TradingView';
+ $('tv-open').href='https://www.tradingview.com/chart/?symbol='+encodeURIComponent(ticker);
+ for(const btn of document.querySelectorAll('[data-interval]')){
+   const on=btn.dataset.interval===interval;btn.classList.toggle('active',on);btn.setAttribute('aria-pressed',String(on));
+ }
+ const chart=$('chart');
+ chart.replaceChildren();
+ const wrapper=document.createElement('div');wrapper.className='tradingview-widget-container';
+ const placeholder=document.createElement('div');placeholder.className='tradingview-widget-container__widget';
+ wrapper.appendChild(placeholder);
+ const attribution=document.createElement('div');attribution.className='tradingview-widget-copyright';
+ const link=document.createElement('a');link.href='https://www.tradingview.com/';link.rel='noopener noreferrer';link.target='_blank';link.textContent='График TradingView';
+ attribution.appendChild(link);wrapper.appendChild(attribution);
+ const script=document.createElement('script');
+ script.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+ script.async=true;
+ script.textContent=JSON.stringify({autosize:true,symbol:ticker,interval,timezone:'Europe/Berlin',theme:'dark',style:'1',locale:'ru',
+   allow_symbol_change:false,hide_side_toolbar:true,hide_top_toolbar:false,hide_legend:false,hide_volume:false,
+   save_image:false,calendar:false,details:false,hotlist:false,withdateranges:false,backgroundColor:'#11121c'});
+ script.onerror=()=>{$('tv-label').textContent='Не удалось загрузить внешний график. Открой его в TradingView по ссылке.'};
+ wrapper.appendChild(script);chart.appendChild(wrapper);
+ history.replaceState(null,'','/tradingview.html?symbol='+encodeURIComponent(selected)+'&interval='+interval);
+}
+function formatPrice(value){
+ const v=Number(value);return Number.isFinite(v)&&v>0?v.toLocaleString('ru-RU',{maximumFractionDigits:v<0.01?8:v<1?6:2}):'—';
+}
+async function fetchRadar(){
+ const output=$('radar-status');
+ try{
+  const response=await fetch('/api/signals',{cache:'no-store',signal:AbortSignal.timeout(28000)});
+  if(!response.ok)throw Error('Сканер временно недоступен');
+  const result=await response.json();
+  const signal=result.symbols?.find(s=>s.symbol===selected);
+  if(!signal||signal.status!=='ok'){output.textContent='Нет свежих данных WEEX RADAR для '+selected;return}
+  const active=['LONG','SHORT'].includes(signal.direction)&&signal.expiresAt>Date.now();
+  output.textContent=selected+' · Источник RADAR: '+signal.exchange+' · '+(active?'Подтверждено: '+signal.direction:'Сейчас: ЖДАТЬ')+
+    ' · Цена закрытия 5м: '+formatPrice(signal.price)+
+    (signal.livePrice?' · Котировка API: '+formatPrice(signal.livePrice):'')+
+    (active?' · Сигнал действителен до '+new Date(signal.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'}):'');
+ }catch{output.textContent='WEEX RADAR временно не ответил. График TradingView работает отдельно.'}
+}
+symbolSelect.addEventListener('change',()=>{selected=symbolSelect.value;if(!SYMBOLS.includes(selected))return;showChart();fetchRadar()});
+for(const btn of document.querySelectorAll('[data-interval]'))btn.addEventListener('click',()=>{interval=btn.dataset.interval;showChart()});
+$('copy-pine').addEventListener('click',async()=>{
+ try{
+  const response=await fetch('/tradingview/weex-radar-early-1m.pine',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const code=await response.text();await navigator.clipboard.writeText(code);
+  $('copy-status').textContent='✅ Код скопирован. Вставь его в TradingView → Pine Editor.';
+ }catch{$('copy-status').textContent='Скопировать не удалось. Нажми «Скачать код» и открой его в Pine Editor.'}
+});
+showChart();fetchRadar();setInterval(()=>{if(document.visibilityState==='visible')fetchRadar()},60000);
+</script>
+</body></html>

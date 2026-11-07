@@ -1,0 +1,48 @@
+//@version=6
+// WEEX RADAR Early Watch, original educational indicator.
+// Apply to a 1-minute WEEX perpetual chart (for example, WEEX:ALGOUSDT.P).
+// Alerts are WATCH ONLY: no trade execution, no guaranteed profitability.
+indicator("WEEX RADAR · Early 1m Watch", overlay = true, max_labels_count = 200)
+
+fastLength = input.int(20, "1m EMA fast", minval = 5, maxval = 100)
+slowLength = input.int(50, "1m EMA slow", minval = 20, maxval = 200)
+breakoutLength = input.int(12, "Prior 1m candles", minval = 5, maxval = 40)
+volumeRatio = input.float(1.15, "Minimum volume / avg volume", minval = 1.0, maxval = 5.0, step = 0.05)
+maxWick = input.float(0.35, "Max rejection wick / range", minval = 0.05, maxval = 0.80, step = 0.05)
+
+emaFast = ta.ema(close, fastLength)
+emaSlow = ta.ema(close, slowLength)
+atrValue = ta.atr(14)
+rsiValue = ta.rsi(close, 14)
+meanVolume = ta.sma(volume, 20)
+priorHigh = ta.highest(high[1], breakoutLength)
+priorLow = ta.lowest(low[1], breakoutLength)
+
+// The [1] offset with lookahead_on uses only the last COMPLETED 15m candle.
+// Avoids looking into the future or treating the live 15m candle as confirmed.
+ema15Fast = request.security(syminfo.tickerid, "15", ta.ema(close, 20)[1], lookahead = barmerge.lookahead_on)
+ema15Slow = request.security(syminfo.tickerid, "15", ta.ema(close, 50)[1], lookahead = barmerge.lookahead_on)
+close15 = request.security(syminfo.tickerid, "15", close[1], lookahead = barmerge.lookahead_on)
+
+range = high - low
+longWick = range > 0 ? (high - close) / range : 1.0
+shortWick = range > 0 ? (close - low) / range : 1.0
+volumeOk = not na(meanVolume) and meanVolume > 0 and volume >= meanVolume * volumeRatio
+rangeOk = atrValue > 0 and range <= 2.6 * atrValue
+longTrend = emaFast > emaSlow and ema15Fast > ema15Slow and close15 > ema15Fast
+shortTrend = emaFast < emaSlow and ema15Fast < ema15Slow and close15 < ema15Fast
+longBreak = ta.crossover(close, priorHigh)
+shortBreak = ta.crossunder(close, priorLow)
+
+// A warning when the breakout has just closed on 1m and is not exhausted.
+// 5m WEEX RADAR confirmation is intentionally a separate system.
+earlyLong = barstate.isconfirmed and longTrend and longBreak and rsiValue >= 52 and rsiValue <= 72 and volumeOk and rangeOk and longWick <= maxWick and (close - emaFast) <= 2.6 * atrValue
+earlyShort = barstate.isconfirmed and shortTrend and shortBreak and rsiValue >= 28 and rsiValue <= 48 and volumeOk and rangeOk and shortWick <= maxWick and (emaFast - close) <= 2.6 * atrValue
+
+plot(emaFast, "EMA fast", color = color.aqua, linewidth = 2)
+plot(emaSlow, "EMA slow", color = color.purple, linewidth = 2)
+plotshape(earlyLong, title = "EARLY LONG", text = "WATCH\nLONG", style = shape.labelup, location = location.belowbar, color = color.new(color.teal, 0), textcolor = color.white, size = size.tiny)
+plotshape(earlyShort, title = "EARLY SHORT", text = "WATCH\nSHORT", style = shape.labeldown, location = location.abovebar, color = color.new(color.red, 0), textcolor = color.white, size = size.tiny)
+
+alertcondition(earlyLong, title = "WEEX RADAR Early LONG Watch", message = "EARLY WATCH LONG {{ticker}} 1m close {{close}} - NOT a confirmed 5m signal, no automatic order")
+alertcondition(earlyShort, title = "WEEX RADAR Early SHORT Watch", message = "EARLY WATCH SHORT {{ticker}} 1m close {{close}} - NOT a confirmed 5m signal, no automatic order")
