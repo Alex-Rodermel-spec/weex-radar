@@ -114,11 +114,15 @@ export default async function handler(req,res) {
   }
   const market=info.status==='fulfilled'
     ?info.value?.symbols?.find(s=>s?.symbol==='XRPUSDT'):null;
-  const prec=v=>Number.isInteger(Number(v))&&v!==undefined&&v!==null&&
-    Number(v)>=0&&Number(v)<=60?String(v):'UNKNOWN';
+  // Precision metadata is public market metadata, never account information.
+  const meta=v=>v===undefined?'MISSING':v===null?'NULL':
+    (typeof v==='number'||typeof v==='string')&&
+     /^[0-9.eE+-]{1,18}$/.test(String(v))?String(v):'UNSUPPORTED';
   check.dryRunPlan=dryRunPlan?'authenticated':
-    'blocked_'+dryRunReason+'_qtyPrecision'+prec(market?.quantityPrecision)+
-    '_pricePrecision'+prec(market?.pricePrecision);
+    'blocked_'+dryRunReason+'_qty'+meta(market?.quantityPrecision)+
+    '_price'+meta(market?.pricePrecision)+
+    '_base'+meta(market?.baseAssetPrecision)+
+    '_min'+meta(market?.minOrderSize);
   const ok=Object.values(check).every(v=>v==='authenticated');
   return res.status(ok?200:502).json({
     ok,stage:ok?'authenticated':'three_endpoint_diagnosis',code:ok?null:
