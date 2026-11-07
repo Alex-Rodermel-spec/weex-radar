@@ -26,6 +26,9 @@ button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #c69
 .controls{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:14px;align-items:end;margin-bottom:12px}
 .periods{display:flex;gap:7px;flex-wrap:wrap}
 #chart{min-height:460px;height:clamp(460px,65vh,720px);position:relative;background:#11121c;border:1px solid #2c2b39;border-radius:12px;overflow:hidden}
+#radar-canvas{display:block;width:100%;height:350px;background:#10141f;border:1px solid #34374b;border-radius:12px}
+.chart-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#c5c1d3;margin:7px 0 10px}
+.chart-legend b{font-weight:600}
 .tradingview-widget-container{width:100%;height:100%}
 .tradingview-widget-container__widget{height:calc(100% - 26px);width:100%}
 .tradingview-widget-copyright{height:26px;font-size:11px;text-align:right;padding:3px 10px;color:#bcaed4}
@@ -42,6 +45,14 @@ code{background:#30283f;border-radius:5px;padding:2px 5px}
 <header><a href="/">← Назад к WEEX RADAR</a></header>
 <h1>📊 TradingView + WEEX RADAR</h1>
 <p class="muted">Графики фьючерсов WEEX на TradingView. Раннее предупреждение на 1м — не подтверждённый сигнал и не команда на сделку.</p>
+<section class="panel" id="weex-chart-panel" aria-label="Автоматический график WEEX RADAR">
+<h2>⚡ Наш график WEEX RADAR · 1м</h2>
+<p class="muted">Свечи WEEX и линии EMA20/EMA50 появляются автоматически — без Pine Editor и входа в TradingView.</p>
+<div class="chart-legend"><span>🟣 <b>EMA20</b></span><span>🔵 <b>EMA50</b></span><span>🟢 LONG / 🔴 SHORT — только подтверждённое EARLY WATCH</span></div>
+<canvas id="radar-canvas" role="img" aria-label="Минутные свечи WEEX с EMA20 и EMA50"></canvas>
+<p id="radar-chart-caption" class="muted">Загружаем свечи WEEX…</p>
+<p class="muted">Это график нашего собственного раннего анализа, а не пользовательский Pine-индикатор внутри TradingView. Он не открывает сделки.</p>
+</section>
 <section class="panel" aria-label="График TradingView">
 <div class="controls">
 <div><label for="symbol">Монета WEEX Futures</label><select id="symbol"></select></div>
@@ -131,21 +142,86 @@ async function fetchRadar(){
     (active?' · Сигнал действителен до '+new Date(signal.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'}):'');
  }catch{output.textContent='WEEX RADAR временно не ответил. График TradingView работает отдельно.'}
 }
+let latestDrawing=null;
+function renderRadarChart(rows,watch){
+ if(!Array.isArray(rows)||rows.length<10)return;
+ const canvas=$('radar-canvas'),ctx=canvas.getContext('2d');
+ if(!ctx)return;
+ latestDrawing={rows,watch};
+ const width=Math.max(260,Math.floor(canvas.clientWidth||320)),height=350;
+ const pixelRatio=Math.min(window.devicePixelRatio||1,2);
+ canvas.width=Math.floor(width*pixelRatio);canvas.height=height*pixelRatio;
+ ctx.setTransform(pixelRatio,0,0,pixelRatio,0,0);
+ ctx.clearRect(0,0,width,height);
+ const left=12,right=70,top=18,bottom=32,plotW=width-left-right,plotH=height-top-bottom;
+ const lows=rows.map(r=>r.low),highs=rows.map(r=>r.high);
+ let low=Math.min(...lows),high=Math.max(...highs);
+ if(!(low>0&&high>low))return;
+ const pad=(high-low)*0.07;low-=pad;high+=pad;
+ const x=i=>left+(i+0.5)*plotW/rows.length;
+ const y=val=>top+(high-val)/(high-low)*plotH;
+ const label=v=>v>=100?Number(v).toFixed(2):v>=1?Number(v).toFixed(4):Number(v).toFixed(5);
+ ctx.font='11px system-ui,-apple-system,sans-serif';
+ ctx.textBaseline='middle';
+ for(let j=0;j<=4;j++){
+  const yy=top+j*plotH/4;
+  ctx.strokeStyle='#34384a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(width-right+3,yy);ctx.stroke();
+  ctx.fillStyle='#bdc2d3';ctx.fillText(label(high-j*(high-low)/4),width-right+8,yy);
+ }
+ const step=plotW/rows.length,barWidth=Math.max(1,Math.min(9,step*0.64));
+ rows.forEach((r,i)=>{
+  const green=r.close>=r.open;
+  ctx.strokeStyle=green?'#52d6a4':'#fa647d';
+  ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=1.3;
+  const xx=x(i);
+  ctx.beginPath();ctx.moveTo(xx,y(r.high));ctx.lineTo(xx,y(r.low));ctx.stroke();
+  const yy=Math.min(y(r.open),y(r.close)),h=Math.max(1,Math.abs(y(r.close)-y(r.open)));
+  ctx.fillRect(xx-barWidth/2,yy,barWidth,h);
+ });
+ for(const [field,color] of [['ema20','#bd88ff'],['ema50','#43c7e8']]){
+  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();
+  let started=false;
+  rows.forEach((r,i)=>{if(!Number.isFinite(r[field]))return;
+   if(!started){ctx.moveTo(x(i),y(r[field]));started=true}
+   else ctx.lineTo(x(i),y(r[field]));
+  });
+  if(started)ctx.stroke();
+ }
+ const active=watch.level==='EARLY_WATCH'&&watch.expiresAt>Date.now()&&
+  ['LONG','SHORT'].includes(watch.direction);
+ if(active){
+  const last=rows.at(-1),yy=y(watch.direction==='LONG'?last.low:last.high);
+  ctx.strokeStyle=watch.direction==='LONG'?'#69f3bf':'#ff8ba2';
+  ctx.lineWidth=3;ctx.beginPath();ctx.arc(x(rows.length-1),yy,7,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle=ctx.strokeStyle;
+  const t='WATCH '+watch.direction;ctx.fillText(t,Math.max(left,x(rows.length-1)-75),
+   Math.max(top+10,Math.min(top+plotH-10,yy+(watch.direction==='LONG'?17:-17))));
+ }
+ const tformat=ms=>new Date(ms).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit'});
+ ctx.fillStyle='#a9b0c3';
+ ctx.fillText(tformat(rows[0].time),left,height-12);
+ ctx.fillText(tformat(rows.at(-1).time),Math.max(left,width-right-38),height-12);
+ const caption='WEEX · '+rows.length+' закрытых свечей · цена '+label(rows.at(-1).close)+
+  ' · '+(active?'⚡ WATCH '+watch.direction:'⏳ ЖДАТЬ');
+ $('radar-chart-caption').textContent=caption;
+}
+window.addEventListener('resize',()=>{if(latestDrawing)renderRadarChart(latestDrawing.rows,latestDrawing.watch)});
 async function fetchEarlyWatch(){
  const code=selected,output=$('early-watch-status');
  try{
-  const response=await fetch('/api/signals?mode=early&symbol='+encodeURIComponent(code),
+  const response=await fetch('/api/signals?mode=early&chart=1&symbol='+encodeURIComponent(code),
    {cache:'no-store',signal:AbortSignal.timeout(12000)});
   if(!response.ok)throw Error('Данные не получены');
   const result=await response.json();
   if(code!==selected)return;
+  if(Array.isArray(result.chart))renderRadarChart(result.chart,result);
   const active=result.level==='EARLY_WATCH'&&['LONG','SHORT'].includes(result.direction)&&result.expiresAt>Date.now();
   output.textContent=code+' · '+(active?'⚡ EARLY WATCH '+result.direction+' (предварительно)':'⏳ ЖДАТЬ')+
    ' · '+result.reason+
    ' · Закрытие свечи: '+new Date(result.candleCloseTime).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})+
    (result.livePrice?' · Цена WEEX: '+formatPrice(result.livePrice):'')+
    (active?' · Действует до '+new Date(result.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'}):'');
- }catch{if(code===selected)output.textContent=code+' · ⚠️ Данные раннего радара временно недоступны. Не входить по старому предупреждению.'}
+ }catch{if(code===selected){output.textContent=code+' · ⚠️ Данные раннего радара временно недоступны. Не входить по старому предупреждению.';latestDrawing=null;$('radar-chart-caption').textContent='Данные недоступны — график нельзя использовать для входа.'}}
 }
 symbolSelect.addEventListener('change',()=>{selected=symbolSelect.value;if(!SYMBOLS.includes(selected))return;showChart();fetchRadar();fetchEarlyWatch()});
 for(const btn of document.querySelectorAll('[data-interval]'))btn.addEventListener('click',()=>{interval=btn.dataset.interval;showChart()});
