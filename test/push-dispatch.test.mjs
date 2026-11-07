@@ -40,3 +40,16 @@ test('push subscription health check does not reinsert an expired browser endpoi
  assert.match(ui,/\['PUSH_HTTP_404','PUSH_HTTP_410'\]/);
  assert.match(ui,/localStorage\.getItem\('weex-push-active'\)/);
 });
+
+test('expired push endpoints are deleted rather than counted as active subscriptions',()=>{
+ const subscribe=readFileSync(new URL('../api/push-subscribe.mjs',import.meta.url),'utf8');
+ assert.match(subscribe,/if\(status===404\|\|status===410\)/);
+ assert.match(subscribe,/await del\(path\)/);
+});
+test('RADAR home page browser script is valid JavaScript',async()=>{
+ const {Script}=await import('node:vm');
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const match=html.match(/<script>([\s\S]*?)<\/script>/);
+ assert.ok(match,'missing main page script');
+ assert.doesNotThrow(()=>new Script(match[1],{filename:'index.html'}));
+});

@@ -41,6 +41,10 @@ export default async function handler(req,res){
   }catch(e){
    const status=Number(e.statusCode||0);
    testError=status?('PUSH_HTTP_'+status):(e.message==='VAPID_KEYS_MISSING'?'VAPID_KEYS_MISSING':'PUSH_SEND_FAILED');
+   if(status===404||status===410){
+    // The browser push endpoint is invalid; never persist it as active.
+    try{await del(path)}catch{console.warn('Failed to discard expired push endpoint')}
+   }
    console.warn('WEEX_RADAR test push failed',testError,String(e.message||'').slice(0,140));
   }
   return res.status(200).json({ok:true,subscribed:true,testSent,testError});
