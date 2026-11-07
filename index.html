@@ -88,12 +88,16 @@ $('notify').onclick=async()=>{
   if(!subscription)subscription=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:toBytes(config.publicKey)});
   const response=await fetch('/api/push-subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:subscription.toJSON()})});
   if(!response.ok)throw Error('Ошибка сохранения подписки '+response.status);
-  button.textContent='✓ Push включены даже без сайта';
+  const result=await response.json();
   localStorage.setItem('weex-push-active','1');
+  button.textContent=result.testSent?'✓ Тест отправлен — проверь телефон':'⚠ Тест не отправлен — нажми ещё раз';
+  if(!result.testSent){
+    alert('Подписка сохранена, но тестовое push не отправилось. Код: '+String(result.testError||'UNKNOWN')+'. Сделай скриншот и пришли мне.');
+  }
  }catch(e){console.warn('WEEX push setup failed',e);button.textContent='Ошибка push — нажми ещё раз';alert('Не удалось включить push. Открой WEEX RADAR в Google Chrome и разреши уведомления. '+e.message)}
  finally{button.disabled=false}
 };
-if(localStorage.getItem('weex-push-active')==='1')$('notify').textContent='✓ Push включены даже без сайта';
+if(localStorage.getItem('weex-push-active')==='1')$('notify').textContent='🔔 Проверить push ещё раз';
 update();setInterval(()=>{if(document.visibilityState==='visible')update()},60000);
 setInterval(()=>{if(latest)draw()},1000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')update()});
