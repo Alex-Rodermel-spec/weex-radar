@@ -9,7 +9,7 @@ const example={
  positions:[{symbol:'BTCUSDT',size:'0.01'}],
  orders:[],
  settings:[{symbol:'XRPUSDT',separatedType:'COMBINED',marginType:'ISOLATED',isolatedLongLeverage:'10',isolatedShortLeverage:'10'}],
- info:{symbols:[{symbol:'XRPUSDT',quoteAsset:'USDT',marginAsset:'USDT',contractType:'PERPETUAL',forwardContractFlag:true,maxLeverage:50,minOrderSize:'1'}]},
+ info:{symbols:[{symbol:'XRPUSDT',quoteAsset:'USDT',marginAsset:'USDT',contractType:'PERPETUAL',forwardContractFlag:true,maxLeverage:50,minOrderSize:'1',quantityPrecision:-1,baseAssetPrecision:4,pricePrecision:4}]},
  book:{symbol:'XRPUSDT',bidPrice:'2.00',askPrice:'2.001',time:now},
  apiTradingSymbols:['BTCUSDT','XRPUSDT']
 };
@@ -28,4 +28,9 @@ test('unsupported setting can be detected before any trade',()=>{
  const summary=readinessSummary({...example,settings:[{symbol:'XRPUSDT',separatedType:'COMBINED',marginType:'CROSSED'}]},now);
  assert.equal(summary.passed,true);
  assert.equal(summary.requiresLeverageSetup,true);
+});
+
+test('unknown precision blocks preflight rather than assuming an order size',()=>{
+ const invalid={...example,info:{symbols:[{...example.info.symbols[0],quantityPrecision:-2}]}};
+ assert.equal(readinessSummary(invalid,now).checks.quantityPrecisionValid,false);
 });
