@@ -27,3 +27,12 @@ test('short orientation is validated',()=>{
   const p=createReadOnlyPlan(s,book,market,now);
   assert.ok(p.stopLoss>p.entryEstimate&&p.takeProfit<p.entryEstimate);
 });
+
+test('WEEX quantityPrecision -1 safely falls back to documented baseAssetPrecision',()=>{
+ const m={...market,quantityPrecision:-1,baseAssetPrecision:4,minOrderSize:10};
+ const result=createReadOnlyPlan(signal,book,m,now);
+ assert.match(result.quantity,/^\d+(?:\.\d{1,4})?$/);
+ assert.ok(result.notionalEstimate<=500&&result.notionalEstimate>=475);
+ assert.throws(()=>createReadOnlyPlan(signal,book,{...m,baseAssetPrecision:-1},now),/precision/);
+ assert.throws(()=>createReadOnlyPlan(signal,book,{...m,quantityPrecision:-2},now),/precision/);
+});
