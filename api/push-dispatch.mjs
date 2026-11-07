@@ -2,6 +2,7 @@ import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {get,list,put,del} from '@vercel/blob';
 import webpush from 'web-push';
 import {jwtVerify,createRemoteJWKSet} from 'jose';
+import {_test as marketSafety} from './signals.mjs';
 const JWKS=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 function secureEquals(a,b){if(!a||!b)return false;let x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
 async function authorized(req){
@@ -125,7 +126,22 @@ export default async function handler(req,res){
   if(!response.ok)throw Error('Radar API '+response.status);
   const result=await response.json();
   if(!Number.isFinite(result.generatedAt)||Math.abs(Date.now()-result.generatedAt)>90000||!Array.isArray(result.symbols))throw Error('Stale/invalid scan');
-  const signals=result.symbols.filter(s=>s.status==='ok'&&['LONG','SHORT'].includes(s.direction)&&s.expiresAt>Date.now()+15000&&s.exchange&&s.candleCloseTime);
+  const candidates=result.symbols.filter(s=>s.status==='ok'&&['LONG','SHORT'].includes(s.direction)&&
+    s.expiresAt>Date.now()+15000&&s.exchange&&s.candleCloseTime);
+  // A cached or slow scan is NOT a live entry. Recheck exchange quotes immediately
+  // before gateway delivery, and stop late 5-minute-candle alerts.
+  const checked=await Promise.all(candidates.map(async signal=>{
+    if(Date.now()-signal.candleCloseTime>90000)return null;
+    try{
+      const quote=await marketSafety.fetchCurrentQuote(signal.symbol,signal.exchange);
+      const quality=marketSafety.currentPriceQuality(signal.direction,signal.price,
+        Number(signal.indicators?.atr),quote.price);
+      return quality.ok?{...signal,livePrice:quote.price}:null;
+    }catch{return null}
+  }));
+  const signals=checked.filter(Boolean);
+  if(candidates.length>signals.length)console.info('WEEX_RADAR_ENTRY_FILTER '+
+    JSON.stringify({candidates:candidates.length,accepted:signals.length,blocked:candidates.length-signals.length}));
   if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background});
   const entries=await loadSubscriptions();
   if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0});
@@ -169,7 +185,7 @@ export default async function handler(req,res){
       ?(strong?'🟣 СИЛЬНЫЙ':'Сигнал')+' '+primary.symbol+' '+primary.direction
       :(strong?'🟣 СИЛЬНЫЕ':'Сигналы')+' WEEX · '+selected.length+' монет';
     const body=selected.length===1
-      ?primary.exchange+' · '+primary.price+' USDT · SL '+primary.stop+' · TP '+primary.take+' · до '+new Date(primary.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})
+      ?primary.exchange+' · цена сейчас '+Number(primary.livePrice).toPrecision(6)+' USDT · свеча '+primary.price+' · SL '+primary.stop+' · TP '+primary.take+' · до '+new Date(primary.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})
       :selected.slice(0,4).map(s=>s.symbol+' '+s.direction).join(' · ')+(selected.length>4?' · ещё '+(selected.length-4):'')+' · смотри TP/SL в RADAR';
     const message={title,body,
       symbol:selected.length===1?primary.symbol:'BATCH',

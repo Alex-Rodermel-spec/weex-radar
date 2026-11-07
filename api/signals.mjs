@@ -38,7 +38,34 @@ function atr(c,p=14){
  for(let i=p;i<a.length;i++)v=(v*(p-1)+a[i])/p;
  return v;
 }
-function getAnalysis(five,fifteen){
+// Heuristic anti-chase filters: only suppress poor entries; no guarantee of profit.
+function breakoutQuality(direction,last,upper,lower,ema20,atrValue){
+ if(!['LONG','SHORT'].includes(direction)||!Number.isFinite(atrValue)||atrValue<=0)
+  return {ok:false,reason:'Нет данных для проверки качества пробоя'};
+ const range=last.high-last.low;
+ if(!Number.isFinite(range)||range<=0)return {ok:false,reason:'Некорректный диапазон пробойной свечи'};
+ // Reject a candle with a large wick against the trade, an exhausted breakout
+ // or a price far from the 5-minute EMA. Symmetric for SHORT and LONG.
+ const rejectionWick=direction==='LONG'?(last.high-last.close)/range:(last.close-last.low)/range;
+ const extension=direction==='LONG'?last.close-upper:lower-last.close;
+ if(rejectionWick>0.35||range>2.6*atrValue||extension>0.85*atrValue||
+    Math.abs(last.close-ema20)>2.6*atrValue)
+  return {ok:false,reason:'Резкий пробой или откат от вершины — сигнал пропущен'};
+ return {ok:true,reason:null};
+}
+function currentPriceQuality(direction,close,atrValue,livePrice){
+ if(!['LONG','SHORT'].includes(direction)||![close,atrValue,livePrice].every(Number.isFinite)||
+    close<=0||livePrice<=0||atrValue<=0)
+  return {ok:false,reason:'Нет подтверждения свежей цены — сигнал пропущен'};
+ // Tolerances adapt to volatility and spread, with a tiny percentage floor.
+ const reverseTolerance=Math.max(0.28*atrValue,close*0.0005);
+ const chaseTolerance=Math.max(0.65*atrValue,close*0.0012);
+ const progress=direction==='LONG'?livePrice-close:close-livePrice;
+ if(progress< -reverseTolerance)return {ok:false,reason:'Цена уже развернулась против входа — сигнал пропущен'};
+ if(progress>chaseTolerance)return {ok:false,reason:'Цена ушла слишком далеко — вход запоздал'};
+ return {ok:true,reason:null};
+}
+function getAnalysis(five,fifteen,livePrice=null){
  const last=five.at(-1),c5=five.map(c=>c.close),c15=fifteen.map(c=>c.close);
  const e20=ema(c5,20),e50=ema(c5,50),t20=ema(c15,20),t50=ema(c15,50);
  const r=rsi(c5),volatility=atr(five),previous=five.slice(-13,-1);
@@ -49,7 +76,10 @@ function getAnalysis(five,fifteen){
  const shortTrend=e20<e50&&t20<t50&&fifteen.at(-1).close<t20;
  const longBreak=last.close>upper&&last.close>e20&&r>=55&&r<=77;
  const shortBreak=last.close<lower&&last.close<e20&&r>=23&&r<=45;
- const tentative=longTrend&&longBreak?'LONG':shortTrend&&shortBreak?'SHORT':null;
+ const candidate=longTrend&&longBreak?'LONG':shortTrend&&shortBreak?'SHORT':null;
+ const quality=candidate?breakoutQuality(candidate,last,upper,lower,e20,volatility):null;
+ const priceQuality=candidate&&quality.ok?currentPriceQuality(candidate,last.close,volatility,livePrice):null;
+ const tentative=candidate&&quality.ok&&priceQuality.ok?candidate:null;
  const expiresAt=tentative?last.closeTime+180000:null;
  const active=Boolean(tentative&&Date.now()<expiresAt);
  const direction=active?tentative:null;
@@ -57,8 +87,10 @@ function getAnalysis(five,fifteen){
  return {direction,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
  stop:direction?(direction==='LONG'?last.close-1.2*volatility:last.close+1.2*volatility):null,
  take:direction?(direction==='LONG'?last.close+2.4*volatility:last.close-2.4*volatility):null,
- indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN'},
- reason:direction?'Пробой диапазона · тренд 5м/15м · RSI '+Math.round(r):'Нет свежего подтверждённого пробоя'};
+ indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
+ livePrice:Number.isFinite(livePrice)&&livePrice>0?livePrice:null,
+ reason:direction?'Свежая котировка API · пробой 5м · тренд 15м · RSI '+Math.round(r):
+ (quality&&!quality.ok?quality.reason:priceQuality&&!priceQuality.ok?priceQuality.reason:'Нет свежего подтверждённого пробоя')};
 }
 async function fetchJson(url){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4800);
@@ -75,12 +107,48 @@ async function fetchCandles(symbol,interval,exchange){
  if(body?.retCode!==0||!Array.isArray(body?.result?.list))throw Error(body?.retMsg||'Bybit invalid response');
  return normalizeRows(body.result.list,interval);
 }
+// Use the matching futures exchange's own bid/ask, never mix WEEX and Bybit.
+async function fetchCurrentQuote(symbol,exchange,fetchImpl=fetch,now=Date.now()){
+ if(!SYMBOLS.includes(symbol)||!['WEEX','Bybit'].includes(exchange))throw Error('Unsupported quote');
+ const url=exchange==='WEEX'
+  ?'https://api-contract.weex.com/capi/v3/market/ticker/bookTicker?symbol='+symbol
+  :'https://api.bybit.com/v5/market/tickers?category=linear&symbol='+symbol;
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),3500);
+ let data;
+ try{
+  const r=await fetchImpl(url,{signal:controller.signal,cache:'no-store',headers:{Accept:'application/json'}});
+  if(!r.ok)throw Error('Quote HTTP '+r.status);
+  data=await r.json();
+ }finally{clearTimeout(timeout)}
+ if(exchange==='Bybit'&&(data?.retCode!==0||!Array.isArray(data?.result?.list)))
+  throw Error('Bybit quote invalid');
+ const row=exchange==='WEEX'
+  ?(Array.isArray(data)?data:[data]).find(x=>x?.symbol===symbol)
+  :data.result.list.find(x=>x?.symbol===symbol);
+ const bid=Number(row?.bidPrice),ask=Number(row?.askPrice);
+ const timestamp=exchange==='WEEX'?Number(row?.time):Number(data?.time);
+ if(!Number.isFinite(timestamp)||timestamp>now+5000||now-timestamp>30000)
+  throw Error('Quote is stale');
+ if(!Number.isFinite(bid)||!Number.isFinite(ask)||bid<=0||ask<=0||
+    ask<bid||(ask-bid)/((ask+bid)/2)>0.004)
+  throw Error('Invalid or wide-spread quote');
+ return {price:(bid+ask)/2,bid,ask,time:timestamp};
+}
 async function scanSymbol(symbol){
  const errors=[];
  for(const exchange of ['WEEX','Bybit']){
   try{
    const [five,fifteen]=await Promise.all([fetchCandles(symbol,'5m',exchange),fetchCandles(symbol,'15m',exchange)]);
-   return {symbol,exchange,status:'ok',...getAnalysis(five,fifteen)};
+   // First check candles; request extra API data only for a plausible breakout.
+   const tentative=getAnalysis(five,fifteen,five.at(-1).close);
+   if(!tentative.direction)return {symbol,exchange,status:'ok',...tentative};
+   try{
+    const quote=await fetchCurrentQuote(symbol,exchange);
+    return {symbol,exchange,status:'ok',...getAnalysis(five,fifteen,quote.price)};
+   }catch(e){
+    return {symbol,exchange,status:'ok',...getAnalysis(five,fifteen,null),
+      reason:'Текущая котировка недоступна — вход не подтверждён'};
+   }
   }catch(e){errors.push(exchange+': '+String(e.message||e).slice(0,85));}
  }
  return {symbol,exchange:null,status:'error',direction:null,level:'UNAVAILABLE',reason:errors.join(' / ')};
@@ -94,9 +162,9 @@ export default async function handler(req,res){
  if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
  try{
   const symbols=await scanAll();
-  res.setHeader('Cache-Control','public, s-maxage=25, stale-while-revalidate=15');
+  res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
   return res.status(200).json({generatedAt:Date.now(),interval:'5m',confirmationInterval:'15m',signalLifetimeMinutes:3,sourcePolicy:'WEEX first; Bybit if WEEX fails; never mix exchanges',notes:'Read-only indicative analysis. Not verified profitable.',symbols});
  }catch(e){return res.status(502).json({error:'Market data unavailable',detail:String(e.message||e).slice(0,140)})}
 }
-export const _test={SYMBOLS,normalizeRows,ema,rsi,atr,getAnalysis,scanSymbol};
+export const _test={SYMBOLS,normalizeRows,ema,rsi,atr,getAnalysis,breakoutQuality,currentPriceQuality,fetchCurrentQuote,scanSymbol};
