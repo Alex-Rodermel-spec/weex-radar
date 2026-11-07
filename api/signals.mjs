@@ -1,5 +1,5 @@
 // WEEX RADAR — market data only, no exchange keys and no trading.
-const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT'];
+const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT'];
 const DUR={'5m':300000,'15m':900000};
 function numeric(x){const n=Number(x);return Number.isFinite(n)?n:NaN;}
 function normalizeRows(rows,interval){
@@ -99,4 +99,4 @@ export default async function handler(req,res){
   return res.status(200).json({generatedAt:Date.now(),interval:'5m',confirmationInterval:'15m',signalLifetimeMinutes:3,sourcePolicy:'WEEX first; Bybit if WEEX fails; never mix exchanges',notes:'Read-only indicative analysis. Not verified profitable.',symbols});
  }catch(e){return res.status(502).json({error:'Market data unavailable',detail:String(e.message||e).slice(0,140)})}
 }
-export const _test={normalizeRows,ema,rsi,atr,getAnalysis,scanSymbol};
+export const _test={SYMBOLS,normalizeRows,ema,rsi,atr,getAnalysis,scanSymbol};
