@@ -67,6 +67,7 @@ export default async function handler(req,res) {
   // This never submits an order and is not an investment signal.
   // The GitHub diagnostic receives only pass/fail, never account data.
   let dryRunPlan=false;
+  let dryRunReason='UNKNOWN';
   if(info.status==='fulfilled'&&book.status==='fulfilled'&&
      apiSymbols.status==='fulfilled'&&Array.isArray(apiSymbols.value)&&
      apiSymbols.value.includes('XRPUSDT')) {
@@ -86,9 +87,32 @@ export default async function handler(req,res) {
           prepared.tpTriggerPrice===String(plan.takeProfit)&&
           prepared.slTriggerPrice===String(plan.stopLoss);
       }
-    }catch{}
+    }catch(err){
+      // Only allow known, static, non-sensitive validation codes into CI.
+      const known=new Map([
+        ['Outdated order book','STALE_QUOTE'],
+        ['Crossed order book','BAD_BOOK'],
+        ['Price moved too far from signal','PRICE_MOVED'],
+        ['Invalid entry price','INVALID_ENTRY'],
+        ['Invalid bid','INVALID_BID'],
+        ['Invalid ask','INVALID_ASK'],
+        ['Futures contract unavailable or unsupported','UNSUPPORTED_MARKET'],
+        ['Invalid market precision','PRECISION'],
+        ['Invalid minimum size','MIN_SIZE'],
+        ['Invalid market maximum','MAX_SIZE'],
+        ['Order size outside market limits','SIZE_LIMIT'],
+        ['Trade exceeds risk cap or has poor reward/risk','RISK_LIMIT'],
+        ['Calculated notional outside permitted range','NOTIONAL'],
+        ['Signal expired or too close to expiry','EXPIRED'],
+        ['Signal too old','STALE_SIGNAL'],
+        ['Stop/take are invalid for current price','STOP_TAKE'],
+        ['Unsafe trade plan','UNSAFE_ORDER'],
+        ['Wrong LONG stops','WRONG_STOP']
+      ]);
+      dryRunReason=known.get(String(err?.message||''))||'UNCLASSIFIED';
+    }
   }
-  check.dryRunPlan=dryRunPlan?'authenticated':'unavailable';
+  check.dryRunPlan=dryRunPlan?'authenticated':'blocked_'+dryRunReason;
   const ok=Object.values(check).every(v=>v==='authenticated');
   return res.status(ok?200:502).json({
     ok,stage:ok?'authenticated':'three_endpoint_diagnosis',code:ok?null:
