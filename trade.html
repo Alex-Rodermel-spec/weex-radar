@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WEEX RADAR · Подготовка торговли</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Arial,sans-serif}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;color:#f5f2fb;background:#0a0b13;padding:22px}
+main{max-width:670px;margin:0 auto}.back{color:#ccadff;text-decoration:none;font-size:14px}
+h1{font-size:clamp(27px,6vw,40px);margin:25px 0 10px}.sub{color:#a8a8be;line-height:1.55}
+.panel{border:1px solid #393048;background:#161522;padding:18px;border-radius:18px;margin-top:19px}
+label{display:block;margin-bottom:7px;color:#ac9dbd}select,button{border:1px solid #706084;color:white;background:#252034;border-radius:12px;padding:12px;font:inherit}
+select{width:100%}button{background:#8153ba;font-weight:bold;cursor:pointer;margin-top:12px;width:100%}
+button:disabled{opacity:.55;cursor:not-allowed}.warning{color:#f4cb8a}.key{color:#cdb7ea;font-size:13px;margin-top:3px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{background:#211d2c;border-radius:10px;padding:11px}
+.metric strong{font-size:19px;display:block;margin-top:5px}.risk{color:#ff98a5}.good{color:#83e7bd}
+a{color:#cfabff}small{color:#a8a8be}.mode{display:inline-block;padding:4px 9px;background:#423044;border-radius:99px;font-size:12px}
+</style></head>
+<body><main>
+<a class="back" href="/">← Вернуться к сигналам WEEX RADAR</a>
+<h1>Подготовка реальной торговли</h1>
+<div class="mode">🔒 ТОЛЬКО ПРОСМОТР · ОРДЕРА ОТКЛЮЧЕНЫ</div>
+<p class="sub">50 USDT маржи · плечо 10× · максимум 3 позиции на разных монетах · только после личного подтверждения. Исполнение ордеров не подключено.</p>
+<div class="panel">
+<label for="symbol">Монета</label><select id="symbol"></select>
+<button id="preview">Посмотреть свежий план сделки</button>
+<p id="result" class="sub" role="status">Для плана нужен свежий сигнал именно WEEX; сигналы Bybit не используются для торгового входа.</p>
+<div id="plan" hidden></div>
+</div>
+<div class="panel"><strong>Что необходимо для подключения</strong>
+<p class="sub">Отдельный ключ WEEX Futures с минимальными правами, защищённое подтверждение владельца и серверные ограничения по количеству позиций. Эти проверки сначала надо испытать на тестовом счёте.</p>
+<p class="warning">⚠️ Никому не отправляй API Secret, Passphrase или пароль в чат, GitHub и скриншотах. Ключи вводятся только в закрытые настройки Vercel.</p>
+<a href="https://www.weex.com/weex-API" target="_blank" rel="noopener noreferrer">Официальная страница WEEX API</a>
+</div>
+</main>
+<script>
+'use strict';
+const symbols=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT'];
+const $=id=>document.getElementById(id);
+const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:8});
+$('symbol').innerHTML=symbols.map(x=>'<option value="'+x+'">'+x+'</option>').join('');
+$('symbol').value='XRPUSDT';
+$('preview').onclick=async()=>{
+  $('preview').disabled=true;$('result').textContent='Проверяем сигнал и котировки WEEX…';$('plan').hidden=true;
+  try{
+    const r=await fetch('/api/trade-preview?symbol='+encodeURIComponent($('symbol').value),{cache:'no-store'});
+    const p=await r.json();if(!r.ok)throw Error(p.error||'Нет свежего торгового плана');
+    $('result').textContent='Пример плана по свежему сигналу WEEX. Это не заявка на биржу.';
+    const rows=[['Сигнал',p.direction+' · '+p.level],['Вход (оценка)',fmt(p.entryEstimate)+' USDT'],['Количество',p.quantity],['Размер позиции',fmt(p.notionalEstimate)+' USDT'],['Stop-Loss',fmt(p.stopLoss)+' USDT'],['Take-Profit',fmt(p.takeProfit)+' USDT'],['Потенциальный убыток до комиссий','−'+fmt(p.estimatedLossUsdt)+' USDT'],['Потенциальная прибыль до комиссий','+'+fmt(p.estimatedProfitUsdt)+' USDT'],['Истекает',new Date(p.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})]];
+    $('plan').innerHTML='<div class="grid">'+rows.map(([k,v])=>'<div class="metric"><small>'+escape(k)+'</small><strong>'+escape(v)+'</strong></div>').join('')+'</div><p class="warning">Никакой ордер не будет отправлен. Для реальной торговли потребуется отдельная защищённая активация.</p>';
+    $('plan').hidden=false;
+  }catch(e){$('result').textContent=String(e.message||e)+'. Новые сигналы появляются не постоянно — ждём подтверждения.';}
+  finally{$('preview').disabled=false;}
+};
+</script></body></html>
