@@ -33,3 +33,5 @@ jobs:
           if [[ "$status" != "200" ]]; then
             echo "::warning::WEEX account authentication is not yet verified (read-only probe)"
           fi
+
+# Last verified after API key update (read-only probe, 2026-11-07)
