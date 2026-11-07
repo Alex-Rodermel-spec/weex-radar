@@ -110,3 +110,11 @@ test('connection errors display next to connection button, not under coin select
   assert.match(html, /\$\('status'\)\.onclick=/);
   assert.match(html, /e\.key==='Enter'/);
 });
+
+test('WEEX diagnostics return safe numeric codes only',async()=>{
+ const {describeConnectionFailure}=await import('../api/trade-status.mjs');
+ assert.equal(describeConnectionFailure(new Error('WEEX_CODE_-1049')).code,'-1049');
+ assert.match(describeConnectionFailure(new Error('WEEX_CODE_-1056')).message,/IP-адрес/);
+ assert.equal(describeConnectionFailure(new Error('secret: confidential')).code,null);
+ assert.doesNotMatch(describeConnectionFailure(new Error('secret: confidential')).message,/confidential/);
+});
