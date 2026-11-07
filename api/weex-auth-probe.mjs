@@ -51,9 +51,9 @@ export default async function handler(req,res) {
       :safeProbeError(positions.reason).code||safeProbeError(positions.reason).stage
   };
   // Verify the remaining read-only prerequisites used by the trade preview.
-  const [orders,settings,info,book,apiSymbols]=await Promise.allSettled([
+  const [orders,settings,info,book,apiSymbols,protectiveOrders]=await Promise.allSettled([
     weex.openOrders(),weex.symbolConfig('XRPUSDT'),weex.info('XRPUSDT'),
-    weex.book('XRPUSDT'),weex.apiTradingSymbols()
+    weex.book('XRPUSDT'),weex.apiTradingSymbols(),weex.openAlgoOrders('XRPUSDT')
   ]);
   const summarize=(x,valid)=>x.status==='fulfilled'
     ?(valid(x.value)?'authenticated':'unexpected_schema')
@@ -63,6 +63,7 @@ export default async function handler(req,res) {
   check.exchangeInfo=summarize(info,x=>Array.isArray(x?.symbols));
   check.bookTicker=summarize(book,x=>(Array.isArray(x)?x.length>0:Boolean(x&&typeof x==='object')));
   check.apiTradingSymbols=summarize(apiSymbols,Array.isArray);
+  check.openAlgoOrders=summarize(protectiveOrders,Array.isArray);
   // Dry-run: build a *synthetic* local plan from real market metadata.
   // This never submits an order and is not an investment signal.
   // The GitHub diagnostic receives only pass/fail, never account data.

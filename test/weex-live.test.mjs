@@ -186,3 +186,10 @@ test('execution release requires exchange evidence of both TP/SL orders',()=>{
  const confirm=readFileSync(new URL('../api/trade-confirm.mjs',import.meta.url),'utf8');
  assert.match(confirm,/stopLoss:plan\.stopLoss,takeProfit:plan\.takeProfit/);
 });
+
+test('OIDC read-only verification also checks protective order visibility',()=>{
+ const code=readFileSync(new URL('../api/weex-auth-probe.mjs',import.meta.url),'utf8');
+ assert.match(code,/weex\.openAlgoOrders\('XRPUSDT'\)/);
+ assert.match(code,/check\.openAlgoOrders=summarize/);
+ assert.doesNotMatch(code,/weex\.placeOrder\(/);
+});
