@@ -36,7 +36,7 @@ test('background push test is queued, sent through cron and acknowledged indepen
  assert.match(subscribe,/background-tests\//);
  assert.match(dispatch,/async function sendDueBackgroundTests/);
  assert.match(dispatch,/background-test-locks\//);
- assert.match(dispatch,/kind:'background_test'/);
+ assert.match(dispatch,/kind=signalStyle\?'signal_test':'background_test'/);
  assert.match(dispatch,/sendDueBackgroundTests\(\)/);
  assert.match(worker,/background_test/);
  assert.match(html,/id="bg-test"/);
