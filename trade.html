@@ -42,6 +42,8 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <h2>2. Выбери монету</h2>
 <label for="symbol">Фьючерс</label>
 <select id="symbol"></select>
+<button class="secondary" id="preflight">🛡 Проверить готовность без сделки</button>
+<p class="muted" id="preflight-result" role="status">Проверь подключение, доступную маржу и настройки пары без открытия ордера.</p>
 <button class="secondary" id="preview">Посмотреть возможный вход (без ордера)</button>
 <button id="prepare">Подготовить реальную сделку</button>
 <p class="muted" id="messages" role="status">Если подтверждённого сигнала WEEX нет — вход запрещён.</p>
@@ -121,7 +123,29 @@ $('password').addEventListener('keydown',e=>{
    $('status').click();
  }
 });
-$('symbol').onchange=reset;
+$('symbol').onchange=()=>{reset();$('preflight-result').textContent='Для этой монеты готовность ещё не проверена.'};
+$('preflight').onclick=()=>run($('preflight'),async()=>{
+ const out=$('preflight-result');
+ out.textContent='⏳ Проверяю WEEX без отправки заявок…';
+ try {
+  const d=await post('/api/trade-preflight',{symbol:$('symbol').value,password:$('password').value});
+  const captions={accountTradeFlag:'Аккаунт разрешает торговлю',hedgeMode:'Двусторонний режим',
+   collateral55Usdt:'Доступно ≥55 USDT',positionCapacity:'Меньше 3 открытых позиций',
+   noSameCoinPosition:'Нет позиции на этой монете',noPendingEntryOrders:'Нет открытых ордеров на вход',
+   apiListed:'Фьючерс доступен через API',supportedMarket:'Фьючерс поддерживается',
+   freshOrderBook:'Цены актуальные',compatiblePositionSettings:'Режим позиции поддерживается'};
+  const messages=Object.entries(d.checks).map(([k,v])=>(v?'✅ ':'❌ ')+(captions[k]||k));
+  messages.push(d.requiresLeverageSetup?'⚠️ Перед входом понадобится установить изолированную маржу 10×.':'✅ Изолированная маржа 10×');
+  messages.push('🔒 Право API на открытие реального ордера пока не проверено.');
+  messages.push(d.liveEnabled?'⚠️ Реальные ордера включены в Vercel.':'🔒 Реальные ордера в Vercel выключены.');
+  messages.push('Это только проверка. Сделки не открывались.');
+  out.textContent=messages.join('\n');
+  out.style.whiteSpace='pre-line';
+ } catch(e) {
+  out.textContent='❌ Проверка: '+String(e.message||e)+' (без ордера).';
+ }
+});
+
 $('preview').onclick=()=>run($('preview'),async()=>{
  reset();message('Проверяю свежий сигнал и цену WEEX…');
  const r=await fetch('/api/trade-preview?symbol='+encodeURIComponent($('symbol').value),{cache:'no-store'});
