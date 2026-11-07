@@ -125,7 +125,8 @@ async function fetchCurrentQuote(symbol,exchange,fetchImpl=fetch,now=Date.now())
  const row=exchange==='WEEX'
   ?(Array.isArray(data)?data:[data]).find(x=>x?.symbol===symbol)
   :data.result.list.find(x=>x?.symbol===symbol);
- const bid=Number(row?.bidPrice),ask=Number(row?.askPrice);
+ const bid=Number(exchange==='Bybit'?row?.bid1Price:row?.bidPrice),
+       ask=Number(exchange==='Bybit'?row?.ask1Price:row?.askPrice);
  const timestamp=exchange==='WEEX'?Number(row?.time):Number(data?.time);
  if(!Number.isFinite(timestamp)||timestamp>now+5000||now-timestamp>30000)
   throw Error('Quote is stale');
