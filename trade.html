@@ -93,9 +93,33 @@ async function run(button,fn){
  finally{busy=false;button.disabled=false;if(button===$('confirm'))button.disabled=!$('accept').checked||!approvalToken;}
 }
 $('status').onclick=()=>run($('status'),async()=>{
- const d=await post('/api/trade-status',{password:$('password').value});
- $('account').textContent='WEEX API подключён · Двусторонний режим: '+(d.hedgeMode?'да':'нет')+' · Открыто позиций: '+d.openPositions+'/3 · Реальные ордера: '+(d.liveEnabled?'разрешены':'ВЫКЛЮЧЕНЫ');
- $('mode').textContent=d.liveEnabled?'🟢 Реальный режим разрешён':'🔒 Реальная торговля выключена';
+ const account=$('account'),mode=$('mode'),button=$('status');
+ if(!$('password').value){
+   account.textContent='❌ Сначала введи личный пароль подтверждения RADAR.';
+   mode.textContent='🔒 Пароль не введён';
+   return;
+ }
+ const label=button.textContent;
+ button.textContent='⏳ Проверяем WEEX…';
+ account.textContent='⏳ Проверяю пароль и подключение к счёту WEEX. Ордер не открывается.';
+ mode.textContent='⏳ Идёт проверка';
+ try{
+   const d=await post('/api/trade-status',{password:$('password').value});
+   account.textContent='✅ WEEX API подключён · Двусторонний режим: '+(d.hedgeMode?'да':'нет')+' · Открыто позиций: '+d.openPositions+'/3 · Реальные ордера: '+(d.liveEnabled?'разрешены':'ВЫКЛЮЧЕНЫ')+'.';
+   mode.textContent=d.liveEnabled?'🟢 Реальный режим разрешён':'✅ WEEX подключён · торговля выключена';
+ }catch(e){
+   const detail=String(e?.message||'Не удалось связаться с сервером');
+   account.textContent='❌ Проверка WEEX не прошла: '+detail+'. Исправим эту ошибку перед реальной торговлей.';
+   mode.textContent='🔒 Подключение не подтверждено';
+ }finally{
+   button.textContent=label;
+ }
+});
+$('password').addEventListener('keydown',e=>{
+ if(e.key==='Enter'){
+   e.preventDefault();
+   $('status').click();
+ }
 });
 $('symbol').onchange=reset;
 $('preview').onclick=()=>run($('preview'),async()=>{

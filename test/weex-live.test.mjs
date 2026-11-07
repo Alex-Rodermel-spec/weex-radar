@@ -103,3 +103,10 @@ test('preserves WEEX 64-bit order IDs exactly from exchange JSON',()=>{
   const detail=parseExchangeResponse('{"orderId":"'+id+'","symbol":"XRPUSDT"}','/capi/v3/order');
   assert.equal(detail.orderId,id);
 });
+
+test('connection errors display next to connection button, not under coin selection',()=>{
+  const html=readFileSync(new URL('../trade.html',import.meta.url),'utf8');
+  assert.match(html, /account\.textContent='❌ Проверка WEEX не прошла/);
+  assert.match(html, /\$\('status'\)\.onclick=/);
+  assert.match(html, /e\.key==='Enter'/);
+});
