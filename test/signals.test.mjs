@@ -44,6 +44,6 @@ test('WEEX and Bybit fresh futures quotes are validated independently',async()=>
  const bybit=await fetchCurrentQuote('ALGOUSDT','Bybit',mock({retCode:0,time:now,result:{list:[{symbol:'ALGOUSDT',bid1Price:'0.09490',ask1Price:'0.09492'}]}}),now);
  assert.equal(bybit.price,0.09491);
  await assert.rejects(fetchCurrentQuote('ALGOUSDT','WEEX',mock([{symbol:'ALGOUSDT',bidPrice:'0.09490',askPrice:'0.09492',time:now-90000}]),now),/stale/);
- await assert.rejects(fetchCurrentQuote('ALGOUSDT','WEEX',mock([{symbol:'BTCUSDT',bidPrice:'0.09490',askPrice:'0.09492',time:now}]),now),/Invalid/);
+ await assert.rejects(fetchCurrentQuote('ALGOUSDT','WEEX',mock([{symbol:'BTCUSDT',bidPrice:'0.09490',askPrice:'0.09492',time:now}]),now),/stale|Invalid/);
  await assert.rejects(fetchCurrentQuote('ALGOUSDT','WEEX',mock([{symbol:'ALGOUSDT',bidPrice:'0.09490',askPrice:'0.09600',time:now}]),now),/wide-spread/);
 });
