@@ -118,3 +118,16 @@ test('WEEX diagnostics return safe numeric codes only',async()=>{
  assert.equal(describeConnectionFailure(new Error('secret: confidential')).code,null);
  assert.doesNotMatch(describeConnectionFailure(new Error('secret: confidential')).message,/confidential/);
 });
+
+test('OIDC auth probe rejects untrusted callers and strips upstream errors',async()=>{
+ const {validProbeToken,safeProbeError}=await import('../api/weex-auth-probe.mjs');
+ assert.equal(await validProbeToken(''),false);
+ assert.equal(await validProbeToken('a'.repeat(8500)),false);
+ const example={repository:'Alex-Rodermel-spec/weex-radar',ref:'refs/heads/main',
+  event_name:'push',workflow_ref:'Alex-Rodermel-spec/weex-radar/.github/workflows/weex-auth-probe.yml@refs/heads/main'};
+ const mock=async()=>({payload:example});
+ assert.equal(await validProbeToken('sample',mock),true);
+ assert.equal(await validProbeToken('sample',async()=>({payload:{...example,ref:'refs/heads/hack'}})),false);
+ assert.deepEqual(safeProbeError(new Error('WEEX_CODE_40009')),{stage:'api',code:'40009'});
+ assert.deepEqual(safeProbeError(new Error('SECRET-DO-NOT-EXPOSE')),{stage:'network_or_response',code:null});
+});
