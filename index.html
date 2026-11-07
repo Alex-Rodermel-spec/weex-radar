@@ -141,7 +141,7 @@ if(localStorage.getItem('weex-push-active')==='1'){
  $('notify').textContent='🔔 Проверить push ещё раз';
  // Recover previously approved push subscription when owner visits the RADAR.
  // Never request browser permissions or create subscriptions without prior consent.
- if(Notification.permission==='granted')setupPush(false);
+ if(('Notification'in window)&&Notification.permission==='granted')setupPush(false);
 }
 
 update();setInterval(()=>{if(document.visibilityState==='visible')update()},60000);
