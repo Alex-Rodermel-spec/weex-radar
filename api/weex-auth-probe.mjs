@@ -112,7 +112,13 @@ export default async function handler(req,res) {
       dryRunReason=known.get(String(err?.message||''))||'UNCLASSIFIED';
     }
   }
-  check.dryRunPlan=dryRunPlan?'authenticated':'blocked_'+dryRunReason;
+  const market=info.status==='fulfilled'
+    ?info.value?.symbols?.find(s=>s?.symbol==='XRPUSDT'):null;
+  const prec=v=>Number.isInteger(Number(v))&&v!==undefined&&v!==null&&
+    Number(v)>=0&&Number(v)<=60?String(v):'UNKNOWN';
+  check.dryRunPlan=dryRunPlan?'authenticated':
+    'blocked_'+dryRunReason+'_qtyPrecision'+prec(market?.quantityPrecision)+
+    '_pricePrecision'+prec(market?.pricePrecision);
   const ok=Object.values(check).every(v=>v==='authenticated');
   return res.status(ok?200:502).json({
     ok,stage:ok?'authenticated':'three_endpoint_diagnosis',code:ok?null:
