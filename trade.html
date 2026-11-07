@@ -1,54 +1,130 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WEEX RADAR · Подготовка торговли</title>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0b13">
+<meta name="referrer" content="no-referrer">
+<title>WEEX RADAR · Подтверждение сделок</title>
 <style>
 :root{color-scheme:dark;font-family:system-ui,-apple-system,Arial,sans-serif}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;color:#f5f2fb;background:#0a0b13;padding:22px}
-main{max-width:670px;margin:0 auto}.back{color:#ccadff;text-decoration:none;font-size:14px}
-h1{font-size:clamp(27px,6vw,40px);margin:25px 0 10px}.sub{color:#a8a8be;line-height:1.55}
-.panel{border:1px solid #393048;background:#161522;padding:18px;border-radius:18px;margin-top:19px}
-label{display:block;margin-bottom:7px;color:#ac9dbd}select,button{border:1px solid #706084;color:white;background:#252034;border-radius:12px;padding:12px;font:inherit}
-select{width:100%}button{background:#8153ba;font-weight:bold;cursor:pointer;margin-top:12px;width:100%}
-button:disabled{opacity:.55;cursor:not-allowed}.warning{color:#f4cb8a}.key{color:#cdb7ea;font-size:13px;margin-top:3px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{background:#211d2c;border-radius:10px;padding:11px}
-.metric strong{font-size:19px;display:block;margin-top:5px}.risk{color:#ff98a5}.good{color:#83e7bd}
-a{color:#cfabff}small{color:#a8a8be}.mode{display:inline-block;padding:4px 9px;background:#423044;border-radius:99px;font-size:12px}
-</style></head>
+*{box-sizing:border-box}body{background:#0a0b13;color:#f3f0fb;margin:0;padding:16px 14px 50px}
+main{max-width:675px;margin:auto}a{color:#c6a0ff}header{padding:16px 0 4px}.back{font-size:14px;text-decoration:none}
+h1{font-size:clamp(26px,6vw,36px);letter-spacing:-.03em;margin:18px 0 7px}
+h2{font-size:19px}.muted{color:#a5acc0;line-height:1.5}.box{background:#151521;border:1px solid #373046;padding:17px;border-radius:18px;margin:16px 0}
+label{display:block;margin:12px 0 7px;font-weight:600}input,select{font:inherit;color:white;border-radius:11px;padding:12px;border:1px solid #605976;background:#282437;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid #bf90ff}
+button{font:inherit;color:white;background:#8254bf;border:none;border-radius:11px;padding:13px;cursor:pointer;font-weight:700;width:100%;margin-top:13px}
+button:disabled{cursor:not-allowed;opacity:.5}.secondary{background:#30263f;border:1px solid #554569}.danger{background:#ba375c}.alert{color:#ffc68f}.ok{color:#83e8af}
+.pill{display:inline-block;border-radius:50px;padding:4px 10px;font-size:12px;background:#373049;color:#e5c9fa}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric{background:#212030;border-radius:10px;padding:10px;min-width:0}
+.metric small{display:block;color:#a7a6bc;font-size:12px}.metric strong{display:block;margin-top:7px;font-size:17px;word-break:break-word}
+#messages{min-height:28px}.field-note{font-size:12px;color:#a7a6bc}
+hr{border:0;border-top:1px solid #3a3147;margin:16px 0}
+.check{display:flex;align-items:flex-start;gap:10px;margin-top:16px;font-weight:400}.check input{width:20px;height:20px;flex-shrink:0;margin:2px 0 0}
+code{background:#272032;border-radius:4px;padding:1px 4px}
+</style>
+</head>
 <body><main>
-<a class="back" href="/">← Вернуться к сигналам WEEX RADAR</a>
-<h1>Подготовка реальной торговли</h1>
-<div class="mode">🔒 ТОЛЬКО ПРОСМОТР · ОРДЕРА ОТКЛЮЧЕНЫ</div>
-<p class="sub">50 USDT маржи · плечо 10× · максимум 3 позиции на разных монетах · только после личного подтверждения. Исполнение ордеров не подключено.</p>
-<div class="panel">
-<label for="symbol">Монета</label><select id="symbol"></select>
-<button id="preview">Посмотреть свежий план сделки</button>
-<p id="result" class="sub" role="status">Для плана нужен свежий сигнал именно WEEX; сигналы Bybit не используются для торгового входа.</p>
+<header><a class="back" href="/">← Назад к сигналам WEEX RADAR</a>
+<h1>WEEX RADAR · Торговля</h1>
+<span class="pill" id="mode">🔒 Статус: не проверен</span>
+<p class="muted">Реальные фьючерсы WEEX · маржа 50 USDT · плечо 10× · не более 3 разных монет. Каждую сделку подтверждаешь лично ты.</p>
+<section class="box">
+<h2>1. Подключение и вход</h2>
+<label for="password">Личный пароль подтверждения RADAR</label>
+<input id="password" type="password" autocomplete="off" spellcheck="false" placeholder="Пароль из секретов Vercel (не WEEX!)">
+<p class="field-note">Используй отдельный пароль, заданный в <code>WEEX_TRADE_APPROVAL_PASSWORD</code>. Не отправляй его в чат. Страница не сохраняет пароль в памяти телефона после закрытия.</p>
+<button class="secondary" id="status">Проверить подключение WEEX</button>
+<div id="account" class="muted" role="status">Реальные ордера недоступны, пока не подтвердится подключение и не будет включён защищённый режим торговли.</div>
+</section>
+<section class="box">
+<h2>2. Выбери монету</h2>
+<label for="symbol">Фьючерс</label>
+<select id="symbol"></select>
+<button class="secondary" id="preview">Посмотреть возможный вход (без ордера)</button>
+<button id="prepare">Подготовить реальную сделку</button>
+<p class="muted" id="messages" role="status">Если подтверждённого сигнала WEEX нет — вход запрещён.</p>
 <div id="plan" hidden></div>
-</div>
-<div class="panel"><strong>Что необходимо для подключения</strong>
-<p class="sub">Отдельный ключ WEEX Futures с минимальными правами, защищённое подтверждение владельца и серверные ограничения по количеству позиций. Эти проверки сначала надо испытать на тестовом счёте.</p>
-<p class="warning">⚠️ Никому не отправляй API Secret, Passphrase или пароль в чат, GitHub и скриншотах. Ключи вводятся только в закрытые настройки Vercel.</p>
-<a href="https://www.weex.com/weex-API" target="_blank" rel="noopener noreferrer">Официальная страница WEEX API</a>
-</div>
+</section>
+<section class="box" id="approval" hidden>
+<h2>3. Подтверждение реального ордера</h2>
+<p class="alert">⚠️ Это реальная заявка с плечом 10×. Если ты подтвердишь, деньги действительно будут задействованы. Стоп не гарантирует точный убыток.</p>
+<label class="check"><input type="checkbox" id="accept"><span>Я проверил цену входа, Stop-Loss, Take-Profit и принимаю риск реальных убытков.</span></label>
+<button class="danger" id="confirm" disabled>Подтвердить реальную сделку WEEX</button>
+<p class="field-note">Одобрение действует только для конкретного свежего сигнала, один раз и не более 45 секунд.</p>
+</section>
+<section class="box" id="released" hidden>
+<h2>4. Проверить защиту на WEEX</h2>
+<p class="alert">После подтверждения заказа мы блокируем новые сделки, пока ты лично не проверишь, что на WEEX отображаются активные Stop-Loss и Take-Profit для новой позиции.</p>
+<label class="check"><input type="checkbox" id="verified"><span>Я открыл WEEX и убедился, что оба защитных ордера выставлены для этой позиции.</span></label>
+<button id="unlock" class="secondary" disabled>Подтвердить проверку TP/SL и разрешить следующую сделку</button>
+</section>
+<section class="box">
+<h2>Защита</h2>
+<p class="muted">Вывод средств через API не используется. Бот не открывает позиции без подтверждения. При смене сигнала, цены, превышении риска 10 USDT, отсутствии защиты, открытых ордерах или ошибках WEEX — отклоняет вход.</p>
+<p class="alert">Если ордер уже был отправлен, но связь прервалась, сначала проверь приложение WEEX. Повторно нажимать вход нельзя.</p>
+</section>
 </main>
 <script>
 'use strict';
-const symbols=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT'];
 const $=id=>document.getElementById(id);
-const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:8});
-$('symbol').innerHTML=symbols.map(x=>'<option value="'+x+'">'+x+'</option>').join('');
+const coin=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT'];
+$('symbol').innerHTML=coin.map(x=>'<option value="'+x+'">'+x+'</option>').join('');
 $('symbol').value='XRPUSDT';
-$('preview').onclick=async()=>{
-  $('preview').disabled=true;$('result').textContent='Проверяем сигнал и котировки WEEX…';$('plan').hidden=true;
-  try{
-    const r=await fetch('/api/trade-preview?symbol='+encodeURIComponent($('symbol').value),{cache:'no-store'});
-    const p=await r.json();if(!r.ok)throw Error(p.error||'Нет свежего торгового плана');
-    $('result').textContent='Пример плана по свежему сигналу WEEX. Это не заявка на биржу.';
-    const rows=[['Сигнал',p.direction+' · '+p.level],['Вход (оценка)',fmt(p.entryEstimate)+' USDT'],['Количество',p.quantity],['Размер позиции',fmt(p.notionalEstimate)+' USDT'],['Stop-Loss',fmt(p.stopLoss)+' USDT'],['Take-Profit',fmt(p.takeProfit)+' USDT'],['Потенциальный убыток до комиссий','−'+fmt(p.estimatedLossUsdt)+' USDT'],['Потенциальная прибыль до комиссий','+'+fmt(p.estimatedProfitUsdt)+' USDT'],['Истекает',new Date(p.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})]];
-    $('plan').innerHTML='<div class="grid">'+rows.map(([k,v])=>'<div class="metric"><small>'+escape(k)+'</small><strong>'+escape(v)+'</strong></div>').join('')+'</div><p class="warning">Никакой ордер не будет отправлен. Для реальной торговли потребуется отдельная защищённая активация.</p>';
-    $('plan').hidden=false;
-  }catch(e){$('result').textContent=String(e.message||e)+'. Новые сигналы появляются не постоянно — ждём подтверждения.';}
-  finally{$('preview').disabled=false;}
-};
-</script></body></html>
+let approvalToken=null,expiresAt=0,busy=false;
+const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const number=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:8});
+function message(s){$('messages').textContent=s;}
+function reset(){approvalToken=null;expiresAt=0;$('approval').hidden=true;$('accept').checked=false;$('confirm').disabled=true;$('plan').hidden=true;}
+function render(p){
+ const pairs=[['Направление',p.direction],['Маржа',p.marginUsdt+' USDT'],['Плечо',p.leverage+'×'],['Цена входа (оценка)',number(p.entryEstimate)],['Объём',number(p.notionalEstimate)+' USDT'],['Количество',p.quantity],['Stop-Loss',number(p.stopLoss)],['Take-Profit',number(p.takeProfit)],['Убыток до комиссий','−'+number(p.estimatedLossUsdt)+' USDT'],['Прибыль до комиссий','+'+number(p.estimatedProfitUsdt)+' USDT'],['Максимум позиций',p.maxConcurrent],['Сигнал действителен до',new Date(p.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})]];
+ $('plan').innerHTML='<h2>'+safe(p.symbol)+' · '+safe(p.direction)+'</h2><div class="grid">'+pairs.map(([k,v])=>'<div class="metric"><small>'+safe(k)+'</small><strong>'+safe(v)+'</strong></div>').join('')+'</div>';
+ $('plan').hidden=false;
+}
+async function post(endpoint,payload){
+ const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Radar-Trade-Intent':'manual-confirm'},cache:'no-store',credentials:'same-origin',body:JSON.stringify(payload)});
+ const data=await r.json();if(!r.ok)throw Error(data.error||'WEEX API error');
+ return data;
+}
+async function run(button,fn){
+ if(busy)return;busy=true;button.disabled=true;
+ try{await fn()}catch(e){message('Ошибка: '+String(e.message||e));}
+ finally{busy=false;button.disabled=false;if(button===$('confirm'))button.disabled=!$('accept').checked||!approvalToken;}
+}
+$('status').onclick=()=>run($('status'),async()=>{
+ const d=await post('/api/trade-status',{password:$('password').value});
+ $('account').textContent='WEEX API подключён · Двусторонний режим: '+(d.hedgeMode?'да':'нет')+' · Открыто позиций: '+d.openPositions+'/3 · Реальные ордера: '+(d.liveEnabled?'разрешены':'ВЫКЛЮЧЕНЫ');
+ $('mode').textContent=d.liveEnabled?'🟢 Реальный режим разрешён':'🔒 Реальная торговля выключена';
+});
+$('symbol').onchange=reset;
+$('preview').onclick=()=>run($('preview'),async()=>{
+ reset();message('Проверяю свежий сигнал и цену WEEX…');
+ const r=await fetch('/api/trade-preview?symbol='+encodeURIComponent($('symbol').value),{cache:'no-store'});
+ const d=await r.json();if(!r.ok)throw Error(d.error||'Нет сигнала');
+ render(d);message('Это ознакомительный расчёт, без заявки.');
+});
+$('prepare').onclick=()=>run($('prepare'),async()=>{
+ reset();$('released').hidden=true;message('Проверяю твои открытые позиции, сигнал и ограничения…');
+ const d=await post('/api/trade-prepare',{symbol:$('symbol').value,password:$('password').value});
+ render(d.trade);approvalToken=d.proposal;expiresAt=d.expiresAt;
+ if(!d.liveEnabled){message('План готов, но реальная торговля в Vercel пока выключена.');return;}
+ $('approval').hidden=false;message('Проверь уровни и подтверди только если согласен. Срок — 45 секунд.');
+});
+$('accept').onchange=()=>{$('confirm').disabled=!$('accept').checked||!approvalToken};
+$('confirm').onclick=()=>run($('confirm'),async()=>{
+ if(!$('accept').checked||!approvalToken||Date.now()>expiresAt-12000)throw Error('Одобрение истекло. Запроси новый план.');
+ const token=approvalToken;approvalToken=null;$('approval').hidden=true;
+ message('Отправляю подтверждённый ордер WEEX с TP/SL… Не нажимай повторно.');
+ const d=await post('/api/trade-confirm',{proposal:token,password:$('password').value,confirmation:'CONFIRM_REAL_WEEX_ORDER'});
+ message('WEEX принял ордер '+d.orderId+'. СЕЙЧАС проверь Stop-Loss и Take-Profit в WEEX. До проверки новые сделки заблокированы.');
+ $('released').hidden=false;$('verified').checked=false;$('unlock').disabled=true;
+});
+$('verified').onchange=()=>{$('unlock').disabled=!$('verified').checked};
+$('unlock').onclick=()=>run($('unlock'),async()=>{
+ if(!$('verified').checked)return;
+ const d=await post('/api/trade-release',{password:$('password').value,confirmation:'CHECKED_TP_SL_ON_WEEX'});
+ $('released').hidden=true;message('Проверка защиты подтверждена. Новая сделка доступна при следующем свежем сигнале.');
+});
+</script>
+</body></html>
