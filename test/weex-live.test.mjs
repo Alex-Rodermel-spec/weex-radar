@@ -6,7 +6,7 @@ import {createHmac} from 'node:crypto';
 import {
   safeEqual,signedHeaders,validateHumanPassword,liveEnabled,requireSameOrigin,
   checkPositions,checkAvailableMargin,checkOrders,checkSymbolSettings,
-  orderPayload,isAccepted,clientOrderId,verifyAccount
+  orderPayload,isAccepted,clientOrderId,verifyAccount,parseExchangeResponse
 } from '../lib/weex-order.mjs';
 const creds={key:'example_public',secret:'fake_test_secret',passphrase:'fake_test_passphrase'};
 const plan={symbol:'XRPUSDT',exchange:'WEEX',direction:'LONG',marginUsdt:50,leverage:10,
@@ -93,4 +93,13 @@ test('server execution starts with OFF switch and checks live flag before readin
   await confirm(request,res);
   assert.equal(res.statusCode,403);assert.match(res.body.error,/OFF/);
   Object.assign(process.env,prev);
+});
+
+test('preserves WEEX 64-bit order IDs exactly from exchange JSON',()=>{
+  const id='702345678901234567';
+  const parsed=parseExchangeResponse('{"orderId":'+id+',"success":true,"clientOrderId":"radar-abc"}','/capi/v3/order');
+  assert.equal(parsed.orderId,id);
+  assert.equal(isAccepted(parsed,'radar-abc'),true);
+  const detail=parseExchangeResponse('{"orderId":"'+id+'","symbol":"XRPUSDT"}','/capi/v3/order');
+  assert.equal(detail.orderId,id);
 });
