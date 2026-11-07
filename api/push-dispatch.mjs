@@ -173,6 +173,12 @@ export default async function handler(req,res){
      // Accepted by the push gateway is not confirmation of receipt on Android.
      await webpush.sendNotification(subscriber,JSON.stringify(message),{TTL:150,urgency:'high'});
      delivered++;
+     try{
+      await put('signal-status/'+subscriberId+'.json',
+        JSON.stringify({id:deliveryId,at:Date.now(),expiresAt:message.expiresAt,
+          symbol:primary.symbol,direction:primary.direction,retry:pending.some(p=>p.retry)}),
+        {access:'private',allowOverwrite:true,contentType:'application/json'});
+     }catch(e){console.warn('WEEX_RADAR signal status write unavailable',String(e.message||e).slice(0,90))}
      console.info('WEEX_RADAR_PUSH_GATEWAY '+JSON.stringify({id:deliveryId.slice(0,12),count:selected.length,accepted:true,retry:pending.some(p=>p.retry)}));
     }catch(e){
      failed++;

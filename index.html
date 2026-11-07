@@ -25,6 +25,7 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
 <section aria-label="Главная"><div class="eyebrow">СКАНЕР ФЬЮЧЕРСОВ · 5M + 15M</div><h1>Сигналы <span class="highlight">LONG / SHORT</span><br>без догадок</h1><p class="sub">Только закрытые свечи, подтверждение тренда и пробоя. Сильные сигналы — фиолетовым. Если условий нет, честно показываем «ЖДАТЬ».</p></section>
 <div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary">🔔 Включить push в фоне</button><button id="bg-test" class="btn secondary">🌙 Тест с закрытым Chrome</button><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/trade.html">💼 План сделки</a><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
 <p id="bg-diagnostics" class="push-diagnostics" role="status">Фоновая доставка: ещё не проверена.</p>
+<p id="signal-delivery" class="push-diagnostics" role="status">Последний торговый сигнал: нет подтверждённой доставки.</p>
 <p id="push-diagnostics" class="push-diagnostics" role="status" aria-live="polite">Push: проверка доступна через кнопку 🔔. Подтверждение Chrome не гарантирует звук или баннер Android.</p>
 <section class="summary" aria-live="polite"><div class="summary-top"><span class="eyebrow">АКТУАЛЬНЫЕ СИГНАЛЫ</span><small id="updated">Обновление: —</small></div><div id="signal-container"><strong>Проверяем рынок…</strong><small>Вход без подтверждения не предлагаем.</small></div></section>
 <section><div class="summary-top"><h2>Рынок · 16 инструментов</h2><small class="muted">WEEX → Bybit</small></div><div id="markets" class="market-grid" aria-live="polite"></div></section>
@@ -100,8 +101,22 @@ async function refreshPushHealth(){
  try{
   const reg=await navigator.serviceWorker.ready;
   const sub=await reg.pushManager.getSubscription();
-  if(sub){const health=await savePushSubscription(sub,true);showPushHealth(health);showBackgroundHealth(health);}
+  if(sub){const health=await savePushSubscription(sub,true);showPushHealth(health);showBackgroundHealth(health);showSignalDeliveryHealth(health);}
  }catch(e){$('push-diagnostics').textContent='Проверка доставки недоступна: '+String(e.message||e);}
+}
+function showSignalDeliveryHealth(checked){
+ const el=$('signal-delivery'),s=checked?.signalDelivery;
+ if(!s){el.textContent='Последний торговый сигнал: пока нет данных о доставке.';return;}
+ const name=String(s.symbol)+' '+String(s.direction);
+ if(s.result==='shown'){
+  el.textContent='✅ '+clock(s.workerAt)+' Chrome обработал '+name+'. Проверь появление уведомления на телефоне.';
+ }else if(s.result==='expired'){
+  el.textContent='⌛ '+name+' пришёл после окончания срока действия и не был показан.';
+ }else if(s.result==='show_error'){
+  el.textContent='❌ Chrome не смог показать '+name+'. Проверь разрешения Android.';
+ }else{
+  el.textContent='⚠️ '+clock(s.at)+' '+name+' принят Push-шлюзом, но Chrome не подтвердил получение'+(s.retry?' даже после повтора':'')+'.';
+ }
 }
 function showBackgroundHealth(checked){
  const task=checked?.backgroundTest,el=$('bg-diagnostics');
@@ -168,7 +183,7 @@ async function setupPush(interactive=false){
      if(checked.present){
        backgroundPushReady=true;
        button.textContent='🔔 Подписка активна · проверить снова';
-       showPushHealth(checked);showBackgroundHealth(checked);
+       showPushHealth(checked);showBackgroundHealth(checked);showSignalDeliveryHealth(checked);
        return;
      }
      // Removed by Vercel after a 404/410 from the push gateway.

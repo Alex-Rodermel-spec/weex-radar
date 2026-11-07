@@ -59,3 +59,22 @@ test('signals without worker receipt are retried at most once before expiry',()=
  assert.match(subscribe,/batch\.marks/);
  assert.match(subscribe,/receipts\/signals\//);
 });
+
+test('signal notification priority, expiry and separately signed live signal receipt diagnostics',()=>{
+ const dispatch=read('../api/push-dispatch.mjs');
+ const subscribe=read('../api/push-subscribe.mjs');
+ const sw=read('../sw.js');
+ const html=read('../index.html');
+ assert.match(sw,/renotify:isSignal,requireInteraction:isSignal/);
+ assert.match(sw,/isSignal&&Number\.isFinite\(expiration\).*result='expired'/);
+ assert.match(subscribe,/receipts\/last-signals\//);
+ assert.match(subscribe,/signalDelivery/);
+ assert.match(dispatch,/signal-status\//);
+ assert.match(html,/id="signal-delivery"/);
+ assert.match(html,/function showSignalDeliveryHealth\(checked\)/);
+ assert.match(html,/Chrome не подтвердил получение/);
+ assert.doesNotThrow(()=>new Script(sw,{filename:'sw.js'}));
+ const script=html.match(/<script>([\s\S]*?)<\/script>/);
+ assert.ok(script);
+ assert.doesNotThrow(()=>new Script(script[1],{filename:'index.html'}));
+});

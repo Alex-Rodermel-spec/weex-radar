@@ -19,7 +19,7 @@ export default async function handler(req,res){
   const {id,proof,result,subscriberId,kind}=req.body.receipt;
   if(!/^[a-f0-9]{32}$/.test(id||'')||!/^[a-f0-9]{64}$/.test(proof||'')||
      !/^[a-f0-9]{64}$/.test(subscriberId||'')||!['signal','test','background_test'].includes(kind)||
-     !['shown','show_error'].includes(result))return res.status(400).json({error:'Invalid receipt'});
+     !['shown','show_error','expired'].includes(result))return res.status(400).json({error:'Invalid receipt'});
   if(!process.env.PUSH_CRON_KEY||!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Receipts unavailable'});
   const expected=createHmac('sha256',process.env.PUSH_CRON_KEY).update(id+'|'+subscriberId+'|'+kind).digest('hex');
   if(!secureEqual(proof,expected))return res.status(403).json({error:'Invalid receipt signature'});
@@ -28,6 +28,11 @@ export default async function handler(req,res){
     await put('receipts/'+subscriberId+'.json',JSON.stringify({result,kind,at,id}),
       {access:'private',allowOverwrite:true,contentType:'application/json'});
     if(kind==='signal'){
+      // Signed receipts for real signals are preserved independently of tests.
+      try{
+        await put('receipts/last-signals/'+subscriberId+'.json',JSON.stringify({id,result,at}),
+          {access:'private',allowOverwrite:true,contentType:'application/json'});
+      }catch(e){console.warn('WEEX_RADAR signal receipt unavailable',String(e.message||e).slice(0,90));}
       // Map a signed Chrome acknowledgement to every signal in a batched notification.
       // The set of marks is server-owned; no untrusted paths come from the worker.
       const sent=await get('push-deliveries/'+id+'.json',{access:'private'});
@@ -65,13 +70,13 @@ export default async function handler(req,res){
   // reinserted with the same stale endpoint.
   if(req.body?.checkOnly===true){
     const present=r.blobs.some(b=>b.pathname===path);
-    let lastReceipt=null,backgroundTest=null;
+    let lastReceipt=null,backgroundTest=null,signalDelivery=null;
     if(present){
       try{
         const receipt=await get('receipts/'+id+'.json',{access:'private'});
         if(receipt?.stream){
           const row=JSON.parse(await new Response(receipt.stream).text());
-          if(['shown','show_error'].includes(row.result)&&['test','signal','background_test'].includes(row.kind)&&Number.isFinite(row.at))
+          if(['shown','show_error','expired'].includes(row.result)&&['test','signal','background_test'].includes(row.kind)&&Number.isFinite(row.at))
             lastReceipt={result:row.result,kind:row.kind,at:row.at};
         }
       }catch(e){console.warn('WEEX_RADAR receipt lookup unavailable',String(e.message||e).slice(0,80));}
@@ -86,7 +91,29 @@ export default async function handler(req,res){
         }
       }catch(e){console.warn('WEEX_RADAR background test lookup unavailable',String(e.message||e).slice(0,80));}
     }
-    return res.status(200).json({ok:true,present,lastReceipt,backgroundTest});
+    if(present){
+      try{
+        const entry=await get('signal-status/'+id+'.json',{access:'private'});
+        if(entry?.stream){
+          const sent=JSON.parse(await new Response(entry.stream).text());
+          if(/^[a-f0-9]{32}$/.test(sent.id||'')&&Number.isFinite(sent.at)&&
+             Number.isFinite(sent.expiresAt)&&/^[A-Z0-9]{2,24}$/.test(sent.symbol||'')&&
+             ['LONG','SHORT'].includes(sent.direction)){
+            signalDelivery={at:sent.at,expiresAt:sent.expiresAt,symbol:sent.symbol,
+              direction:sent.direction,retry:sent.retry===true,result:null,workerAt:null};
+            const ack=await get('receipts/last-signals/'+id+'.json',{access:'private'});
+            if(ack?.stream){
+              const r=JSON.parse(await new Response(ack.stream).text());
+              if(r.id===sent.id&&['shown','show_error','expired'].includes(r.result)&&Number.isFinite(r.at)){
+                signalDelivery.result=r.result;
+                signalDelivery.workerAt=r.at;
+              }
+            }
+          }
+        }
+      }catch(e){console.warn('WEEX_RADAR signal status unavailable',String(e.message||e).slice(0,85))}
+    }
+    return res.status(200).json({ok:true,present,lastReceipt,backgroundTest,signalDelivery});
   }
   if(req.body?.queueBackgroundTest===true){
     if(!r.blobs.some(b=>b.pathname===path))return res.status(409).json({error:'Activate push subscription first'});
