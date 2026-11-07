@@ -4,6 +4,7 @@ import webpush from 'web-push';
 import {jwtVerify,createRemoteJWKSet} from 'jose';
 import {_test as marketSafety} from './signals.mjs';
 import {sendEarlyPush} from '../lib/early-push.mjs';
+import {telegramPoll,telegramSend} from '../lib/telegram-alerts.mjs';
 const JWKS=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 function secureEquals(a,b){if(!a||!b)return false;let x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
 async function authorized(req){
@@ -133,6 +134,7 @@ export default async function handler(req,res){
  if(!process.env.BLOB_READ_WRITE_TOKEN||!process.env.VAPID_PRIVATE_KEY||!process.env.VAPID_PUBLIC_KEY||!process.env.PUSH_CRON_KEY)return res.status(503).json({error:'Push not configured'});
  try{
   let background={accepted:0,failed:0};
+  try{await telegramPoll()}catch(e){console.warn('WEEX_RADAR_TELEGRAM_POLL_FAILED '+String(e.message||e).slice(0,80))}
   try{background=await sendDueBackgroundTests()}catch(e){console.warn('WEEX_RADAR background test check unavailable',String(e.message||e).slice(0,90))}
   const response=await fetch('https://weex-radar.vercel.app/api/signals',{cache:'no-store',signal:AbortSignal.timeout(26000)});
   if(!response.ok)throw Error('Radar API '+response.status);
@@ -154,9 +156,11 @@ export default async function handler(req,res){
   const signals=checked.filter(Boolean);
   if(candidates.length>signals.length)console.info('WEEX_RADAR_ENTRY_FILTER '+
     JSON.stringify({candidates:candidates.length,accepted:signals.length,blocked:candidates.length-signals.length}));
-  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await safeEarlyPush()});
+  let telegram={enabled:false,delivered:0,failed:0,duplicates:0};
+  if(signals.length)try{telegram=await telegramSend('confirmed',signals)}catch(e){console.warn('WEEX_RADAR_TELEGRAM_SEND_FAILED '+String(e.message||e).slice(0,80))}
+  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await safeEarlyPush(),telegram});
   const entries=await loadSubscriptions();
-  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await safeEarlyPush()});
+  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await safeEarlyPush(),telegram});
   webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
   let delivered=0,failed=0,duplicates=0,retried=0;
   for(const blob of entries){
@@ -228,6 +232,6 @@ export default async function handler(req,res){
     }
    }catch(e){failed++;console.warn('Push item failed',e.message)}
   }
-  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried,early:await safeEarlyPush()});
+  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried,early:await safeEarlyPush(),telegram});
  }catch(e){console.error('Push check failed:',e.message);return reply(res,source,503,{error:'Scan or notification delivery unavailable'})}
 }
