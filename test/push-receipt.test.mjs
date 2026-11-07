@@ -8,7 +8,7 @@ test('batches concurrent market signals into one notification to avoid spam',()=
  assert.match(s,/const pending=\[\]/);
  assert.match(s,/const selected=pending\.map/);
  assert.match(s,/await webpush\.sendNotification\(subscriber/);
- assert.match(s,/for\(const \{mark\} of pending\)/);
+ assert.match(s,/for\(const \{mark,retry\} of pending\)/);
  assert.match(s,/deliveryProof=createHmac\('sha256'/);
 });
 test('push worker acknowledges invocation without pretending Android displayed it',()=>{
