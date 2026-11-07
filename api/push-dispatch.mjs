@@ -1,4 +1,4 @@
-import {createHash,timingSafeEqual} from 'node:crypto';
+import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {get,list,put,del} from '@vercel/blob';
 import webpush from 'web-push';
 import {jwtVerify,createRemoteJWKSet} from 'jose';
@@ -46,7 +46,7 @@ export default async function handler(req,res){
  if(req.method!=='POST'&&req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
  const source=await authorized(req);
  if(!source)return res.status(401).json({error:'Unauthorized'});
- if(!process.env.BLOB_READ_WRITE_TOKEN||!process.env.VAPID_PRIVATE_KEY||!process.env.VAPID_PUBLIC_KEY)return res.status(503).json({error:'Push not configured'});
+ if(!process.env.BLOB_READ_WRITE_TOKEN||!process.env.VAPID_PRIVATE_KEY||!process.env.VAPID_PUBLIC_KEY||!process.env.PUSH_CRON_KEY)return res.status(503).json({error:'Push not configured'});
  try{
   const response=await fetch('https://weex-radar.vercel.app/api/signals',{cache:'no-store',signal:AbortSignal.timeout(26000)});
   if(!response.ok)throw Error('Radar API '+response.status);
@@ -64,22 +64,44 @@ export default async function handler(req,res){
     if(!record)continue;
     const subscriber=JSON.parse(await new Response(record.stream).text()).subscription;
     if(!subscriber?.endpoint)continue;
+    // One Web Push notification per scan/subscriber. Multiple coins in the same
+    // minute are combined instead of triggering Chrome's spam defenses.
+    const pending=[];
     for(const signal of signals){
      const mark='delivered/'+key(subscriber.endpoint+signal.exchange+signal.symbol+signal.candleCloseTime+signal.direction)+'.txt';
      try{await put(mark,'1',{access:'private',contentType:'text/plain',addRandomSuffix:false});}
      catch(e){if(/exist|already|conflict/i.test(String(e.message))){duplicates++;continue}throw e}
-     const strong=signal.level==='STRONG';
-     const message={title:(strong?'🟣 СИЛЬНЫЙ':'Сигнал')+' '+signal.symbol+' '+signal.direction,
-      body:signal.exchange+' · '+signal.price+' USDT · SL '+signal.stop+' · TP '+signal.take+' · до '+new Date(signal.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'}),
-      symbol:signal.symbol,exchange:signal.exchange,direction:signal.direction,candleCloseTime:signal.candleCloseTime,expiresAt:signal.expiresAt};
-     try{await webpush.sendNotification(subscriber,JSON.stringify(message),{TTL:150,urgency:'high'});delivered++;}
-     catch(e){
-       failed++;
-       // A transient gateway error must not permanently mark a signal as delivered.
-       // A later cron/GitHub scan may retry while the signal is still valid.
-       try{await del(mark)}catch{console.warn('WEEX_RADAR unable to reset failed push marker')}
-       if(e.statusCode===404||e.statusCode===410){await del(blob.pathname);break}
+     pending.push({signal,mark});
+    }
+    if(!pending.length)continue;
+    const selected=pending.map(item=>item.signal);
+    const primary=selected[0],strong=selected.some(s=>s.level==='STRONG');
+    const deliveryId=key(subscriber.endpoint+'|'+pending.map(({mark})=>mark).join('|')).slice(0,32);
+    const deliveryProof=createHmac('sha256',process.env.PUSH_CRON_KEY).update(deliveryId).digest('hex');
+    const title=selected.length===1
+      ?(strong?'🟣 СИЛЬНЫЙ':'Сигнал')+' '+primary.symbol+' '+primary.direction
+      :(strong?'🟣 СИЛЬНЫЕ':'Сигналы')+' WEEX · '+selected.length+' монет';
+    const body=selected.length===1
+      ?primary.exchange+' · '+primary.price+' USDT · SL '+primary.stop+' · TP '+primary.take+' · до '+new Date(primary.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})
+      :selected.slice(0,4).map(s=>s.symbol+' '+s.direction).join(' · ')+(selected.length>4?' · ещё '+(selected.length-4):'')+' · смотри TP/SL в RADAR';
+    const message={title,body,
+      symbol:selected.length===1?primary.symbol:'BATCH',
+      exchange:primary.exchange,
+      direction:selected.length===1?primary.direction:'MULTI',
+      candleCloseTime:primary.candleCloseTime,expiresAt:Math.min(...selected.map(s=>s.expiresAt)),
+      deliveryId,deliveryProof};
+    try{
+     // Accepted by the push gateway is not confirmation of receipt on Android.
+     await webpush.sendNotification(subscriber,JSON.stringify(message),{TTL:150,urgency:'high'});
+     delivered++;
+     console.info('WEEX_RADAR_PUSH_GATEWAY '+JSON.stringify({id:deliveryId.slice(0,12),count:selected.length,accepted:true}));
+    }catch(e){
+     failed++;
+     // Revert all pending markers on a failed gateway request to permit a retry.
+     for(const {mark} of pending){
+      try{await del(mark)}catch{console.warn('WEEX_RADAR unable to reset failed push marker')}
      }
+     if(e.statusCode===404||e.statusCode===410)await del(blob.pathname);
     }
    }catch(e){failed++;console.warn('Push item failed',e.message)}
   }

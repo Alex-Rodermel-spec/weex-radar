@@ -111,7 +111,7 @@ async function setupPush(interactive=false){
      const checked=await savePushSubscription(subscription,true);
      if(checked.present){
        backgroundPushReady=true;
-       button.textContent='🔔 Push подключён';
+       button.textContent='🔔 Подписка активна · доставка не подтверждена';
        return;
      }
      // Removed by Vercel after a 404/410 from the push gateway.
@@ -130,7 +130,7 @@ async function setupPush(interactive=false){
    }
    localStorage.setItem('weex-push-active','1');
    backgroundPushReady=Boolean(result.testSent);
-   button.textContent=result.testSent?'✓ Push подключён — тест отправлен':'⚠ Push: проверь подключение';
+   button.textContent=result.testSent?'🔔 Тест отправлен · проверь телефон':'⚠ Push: проверь подключение';
    if(!result.testSent&&interactive){
      alert('Push не подтвердился: '+String(result.testError||'UNKNOWN')+
        '. Попробуй ещё раз и проверь разрешения Android.');

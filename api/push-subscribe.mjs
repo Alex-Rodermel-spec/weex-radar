@@ -1,4 +1,4 @@
-import {createHash} from 'node:crypto';
+import {createHash,createHmac,randomBytes} from 'node:crypto';
 import {put,list,del} from '@vercel/blob';
 import webpush from 'web-push';
 const ORIGIN='https://weex-radar.vercel.app';
@@ -34,10 +34,12 @@ export default async function handler(req,res){
   try{
    if(!process.env.VAPID_PUBLIC_KEY||!process.env.VAPID_PRIVATE_KEY)throw Error('VAPID_KEYS_MISSING');
    webpush.setVapidDetails(ORIGIN,process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
-   const payload={title:'🔔 WEEX RADAR — проверка связи',body:'Проверка фоновых уведомлений. Если сообщение видно — связь работает.',symbol:'TEST',candleCloseTime:Date.now()};
+   const deliveryId=randomBytes(16).toString('hex');
+   const deliveryProof=process.env.PUSH_CRON_KEY?createHmac('sha256',process.env.PUSH_CRON_KEY).update(deliveryId).digest('hex'):null;
+   const payload={title:'🔔 WEEX RADAR — проверка связи',body:'Проверка фоновых уведомлений. Если сообщение видно — связь работает.',symbol:'TEST',candleCloseTime:Date.now(),deliveryId,deliveryProof};
    await webpush.sendNotification(sub,JSON.stringify(payload),{TTL:90,urgency:'high'});
    testSent=true;
-   console.log('WEEX_RADAR test push accepted by push gateway');
+   console.info('WEEX_RADAR_TEST_GATEWAY '+JSON.stringify({id:deliveryId.slice(0,12),accepted:true}));
   }catch(e){
    const status=Number(e.statusCode||0);
    testError=status?('PUSH_HTTP_'+status):(e.message==='VAPID_KEYS_MISSING'?'VAPID_KEYS_MISSING':'PUSH_SEND_FAILED');
