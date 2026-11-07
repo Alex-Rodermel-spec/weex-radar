@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-const {normalizeRows,rsi,ema,atr,getAnalysis}=(await import('../api/signals.mjs'))._test;
+const {SYMBOLS,normalizeRows,rsi,ema,atr,getAnalysis}=(await import('../api/signals.mjs'))._test;
 const step=300000;
 function sample(count=125,period=step){
  const end=Math.floor((Date.now()-1000)/period)*period-period;
@@ -14,3 +14,9 @@ test('unclosed candle excluded',()=>{const a=sample();a.push([Math.floor(Date.no
 test('indicators valid',()=>{const bars=normalizeRows(sample(),'5m');assert.ok(Number.isFinite(rsi(bars.map(x=>x.close))));assert.ok(Number.isFinite(ema(bars.map(x=>x.close),50)));assert.ok(Number.isFinite(atr(bars)))});
 test('no breakout means WAIT',()=>{const five=normalizeRows(sample(),'5m'),fifteen=normalizeRows(sample(125,900000),'15m');assert.equal(getAnalysis(five,fifteen).level,'WAIT')});
 test('stale candles rejected',()=>{const a=sample().map(r=>[r[0]-86400000,...r.slice(1)]);assert.throws(()=>normalizeRows(a,'5m'),/Stale/)});
+
+test('11 unique WEEX radar markets include ZEC, 1000PEPE and HYPE',()=>{
+ assert.equal(SYMBOLS.length,11);
+ assert.equal(new Set(SYMBOLS).size,11);
+ for(const symbol of ['ZECUSDT','1000PEPEUSDT','HYPEUSDT'])assert.ok(SYMBOLS.includes(symbol));
+});
