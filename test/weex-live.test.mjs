@@ -131,3 +131,11 @@ test('OIDC auth probe rejects untrusted callers and strips upstream errors',asyn
  assert.deepEqual(safeProbeError(new Error('WEEX_CODE_40009')),{stage:'api',code:'40009'});
  assert.deepEqual(safeProbeError(new Error('SECRET-DO-NOT-EXPOSE')),{stage:'network_or_response',code:null});
 });
+
+test('WEEX headers ignore accidental paste whitespace around credentials',()=>{
+ const plain={key:'test-key',secret:'test-secret',passphrase:'test-phrase'};
+ const padded={key:' test-key\n',secret:'  test-secret\n',passphrase:'test-phrase \r\n'};
+ const h1=signedHeaders('GET','/capi/v3/account/accountConfig','','',1794049000000,plain);
+ const h2=signedHeaders('GET','/capi/v3/account/accountConfig','','',1794049000000,padded);
+ assert.deepEqual(h1,h2);
+});
