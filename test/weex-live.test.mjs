@@ -155,3 +155,11 @@ test('WEEX readiness probe is strictly read-only and same-origin protected',()=>
  assert.match(code,/weex\.apiTradingSymbols\(\)/);
  assert.doesNotMatch(code,/weex\.(placeOrder|setLeverage|marginIsolated|closeById)\(/);
 });
+
+test('OIDC probe inspects trading prerequisites using read-only WEEX calls only',()=>{
+ const code=readFileSync(new URL('../api/weex-auth-probe.mjs',import.meta.url),'utf8');
+ for(const method of ['openOrders','symbolConfig','info','book','apiTradingSymbols'])
+   assert.ok(code.includes('weex.'+method+'('),method+' read check is missing');
+ for(const method of ['placeOrder','setLeverage','marginIsolated','closeById'])
+   assert.ok(!code.includes('weex.'+method+'('),method+' should never run in probe');
+});

@@ -50,6 +50,19 @@ export default async function handler(req,res) {
       ?(Array.isArray(positions.value)?'authenticated':'unexpected_schema')
       :safeProbeError(positions.reason).code||safeProbeError(positions.reason).stage
   };
+  // Verify the remaining read-only prerequisites used by the trade preview.
+  const [orders,settings,info,book,apiSymbols]=await Promise.allSettled([
+    weex.openOrders(),weex.symbolConfig('XRPUSDT'),weex.info('XRPUSDT'),
+    weex.book('XRPUSDT'),weex.apiTradingSymbols()
+  ]);
+  const summarize=(x,valid)=>x.status==='fulfilled'
+    ?(valid(x.value)?'authenticated':'unexpected_schema')
+    :safeProbeError(x.reason).code||safeProbeError(x.reason).stage;
+  check.openOrders=summarize(orders,Array.isArray);
+  check.symbolConfig=summarize(settings,Array.isArray);
+  check.exchangeInfo=summarize(info,x=>Array.isArray(x?.symbols));
+  check.bookTicker=summarize(book,x=>(Array.isArray(x)?x.length>0:Boolean(x&&typeof x==='object')));
+  check.apiTradingSymbols=summarize(apiSymbols,Array.isArray);
   const ok=Object.values(check).every(v=>v==='authenticated');
   return res.status(ok?200:502).json({
     ok,stage:ok?'authenticated':'three_endpoint_diagnosis',code:ok?null:
