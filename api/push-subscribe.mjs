@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {put,list,del} from '@vercel/blob';
+import webpush from 'web-push';
 const ORIGIN='https://weex-radar.vercel.app';
 function valid(s){
  if(!s||typeof s!=='object'||typeof s.endpoint!=='string'||s.endpoint.length>1500||!s.keys||typeof s.keys.p256dh!=='string'||typeof s.keys.auth!=='string')return false;
@@ -21,6 +22,14 @@ export default async function handler(req,res){
   const r=await list({prefix:'subscribers/',limit:11});
   if(r.blobs.length>=10&&!r.blobs.some(b=>b.pathname===path))return res.status(429).json({error:'Subscription limit reached'});
   await put(path,JSON.stringify({subscription:sub,createdAt:Date.now()}),{access:'private',allowOverwrite:true,contentType:'application/json',cacheControlMaxAge:60});
-  return res.status(200).json({ok:true});
+  let testSent=false;
+  try{
+   // Only send one welcome/test notification per device, to avoid spam.
+   await put('tests/'+id+'.txt','1',{access:'private',addRandomSuffix:false,contentType:'text/plain'});
+   webpush.setVapidDetails(ORIGIN,process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
+   await webpush.sendNotification(sub,JSON.stringify({title:'🔔 WEEX RADAR — проверка связи',body:'Фоновые уведомления подключены. Звук и вибрация зависят от настроек Android.',symbol:'TEST',candleCloseTime:Date.now()}),{TTL:60,urgency:'high'});
+   testSent=true;
+  }catch(e){console.log('First push skipped or not delivered:',e.message)}
+  return res.status(200).json({ok:true,testSent});
  }catch(e){console.error('subscription operation failed:',e.message);return res.status(503).json({error:'Push storage unavailable'})}
 }
