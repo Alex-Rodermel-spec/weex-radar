@@ -1,13 +1,12 @@
-# WEEX Signal Dashboard — для Vercel Drop
+# WEEX RADAR — GitHub + Vercel
 
 Read-only dashboard for WEEX Futures with Bybit fallback. No API keys, no orders, no connection to your trading account.
 
-## Установка без GitHub
+## Развёртывание из GitHub
 
-1. Скачайте `weex-signal-dashboard.zip` из ChatGPT.
-2. На телефоне откройте https://vercel.com/drop , выберите **file** и загружайте ZIP целиком.
-3. Выберите проект, например `weex-signal-dashboard`, затем нажмите **Deploy**.
-4. Откройте полученный адрес `*.vercel.app`.
+1. На Vercel импортируйте GitHub-репозиторий `Alex-Rodermel-spec/weex-radar`.
+2. Framework Preset: `Other`. Root Directory: `/`. Build command можно оставить пустым.
+3. Deploy. Проверяйте `/api/signals` и страницу. GitHub-репозиторий и уже существующий проект Vercel не связываются автоматически.
 
 ## Как работает
 
