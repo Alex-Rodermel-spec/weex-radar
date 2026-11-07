@@ -1,7 +1,8 @@
-import {createHash,createHmac,randomBytes} from 'node:crypto';
+import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {put,list,del} from '@vercel/blob';
 import webpush from 'web-push';
 const ORIGIN='https://weex-radar.vercel.app';
+function secureEqual(a,b){if(!a||!b)return false;const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
 function valid(s){
  if(!s||typeof s!=='object'||typeof s.endpoint!=='string'||s.endpoint.length>1500||!s.keys||typeof s.keys.p256dh!=='string'||typeof s.keys.auth!=='string')return false;
  let u;try{u=new URL(s.endpoint)}catch{return false}
@@ -11,6 +12,18 @@ function valid(s){
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method!=='POST'&&req.method!=='DELETE')return res.status(405).json({error:'Method not allowed'});
+ // A signed background-worker receipt shares this route to stay within
+ // Vercel Hobby's 12-function limit. It is not a browser notification guarantee.
+ if(req.method==='POST'&&req.body?.receipt){
+  if(req.headers.origin&&req.headers.origin!==ORIGIN)return res.status(403).json({error:'Origin not allowed'});
+  const {id,proof,result}=req.body.receipt;
+  if(!/^[a-f0-9]{32}$/.test(id||'')||!/^[a-f0-9]{64}$/.test(proof||'')||!['shown','show_error'].includes(result))return res.status(400).json({error:'Invalid receipt'});
+  if(!process.env.PUSH_CRON_KEY)return res.status(503).json({error:'Receipts unavailable'});
+  const expected=createHmac('sha256',process.env.PUSH_CRON_KEY).update(id).digest('hex');
+  if(!secureEqual(proof,expected))return res.status(403).json({error:'Invalid receipt signature'});
+  console.info('WEEX_RADAR_PUSH_WORKER '+JSON.stringify({id:id.slice(0,12),result,at:Date.now()}));
+  return res.status(200).json({ok:true});
+ }
  if(req.headers.origin!==ORIGIN)return res.status(403).json({error:'Origin not allowed'});
  if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Push storage not configured'});
  const sub=req.body?.subscription??req.body;
