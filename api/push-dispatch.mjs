@@ -33,7 +33,9 @@ export function dispatchAudit(source,http,body,checkedAt=Date.now()){
  return JSON.stringify({source,http,checkedAt,
    signals:Number.isSafeInteger(body?.signals)?body.signals:0,
    delivered:Number.isSafeInteger(body?.delivered)?body.delivered:0,
-   failed:Number.isSafeInteger(body?.failed)?body.failed:0});
+   failed:Number.isSafeInteger(body?.failed)?body.failed:0,
+   subscribers:Number.isSafeInteger(body?.subscribers)?body.subscribers:null,
+   duplicates:Number.isSafeInteger(body?.duplicates)?body.duplicates:0});
 }
 function reply(res,source,http,body){
  console.info('WEEX_RADAR_DISPATCH '+dispatchAudit(source,http,body));
@@ -55,7 +57,7 @@ export default async function handler(req,res){
   const entries=await loadSubscriptions();
   if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0});
   webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
-  let delivered=0,failed=0;
+  let delivered=0,failed=0,duplicates=0;
   for(const blob of entries){
    try{
     const record=await get(blob.pathname,{access:'private'});
@@ -65,7 +67,7 @@ export default async function handler(req,res){
     for(const signal of signals){
      const mark='delivered/'+key(subscriber.endpoint+signal.exchange+signal.symbol+signal.candleCloseTime+signal.direction)+'.txt';
      try{await put(mark,'1',{access:'private',contentType:'text/plain',addRandomSuffix:false});}
-     catch(e){if(/exist|already|conflict/i.test(String(e.message)))continue;throw e}
+     catch(e){if(/exist|already|conflict/i.test(String(e.message))){duplicates++;continue}throw e}
      const strong=signal.level==='STRONG';
      const message={title:(strong?'🟣 СИЛЬНЫЙ':'Сигнал')+' '+signal.symbol+' '+signal.direction,
       body:signal.exchange+' · '+signal.price+' USDT · SL '+signal.stop+' · TP '+signal.take+' · до '+new Date(signal.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'}),
@@ -81,6 +83,6 @@ export default async function handler(req,res){
     }
    }catch(e){failed++;console.warn('Push item failed',e.message)}
   }
-  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed});
+  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates});
  }catch(e){console.error('Push check failed:',e.message);return reply(res,source,503,{error:'Scan or notification delivery unavailable'})}
 }
