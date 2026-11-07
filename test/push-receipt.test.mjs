@@ -23,5 +23,6 @@ test('interactive push checks also carry a worker receipt token',()=>{
  const s=read('../api/push-subscribe.mjs'),html=read('../index.html');
  assert.match(s,/deliveryId=randomBytes\(16\)/);
  assert.match(s,/WEEX_RADAR_TEST_GATEWAY/);
- assert.match(html,/доставка не подтверждена/);
+ assert.match(html,/function showPushHealth\(checked\)/);
+ assert.match(html,/Баннер и звук Android отдельно не подтверждены/);
 });
