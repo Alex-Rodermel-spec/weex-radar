@@ -1,0 +1,17 @@
+{
+  "name": "WEEX Signal Radar",
+  "short_name": "WEEX RADAR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0b13",
+  "theme_color": "#221034",
+  "icons": [
+    {
+      "src": "/radar-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
