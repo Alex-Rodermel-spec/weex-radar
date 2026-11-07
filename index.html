@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#0b0c13">
 <meta name="description" content="WEEX + Bybit: независимый монитор закрытых свечей, LONG/SHORT сигналы 5м с подтверждением 15м.">
 <title>WEEX Signal Radar</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/radar-icon.svg" type="image/svg+xml">
 <style>
 :root{color-scheme:dark;--bg:#0a0b13;--panel:#131521;--line:#2b2e3d;--muted:#9198aa;--text:#f2f1fa;--purple:#ad78ff;--green:#51d7a8;--red:#ff7188;--gold:#f5c978}*{box-sizing:border-box}
 body{margin:0;background:radial-gradient(ellipse at 15% -10%,#25193e 0,transparent 45%),var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding-bottom:60px}
@@ -20,10 +22,10 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
 <body><main>
 <header><div class="brand"><span class="brandmark">◈</span><span>WEEX <span style="color:#b48dff">SIGNAL RADAR</span></span></div><div class="top-pill">WEEX <b>основной</b> · Bybit резерв</div></header>
 <section aria-label="Главная"><div class="eyebrow">СКАНЕР ФЬЮЧЕРСОВ · 5M + 15M</div><h1>Сигналы <span class="highlight">LONG / SHORT</span><br>без догадок</h1><p class="sub">Только закрытые свечи, подтверждение тренда и пробоя. Сильные сигналы — фиолетовым. Если условий нет, честно показываем «ЖДАТЬ».</p></section>
-<div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary">♧ Включить уведомления</button><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
+<div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary">🔔 Включить push в фоне</button><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
 <section class="summary" aria-live="polite"><div class="summary-top"><span class="eyebrow">АКТУАЛЬНЫЕ СИГНАЛЫ</span><small id="updated">Обновление: —</small></div><div id="signal-container"><strong>Проверяем рынок…</strong><small>Вход без подтверждения не предлагаем.</small></div></section>
 <section><div class="summary-top"><h2>Рынок · 8 инструментов</h2><small class="muted">WEEX → Bybit</small></div><div id="markets" class="market-grid" aria-live="polite"></div></section>
-<section class="footnotes"><div class="footer-line"><span>Автообновление: раз в 60 сек., пока эта страница открыта.</span><span>Срок действия сигнала: 3 мин. после закрытия свечи.</span></div><p>⚠️ Это учебный сканер, а не команда к сделке. Уровни TP/SL примерные, исходя из ATR; цены двух бирж могут отличаться. Уведомления браузера работают, только когда вкладка активна, и зависят от разрешений телефона. Круглосуточные push-уведомления и автоматические сделки не подключены. При высоком плече возможна полная потеря маржи.</p></section>
+<section class="footnotes"><div class="footer-line"><span>Автообновление: раз в 60 сек., пока эта страница открыта.</span><span>Срок действия сигнала: 3 мин. после закрытия свечи.</span></div><p>⚠️ Это учебный сканер, а не команда к сделке. Уровни TP/SL примерные, исходя из ATR; цены двух бирж могут отличаться. Уведомления при открытой странице доступны сразу. Фоновые push после разрешения работают через Android/браузер, но проверка в фоне примерно раз в 5 минут может пропустить сигнал со сроком 3 минуты. Звук контролируется настройками Android. Автоматические сделки не подключены. При высоком плече возможна полная потеря маржи.</p></section>
 </main>
 <script>
 'use strict';
@@ -63,12 +65,35 @@ async function update(){
  finally{clearTimeout(t);busy=false;$('refresh').disabled=false;$('refresh').textContent='↻ Проверить сейчас';}
 }
 $('refresh').onclick=update;
-$('notify').onclick=async()=>{
- if(!('Notification'in window)){$('notify').textContent='На этом браузере нет уведомлений';return;}
- try{const permission=await Notification.requestPermission();$('notify').textContent=permission==='granted'?'✓ Уведомления включены':permission==='denied'?'Уведомления заблокированы':'Разрешите уведомления';if(permission==='granted')emitNotifications();}
- catch(e){$('notify').textContent='Не получилось включить уведомления'}
+const toBytes=b64=>{
+ const s=atob(b64.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-b64.length%4)%4));
+ return Uint8Array.from(s,ch=>ch.charCodeAt(0));
 };
-if('Notification'in window&&Notification.permission==='granted')$('notify').textContent='✓ Уведомления включены';
+$('notify').onclick=async()=>{
+ const button=$('notify');
+ if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){
+   button.textContent='Откройте сайт в Google Chrome';return;
+ }
+ button.disabled=true;button.textContent='Подключаем push…';
+ try{
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted'){button.textContent=permission==='denied'?'Уведомления запрещены в Android':'Разреши уведомления';return;}
+  const configResponse=await fetch('/api/push-public',{cache:'no-store'});
+  if(!configResponse.ok)throw Error('Сервис push недоступен');
+  const config=await configResponse.json();
+  if(!config.enabled||!config.publicKey)throw Error('Сервер push не настроен');
+  await navigator.serviceWorker.register('/sw.js',{scope:'/'});
+  const reg=await navigator.serviceWorker.ready;
+  let subscription=await reg.pushManager.getSubscription();
+  if(!subscription)subscription=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:toBytes(config.publicKey)});
+  const response=await fetch('/api/push-subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:subscription.toJSON()})});
+  if(!response.ok)throw Error('Ошибка сохранения подписки '+response.status);
+  button.textContent='✓ Push включены даже без сайта';
+  localStorage.setItem('weex-push-active','1');
+ }catch(e){console.warn('WEEX push setup failed',e);button.textContent='Ошибка push — нажми ещё раз';alert('Не удалось включить push. Открой WEEX RADAR в Google Chrome и разреши уведомления. '+e.message)}
+ finally{button.disabled=false}
+};
+if(localStorage.getItem('weex-push-active')==='1')$('notify').textContent='✓ Push включены даже без сайта';
 update();setInterval(()=>{if(document.visibilityState==='visible')update()},60000);
 setInterval(()=>{if(latest)draw()},1000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')update()});
