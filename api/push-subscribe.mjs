@@ -23,13 +23,20 @@ export default async function handler(req,res){
   if(r.blobs.length>=10&&!r.blobs.some(b=>b.pathname===path))return res.status(429).json({error:'Subscription limit reached'});
   await put(path,JSON.stringify({subscription:sub,createdAt:Date.now()}),{access:'private',allowOverwrite:true,contentType:'application/json',cacheControlMaxAge:60});
   let testSent=false;
+  let testError=null;
   try{
-   // Only send one welcome/test notification per device, to avoid spam.
-   await put('tests/'+id+'.txt','1',{access:'private',addRandomSuffix:false,contentType:'text/plain'});
+   if(!process.env.VAPID_PUBLIC_KEY||!process.env.VAPID_PRIVATE_KEY)throw Error('VAPID_KEYS_MISSING');
    webpush.setVapidDetails(ORIGIN,process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
-   await webpush.sendNotification(sub,JSON.stringify({title:'🔔 WEEX RADAR — проверка связи',body:'Фоновые уведомления подключены. Звук и вибрация зависят от настроек Android.',symbol:'TEST',candleCloseTime:Date.now()}),{TTL:60,urgency:'high'});
+   const payload={title:'🔔 WEEX RADAR — проверка связи',body:'Проверка фоновых уведомлений. Если сообщение видно — связь работает.',symbol:'TEST',candleCloseTime:Date.now()};
+   await webpush.sendNotification(sub,JSON.stringify(payload),{TTL:90,urgency:'high'});
    testSent=true;
-  }catch(e){console.log('First push skipped or not delivered:',e.message)}
-  return res.status(200).json({ok:true,testSent});
+   console.log('WEEX_RADAR test push accepted by push gateway');
+  }catch(e){
+   const status=Number(e.statusCode||0);
+   testError=status?('PUSH_HTTP_'+status):(e.message==='VAPID_KEYS_MISSING'?'VAPID_KEYS_MISSING':'PUSH_SEND_FAILED');
+   console.warn('WEEX_RADAR test push failed',testError,String(e.message||'').slice(0,140));
+  }
+  return res.status(200).json({ok:true,subscribed:true,testSent,testError});
+
  }catch(e){console.error('subscription operation failed:',e.message);return res.status(503).json({error:'Push storage unavailable'})}
 }
