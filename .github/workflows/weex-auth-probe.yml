@@ -39,3 +39,5 @@ jobs:
 # Read-only recheck after credential whitespace normalization, 2026-11-07
 
 # Read-only authentication recheck after WEEX_API_SECRET update (2026-11-07)
+
+# Recheck read-only WEEX positions endpoint used by the manual connection page (2026-11-07)

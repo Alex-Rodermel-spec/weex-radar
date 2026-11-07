@@ -140,9 +140,9 @@ test('WEEX headers ignore accidental paste whitespace around credentials',()=>{
  assert.deepEqual(h1,h2);
 });
 
-test('read-only probe uses independent account and balance requests and reports no money',()=>{
+test('read-only probe checks account, balance, and positions without reporting money',()=>{
  const code=readFileSync(new URL('../api/weex-auth-probe.mjs',import.meta.url),'utf8');
- assert.match(code,/Promise\.allSettled\(\[weex\.account\(\),weex\.balance\(\)\]\)/);
+ assert.match(code,/Promise\.allSettled\(\[weex\.account\(\),weex\.balance\(\),weex\.positions\(\)\]\)/);
  assert.match(code,/market\/time/);
  assert.match(code,/ordersSent:0/);
  assert.doesNotMatch(code,/weex\.placeOrder\(/);
