@@ -42,15 +42,16 @@ test('the existing cron dispatch protects 5m notifications even if the 1m scan f
  assert.doesNotMatch(early,/trade-confirm|trade-prepare|\/capi\/v3\/order/);
 });
 
-test('updated worker activates new early-watch notifications on an existing phone',()=>{
+
+test('updated worker activates early-watch support on existing Chrome',()=>{
  const sw=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
- assert.match(sw,/self\\.addEventListener\\('install'/);
- assert.match(sw,/self\\.skipWaiting\\(\\)/);
- assert.match(sw,/self\\.clients\\.claim\\(\\)/);
- assert.match(sw,/msg\\.kind==='early_watch'/);
+ assert.ok(sw.includes("self.addEventListener('install'"));
+ assert.ok(sw.includes("self.skipWaiting()"));
+ assert.ok(sw.includes("self.clients.claim()"));
+ assert.ok(sw.includes("msg.kind==='early_watch'"));
 });
-test('cron audits early scan even when there is no early alert',()=>{
- const code=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
- assert.match(code,/WEEX_RADAR_EARLY_DISPATCH/);
- assert.doesNotMatch(code,/if\\(early\\.earlySignals\\|\\|early\\.failed\\)/);
+test('cron audits each early scan even when the market is quiet',()=>{
+ const src=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
+ assert.ok(src.includes("WEEX_RADAR_EARLY_DISPATCH"));
+ assert.equal(src.includes('if(early.earlySignals||early.failed)'),false);
 });
