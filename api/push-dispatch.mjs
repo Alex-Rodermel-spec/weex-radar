@@ -69,15 +69,24 @@ async function sendDueBackgroundTests(){
     if(!subscriberFile)throw Error('SUBSCRIBER_MISSING');
     const subscriber=JSON.parse(await new Response(subscriberFile.stream).text()).subscription;
     if(!subscriber?.endpoint||key(subscriber.endpoint)!==task.subscriberId)throw Error('SUBSCRIBER_CHANGED');
+    const signalStyle=task.mode==='signal_test';
+    const kind=signalStyle?'signal_test':'background_test';
     const deliveryProof=createHmac('sha256',process.env.PUSH_CRON_KEY)
-      .update(task.id+'|'+task.subscriberId+'|background_test').digest('hex');
-    const message={title:'🌙 WEEX RADAR — тест в фоне',
-      body:'Это уведомление отправил сервер без открытой вкладки Chrome.',
-      symbol:'TEST',candleCloseTime:Date.now(),deliveryId:task.id,deliveryProof,
-      subscriberId:task.subscriberId,kind:'background_test'};
+      .update(task.id+'|'+task.subscriberId+'|'+kind).digest('hex');
+    // No real market signal; no exchange order; never open a trade on test click.
+    const message=signalStyle
+      ?{title:'🧪 ТЕСТ LONG BTCUSDT — НЕ СДЕЛКА',
+        body:'ТЕСТОВОЕ уведомление LONG/SHORT. Не торговать! Это не рыночный сигнал.',
+        exchange:'WEEX',symbol:'BTCUSDT',direction:'LONG',candleCloseTime:Date.now(),
+        expiresAt:Date.now()+180000,url:'/',deliveryId:task.id,deliveryProof,
+        subscriberId:task.subscriberId,kind}
+      :{title:'🌙 WEEX RADAR — тест в фоне',
+        body:'Это уведомление отправил сервер без открытой вкладки Chrome.',
+        symbol:'TEST',candleCloseTime:Date.now(),deliveryId:task.id,deliveryProof,
+        subscriberId:task.subscriberId,kind};
     await webpush.sendNotification(subscriber,JSON.stringify(message),{TTL:180,urgency:'high'});
     accepted++;task.status='sent';task.sentAt=Date.now();
-    console.info('WEEX_RADAR_BACKGROUND_TEST_GATEWAY '+JSON.stringify({id:task.id.slice(0,12),accepted:true}));
+    console.info('WEEX_RADAR_BACKGROUND_TEST_GATEWAY '+JSON.stringify({id:task.id.slice(0,12),accepted:true,kind}));
    }catch(e){
     failed++;task.status='failed';task.error=Number(e?.statusCode)?'PUSH_HTTP_'+Number(e.statusCode):'SEND_FAILED';
     console.warn('WEEX_RADAR background test failed',task.error);

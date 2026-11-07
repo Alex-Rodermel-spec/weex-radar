@@ -78,3 +78,21 @@ test('signal notification priority, expiry and separately signed live signal rec
  assert.ok(script);
  assert.doesNotThrow(()=>new Script(script[1],{filename:'index.html'}));
 });
+
+test('signal-style closed-browser test mimics real alerts but is explicitly not a trade',()=>{
+ const dispatcher=read('../api/push-dispatch.mjs');
+ const subscribe=read('../api/push-subscribe.mjs');
+ const worker=read('../sw.js');
+ const html=read('../index.html');
+ assert.match(dispatcher,/ТЕСТ LONG BTCUSDT — НЕ СДЕЛКА/);
+ assert.match(dispatcher,/kind=signalStyle\?'signal_test':'background_test'/);
+ assert.match(dispatcher,/url:'\/'/);
+ assert.match(subscribe,/mode:req\.body\?\.signalStyle===true/);
+ assert.match(worker,/msg\.kind==='signal_test'/);
+ assert.match(html,/id="signal-test"/);
+ assert.match(html,/scheduleBackgroundPushTest\(true\)/);
+ const script=html.match(/<script>([\s\S]*?)<\/script>/);
+ assert.ok(script);
+ assert.doesNotThrow(()=>new Script(script[1],{filename:'index.html'}));
+ assert.doesNotThrow(()=>new Script(worker,{filename:'sw.js'}));
+});

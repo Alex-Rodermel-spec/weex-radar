@@ -23,7 +23,7 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
 <body><main>
 <header><div class="brand"><span class="brandmark">◈</span><span>WEEX <span style="color:#b48dff">SIGNAL RADAR</span></span></div><div class="top-pill">WEEX <b>основной</b> · Bybit резерв</div></header>
 <section aria-label="Главная"><div class="eyebrow">СКАНЕР ФЬЮЧЕРСОВ · 5M + 15M</div><h1>Сигналы <span class="highlight">LONG / SHORT</span><br>без догадок</h1><p class="sub">Только закрытые свечи, подтверждение тренда и пробоя. Сильные сигналы — фиолетовым. Если условий нет, честно показываем «ЖДАТЬ».</p></section>
-<div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary">🔔 Включить push в фоне</button><button id="bg-test" class="btn secondary">🌙 Тест с закрытым Chrome</button><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/trade.html">💼 План сделки</a><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
+<div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary">🔔 Включить push в фоне</button><button id="bg-test" class="btn secondary">🌙 Тест с закрытым Chrome</button><button id="signal-test" class="btn secondary">🧪 Тест уведомления LONG/SHORT</button><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/trade.html">💼 План сделки</a><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
 <p id="bg-diagnostics" class="push-diagnostics" role="status">Фоновая доставка: ещё не проверена.</p>
 <p id="signal-delivery" class="push-diagnostics" role="status">Последний торговый сигнал: нет подтверждённой доставки.</p>
 <p id="push-diagnostics" class="push-diagnostics" role="status" aria-live="polite">Push: проверка доступна через кнопку 🔔. Подтверждение Chrome не гарантирует звук или баннер Android.</p>
@@ -90,7 +90,9 @@ function showPushHealth(checked){
  if(!checked?.present){el.textContent='⚠️ Push-подписка не найдена на сервере. Нажми 🔔 для восстановления.';return;}
  const receipt=checked.lastReceipt;
  if(!receipt){el.textContent='Подписка есть, но подтверждения обработки Push пока нет. Нажми 🔔 для нового теста.';return;}
- const kind=receipt.kind==='test'?'тестовое уведомление':receipt.kind==='background_test'?'фоновый тест':'торговый сигнал';
+ const kind=receipt.kind==='test'?'тестовое уведомление':
+   receipt.kind==='background_test'?'фоновый тест':
+   receipt.kind==='signal_test'?'тестовый LONG/SHORT':'торговый сигнал';
  const time=Number.isFinite(receipt.at)?clock(receipt.at):'—';
  el.textContent=receipt.result==='shown'
    ?'✅ '+time+' Chrome обработал '+kind+' и вызвал показ уведомления. Баннер и звук Android отдельно не подтверждены.'
@@ -122,20 +124,22 @@ function showBackgroundHealth(checked){
  const task=checked?.backgroundTest,el=$('bg-diagnostics');
  if(!task){el.textContent='Фоновая доставка: ещё не проверена. Используй кнопку 🌙, затем закрой Chrome.';return}
  if(task.status==='queued'){
-  el.textContent='🌙 Фоновый тест запланирован на '+clock(task.dueAt)+'. Закрой Chrome и заблокируй экран.';
+  el.textContent=(task.mode==='signal_test'?'🧪 Тестовый LONG/SHORT':'🌙 Фоновый тест')+
+    ' запланирован на '+clock(task.dueAt)+'. Закрой Chrome и заблокируй экран.';
   return;
  }
  if(task.status==='failed'){
   el.textContent='❌ Сервер не смог отправить фоновый тест ('+String(task.error||'SEND_FAILED')+').';return;
  }
  const receipt=checked.lastReceipt;
- const confirmed=receipt?.kind==='background_test'&&receipt?.at>=task.queuedAt&&receipt?.result==='shown';
+ const confirmed=receipt?.kind===(task.mode==='signal_test'?'signal_test':'background_test')&&
+   receipt?.at>=task.queuedAt&&receipt?.result==='shown';
  el.textContent=confirmed
-  ?'✅ '+clock(receipt.at)+' Chrome обработал фоновый тест. Сам звук и баннер Android нужно проверить на телефоне.'
+  ?'✅ '+clock(receipt.at)+' Chrome обработал '+(task.mode==='signal_test'?'тестовый LONG/SHORT':'фоновый тест')+'. Сам звук и баннер Android нужно проверить на телефоне.'
   :'⚠️ Сервер отправил фоновый тест, но подтверждения его обработки Chrome нет.';
 }
-async function scheduleBackgroundPushTest(){
- const btn=$('bg-test');btn.disabled=true;
+async function scheduleBackgroundPushTest(signalStyle=false){
+ const btn=$(signalStyle?'signal-test':'bg-test');btn.disabled=true;
  try{
   if(!('serviceWorker'in navigator)||Notification.permission!=='granted')
    throw Error('Сначала разреши Push для этого сайта в Chrome');
@@ -143,15 +147,17 @@ async function scheduleBackgroundPushTest(){
   const sub=await reg.pushManager.getSubscription();
   if(!sub)throw Error('Сначала подключи Push кнопкой 🔔');
   const r=await fetch('/api/push-subscribe',{method:'POST',headers:{'Content-Type':'application/json'},
-    cache:'no-store',body:JSON.stringify({subscription:sub.toJSON(),queueBackgroundTest:true})});
+    cache:'no-store',body:JSON.stringify({subscription:sub.toJSON(),queueBackgroundTest:true,signalStyle})});
   const data=await r.json();
   if(!r.ok||!data.scheduled)throw Error(r.status===429?'Такой тест уже запланирован. Повтори позже.':String(data.error||r.status));
-  $('bg-diagnostics').textContent='🌙 Тест запланирован на '+clock(data.dueAt)+'. Сейчас закрой Chrome и заблокируй телефон.';
-  btn.textContent='🌙 Тест запланирован';
+  $('bg-diagnostics').textContent=(signalStyle?'🧪 Тестовый LONG/SHORT':'🌙 Фоновый тест')+
+    ' запланирован на '+clock(data.dueAt)+'. Сейчас закрой Chrome и заблокируй телефон.';
+  btn.textContent=signalStyle?'🧪 Тест запланирован':'🌙 Тест запланирован';
  }catch(e){$('bg-diagnostics').textContent='⚠️ Не удалось запланировать тест: '+String(e.message||e);}
  finally{btn.disabled=false}
 }
-$('bg-test').onclick=scheduleBackgroundPushTest;
+$('bg-test').onclick=()=>scheduleBackgroundPushTest(false);
+$('signal-test').onclick=()=>scheduleBackgroundPushTest(true);
 async function setupPush(interactive=false){
  const button=$('notify');
  if(pushBusy)return;

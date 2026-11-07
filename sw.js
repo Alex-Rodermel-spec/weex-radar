@@ -2,7 +2,7 @@
 self.addEventListener('push',event=>{
  let msg={};try{msg=event.data?.json()||{}}catch{msg={title:'WEEX RADAR',body:event.data?.text()||''}}
  const title=String(msg.title||'WEEX RADAR');
- const isSignal=msg.kind==='signal';
+ const isSignal=msg.kind==='signal'||msg.kind==='signal_test';
  const options={body:String(msg.body||''),tag:'weex-radar-'+String(msg.exchange||'')+'-'+String(msg.symbol||'')+'-'+String(msg.candleCloseTime||'')+'-'+String(msg.direction||''),
   icon:'/radar-icon.svg',badge:'/radar-icon.svg',vibrate:[350,150,350],renotify:isSignal,requireInteraction:isSignal,
   data:{url:typeof msg.url==='string'&&/^\/trade\.html\?symbol=[A-Z0-9]{2,20}USDT$/.test(msg.url)?msg.url:'/',expiresAt:msg.expiresAt||0}};
@@ -18,7 +18,7 @@ self.addEventListener('push',event=>{
   // The acknowledgement means the service worker called showNotification,
   // NOT that Android showed it on screen or played a sound.
   if(/^[a-f0-9]{32}$/.test(msg.deliveryId||'')&&/^[a-f0-9]{64}$/.test(msg.deliveryProof||'')&&
-     /^[a-f0-9]{64}$/.test(msg.subscriberId||'')&&['signal','test','background_test'].includes(msg.kind)){
+     /^[a-f0-9]{64}$/.test(msg.subscriberId||'')&&['signal','test','background_test','signal_test'].includes(msg.kind)){
    try{await fetch('/api/push-subscribe',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({receipt:{id:msg.deliveryId,proof:msg.deliveryProof,subscriberId:msg.subscriberId,kind:msg.kind,result}}),cache:'no-store'})}
    catch(e){/* Phone may be offline; failed receipt must not suppress notification. */}
