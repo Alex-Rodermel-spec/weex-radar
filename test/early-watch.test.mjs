@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-const {closed,scanEarly}=(await import('../api/early-watch.mjs'))._test;
+const {closed,scanEarly}=(await import('../lib/early-watch.mjs'))._test;
 const MS=60_000,MS15=900_000;
 function candles(count,step,now,drift=0.01){
  const lastStart=Math.floor((now-2000)/step)*step-step;
@@ -39,10 +39,18 @@ test('one-minute signal expires after one minute, regardless of historical candl
  assert.match(watch.reason,/устарел/);
 });
 test('early-watch source is read-only and independent from trading and push dispatch',()=>{
- const source=readFileSync(new URL('../api/early-watch.mjs',import.meta.url),'utf8');
+ const source=readFileSync(new URL('../lib/early-watch.mjs',import.meta.url),'utf8');
  assert.doesNotMatch(source,/\/capi\/v3\/order|trade-confirm|trade-prepare|push-dispatch|webpush|secrets/);
  assert.match(source,/WEEX.*1m|fetchCandles\(symbol,'1m'\)/);
  assert.match(source,/fetchCurrentQuote\(symbol,'WEEX'\)/);
  assert.match(source,/level='EARLY_WATCH'/);
  assert.match(source,/direction:null/);
+});
+
+test('existing signals serverless route handles early mode without extra function',()=>{
+ const code=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');
+ const chart=readFileSync(new URL('../tradingview.html',import.meta.url),'utf8');
+ assert.match(code,/req\.query\?\.mode==='early'/);
+ assert.match(code,/import\('\.\.\/lib\/early-watch\.mjs'\)/);
+ assert.match(chart,/\/api\/signals\?mode=early&symbol=/);
 });

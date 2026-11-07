@@ -134,7 +134,7 @@ async function fetchRadar(){
 async function fetchEarlyWatch(){
  const code=selected,output=$('early-watch-status');
  try{
-  const response=await fetch('/api/early-watch?symbol='+encodeURIComponent(code),
+  const response=await fetch('/api/signals?mode=early&symbol='+encodeURIComponent(code),
    {cache:'no-store',signal:AbortSignal.timeout(12000)});
   if(!response.ok)throw Error('Данные не получены');
   const result=await response.json();
