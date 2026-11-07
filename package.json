@@ -1,0 +1,13 @@
+{
+  "name": "weex-signal-radar",
+  "version": "1.0.1",
+  "type": "module",
+  "private": true,
+  "description": "Read-only WEEX / Bybit signals radar on Vercel",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
