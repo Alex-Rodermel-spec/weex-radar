@@ -1,5 +1,5 @@
 // WEEX RADAR — market data only, no exchange keys and no trading.
-const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT'];
+const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 const DUR={'5m':300000,'15m':900000};
 function numeric(x){const n=Number(x);return Number.isFinite(n)?n:NaN;}
 function normalizeRows(rows,interval){

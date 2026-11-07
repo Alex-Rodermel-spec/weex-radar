@@ -69,7 +69,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-const coin=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT'];
+const coin=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 $('symbol').innerHTML=coin.map(x=>'<option value="'+x+'">'+x+'</option>').join('');
 $('symbol').value='XRPUSDT';
 let approvalToken=null,expiresAt=0,busy=false;

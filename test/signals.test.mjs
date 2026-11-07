@@ -15,8 +15,9 @@ test('indicators valid',()=>{const bars=normalizeRows(sample(),'5m');assert.ok(N
 test('no breakout means WAIT',()=>{const five=normalizeRows(sample(),'5m'),fifteen=normalizeRows(sample(125,900000),'15m');assert.equal(getAnalysis(five,fifteen).level,'WAIT')});
 test('stale candles rejected',()=>{const a=sample().map(r=>[r[0]-86400000,...r.slice(1)]);assert.throws(()=>normalizeRows(a,'5m'),/Stale/)});
 
-test('11 unique WEEX radar markets include ZEC, 1000PEPE and HYPE',()=>{
- assert.equal(SYMBOLS.length,11);
- assert.equal(new Set(SYMBOLS).size,11);
- for(const symbol of ['ZECUSDT','1000PEPEUSDT','HYPEUSDT'])assert.ok(SYMBOLS.includes(symbol));
+test('16 unique WEEX radar markets retain existing coins and add 5 established futures',()=>{
+ assert.equal(SYMBOLS.length,16);
+ assert.equal(new Set(SYMBOLS).size,16);
+ for(const symbol of ['ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'])
+   assert.ok(SYMBOLS.includes(symbol));
 });
