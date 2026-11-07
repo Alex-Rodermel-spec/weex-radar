@@ -24,11 +24,11 @@ ema15Fast = request.security(syminfo.tickerid, "15", ta.ema(close, 20)[1], looka
 ema15Slow = request.security(syminfo.tickerid, "15", ta.ema(close, 50)[1], lookahead = barmerge.lookahead_on)
 close15 = request.security(syminfo.tickerid, "15", close[1], lookahead = barmerge.lookahead_on)
 
-range = high - low
-longWick = range > 0 ? (high - close) / range : 1.0
-shortWick = range > 0 ? (close - low) / range : 1.0
+barRange = high - low
+longWick = barRange > 0 ? (high - close) / barRange : 1.0
+shortWick = barRange > 0 ? (close - low) / barRange : 1.0
 volumeOk = not na(meanVolume) and meanVolume > 0 and volume >= meanVolume * volumeRatio
-rangeOk = atrValue > 0 and range <= 2.6 * atrValue
+rangeOk = atrValue > 0 and barRange <= 2.6 * atrValue
 longTrend = emaFast > emaSlow and ema15Fast > ema15Slow and close15 > ema15Fast
 shortTrend = emaFast < emaSlow and ema15Fast < ema15Slow and close15 < ema15Fast
 longBreak = ta.crossover(close, priorHigh)
