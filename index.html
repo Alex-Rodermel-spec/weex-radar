@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0c13">
+<meta name="description" content="WEEX + Bybit: независимый монитор закрытых свечей, LONG/SHORT сигналы 5м с подтверждением 15м.">
+<title>WEEX Signal Radar</title>
+<style>
+:root{color-scheme:dark;--bg:#0a0b13;--panel:#131521;--line:#2b2e3d;--muted:#9198aa;--text:#f2f1fa;--purple:#ad78ff;--green:#51d7a8;--red:#ff7188;--gold:#f5c978}*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 15% -10%,#25193e 0,transparent 45%),var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding-bottom:60px}
+main{max-width:1110px;padding:25px 17px;margin:auto}header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:25px}.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.07em;font-size:14px}.brandmark{display:inline-grid;place-items:center;background:#7c46d9;border:1px solid #b080ff;border-radius:13px;width:38px;height:38px;box-shadow:0 0 25px #8b59e13c;font-size:21px}.top-pill{font-size:12px;color:#c5cad6;padding:6px 10px;border:1px solid #363747;background:#191923;border-radius:100px;white-space:nowrap}.top-pill b{color:var(--purple)}
+h1{font-size:clamp(29px,5vw,54px);line-height:1.06;letter-spacing:-.06em;margin:10px 0 13px;font-weight:850}.highlight{color:#bf96ff}.sub{color:var(--muted);max-width:650px;margin:0 0 25px}.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:22px}.btn{border:1px solid #574b76;background:#7852b0;color:white;border-radius:13px;padding:11px 16px;font:inherit;font-weight:650;cursor:pointer}.btn:disabled{opacity:.5;cursor:wait}.btn.secondary{background:#1d1b2b;border:1px solid #444052;color:#e8defa}.status{margin-left:auto;color:#9ba3b6;font-size:12px;display:flex;align-items:center;gap:7px}.dot{height:7px;width:7px;border-radius:50%;background:var(--gold);display:inline-block}.dot.ok{background:var(--green)}.dot.err{background:var(--red)}
+.summary{border:1px solid #3b3450;background:linear-gradient(122deg,#1d192c,#131522 70%);border-radius:21px;padding:19px;margin-bottom:22px;box-shadow:0 8px 44px #080a1222}.summary-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:13px}.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#beacdb;font-weight:700}.summary strong{font-size:23px;letter-spacing:-.03em}.summary small{color:var(--muted);display:block}.signals{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.signal{padding:14px;border:1px solid #3b3748;background:#171725;border-radius:14px}.signal.STRONG{border-color:#bd87ff;background:linear-gradient(125deg,#38224c,#1b1828);box-shadow:0 0 25px #ac78ff1c}.signal-header{display:flex;justify-content:space-between;align-items:center}.signal h3{margin:2px 0 8px;font-size:22px}.signal .direction{font-size:20px;font-weight:800}.signal small{font-size:12px}.level{font-size:11px;letter-spacing:.07em;font-weight:800;border:1px solid #534364;border-radius:20px;padding:4px 8px;color:#d1b3ff}.level.STRONG{color:#f3d8ff;border-color:#b074f5;background:#7c30a04a}.long{color:var(--green)}.short{color:var(--red)}.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.stats div{background:#00000022;padding:9px;border-radius:8px}.stats span{display:block;color:#a4a6b6;font-size:11px}.stats b{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}.meter{height:5px;background:#302c40;border-radius:10px;overflow:hidden;margin-top:8px}.meter i{display:block;height:100%;background:linear-gradient(90deg,#7a64ef,#bb70ed)}
+h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:11px}.market{background:#151723;border:1px solid #292d3b;border-radius:17px;padding:15px;min-height:144px}.market-top{display:flex;align-items:center;justify-content:space-between;gap:6px}.market-title{font-size:16px;font-weight:800}.market-title span{font-size:12px;font-weight:500;color:var(--muted);margin-left:6px}.exchange{padding:3px 7px;background:#252538;border-radius:6px;font-size:11px;color:#c3bfd0;border:1px solid #343448}.market-price{font-size:23px;letter-spacing:-.035em;font-weight:750;font-variant-numeric:tabular-nums;margin:13px 0 6px}.market-footer{display:flex;justify-content:space-between;gap:9px;color:#9da4b6;font-size:12px}.muted{color:var(--muted)}.market-price.missing{font-size:17px;color:#ffc1c9}.chip{padding:3px 8px;border-radius:7px;background:#282836;color:#c1bcd0;font-size:11px;font-weight:750}.chip.LONG{color:#7cf0c6;background:#103e35}.chip.SHORT{color:#ffa8b4;background:#4a1f30}.chip.ERROR{color:#ffb4b4;background:#422531}.chip.STRONG{background:#673a82;color:#f3d7ff}.footnotes{color:#878b9c;font-size:12px;line-height:1.7;margin-top:22px;padding-top:17px;border-top:1px solid #262937}.footer-line{display:flex;flex-wrap:wrap;justify-content:space-between;gap:7px}.loader{width:12px;height:12px;border:2px solid #747094;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:500px){main{padding-top:20px}.status{flex-basis:100%;margin-left:0}.toolbar .btn{flex:1}.summary{padding:16px}.market-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.market{padding:12px;min-height:151px}.market-title{font-size:14px}.market-title span{display:block;margin:0}.market-price{font-size:18px}.market-footer{display:block}.exchange{font-size:10px}.footnotes{font-size:11px}}
+@media(max-width:360px){.market-grid{grid-template-columns:1fr}.market-title span{display:inline}}
+</style>
+</head>
+<body><main>
+<header><div class="brand"><span class="brandmark">◈</span><span>WEEX <span style="color:#b48dff">SIGNAL RADAR</span></span></div><div class="top-pill">WEEX <b>основной</b> · Bybit резерв</div></header>
+<section aria-label="Главная"><div class="eyebrow">СКАНЕР ФЬЮЧЕРСОВ · 5M + 15M</div><h1>Сигналы <span class="highlight">LONG / SHORT</span><br>без догадок</h1><p class="sub">Только закрытые свечи, подтверждение тренда и пробоя. Сильные сигналы — фиолетовым. Если условий нет, честно показываем «ЖДАТЬ».</p></section>
+<div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary">♧ Включить уведомления</button><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
+<section class="summary" aria-live="polite"><div class="summary-top"><span class="eyebrow">АКТУАЛЬНЫЕ СИГНАЛЫ</span><small id="updated">Обновление: —</small></div><div id="signal-container"><strong>Проверяем рынок…</strong><small>Вход без подтверждения не предлагаем.</small></div></section>
+<section><div class="summary-top"><h2>Рынок · 8 инструментов</h2><small class="muted">WEEX → Bybit</small></div><div id="markets" class="market-grid" aria-live="polite"></div></section>
+<section class="footnotes"><div class="footer-line"><span>Автообновление: раз в 60 сек., пока эта страница открыта.</span><span>Срок действия сигнала: 3 мин. после закрытия свечи.</span></div><p>⚠️ Это учебный сканер, а не команда к сделке. Уровни TP/SL примерные, исходя из ATR; цены двух бирж могут отличаться. Уведомления браузера работают, только когда вкладка активна, и зависят от разрешений телефона. Круглосуточные push-уведомления и автоматические сделки не подключены. При высоком плече возможна полная потеря маржи.</p></section>
+</main>
+<script>
+'use strict';
+const NAMES={BTCUSDT:'BTC',ETHUSDT:'ETH',XRPUSDT:'XRP',SOLUSDT:'SOL',ALGOUSDT:'ALGO',SHIBUSDT:'SHIB',DOGEUSDT:'DOGE',XAUTUSDT:'Золото XAUT'};
+const $=id=>document.getElementById(id);
+let latest=null,busy=false;
+const format=(x)=>Number(x).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:Math.abs(x)<0.01?8:Math.abs(x)<1?5:2});
+const clock=t=>new Date(t).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function currentSignals(){return (latest?.symbols||[]).filter(s=>s.status==='ok'&&s.direction&&s.expiresAt>Date.now()).sort((a,b)=>Number(b.level==='STRONG')-Number(a.level==='STRONG')||b.score-a.score)}
+function draw(){
+ if(!latest)return;
+ const active=currentSignals();
+ $('updated').textContent='Проверено: '+clock(latest.generatedAt)+' (Берлин)';
+ $('signal-container').innerHTML=active.length?`<div class="signals">${active.map(s=>`<article class="signal ${s.level}"><div class="signal-header"><span class="level ${s.level}">${s.level==='STRONG'?'✦ СИЛЬНЫЙ СИГНАЛ':'ОБЫЧНЫЙ СИГНАЛ'}</span><span class="exchange">${s.exchange}</span></div><h3>${NAMES[s.symbol]||s.symbol} <span class="direction ${s.direction==='LONG'?'long':'short'}">${s.direction}</span></h3><small>${safe(s.reason)}</small><div class="stats"><div><span>Цена закрытия</span><b>${format(s.price)}</b></div><div><span>Осталось</span><b data-expires="${s.expiresAt}">${Math.max(0,Math.ceil((s.expiresAt-Date.now())/1000))} сек.</b></div><div><span>Ориентир Stop</span><b>${format(s.stop)}</b></div><div><span>Ориентир Take</span><b>${format(s.take)}</b></div></div><div class="meter"><i style="width:${s.score}%"></i></div><small>Оценка условий: ${s.score}/100 · объём ×${s.indicators.volumeRatio} · RSI ${s.indicators.rsi}</small></article>`).join('')}</div>` : `<strong>Сейчас нет свежего подтверждённого сигнала</strong><small>Это нормально: не нужно входить в рынок без условий. Проверка продолжится автоматически, пока открыт сайт.</small>`;
+ $('markets').innerHTML=latest.symbols.map(s=>`<article class="market"><div class="market-top"><div class="market-title">${NAMES[s.symbol]||s.symbol}<span> / USDT</span></div><span class="exchange">${s.exchange||'—'}</span></div><div class="market-price ${s.status!=='ok'?'missing':''}">${s.status==='ok'?format(s.price):'Нет данных'}</div><div class="market-footer"><span class="chip ${s.status!=='ok'?'ERROR':(s.direction&&s.expiresAt>Date.now())?(s.level==='STRONG'?'STRONG':s.direction):''}">${s.status!=='ok'?'ОШИБКА':(s.direction&&s.expiresAt>Date.now())?(s.level==='STRONG'?'✦ СИЛЬНЫЙ '+s.direction:s.direction):'ЖДАТЬ'}</span><span>${s.status==='ok'?'Свеча: '+clock(s.candleCloseTime):'Источник недоступен'}</span></div></article>`).join('');
+}
+function emitNotifications(){
+ if(!latest||!('Notification'in window)||Notification.permission!=='granted'||document.visibilityState!=='visible')return;
+ for(const s of currentSignals()) {
+   const key=`weex-radar-${s.exchange}-${s.symbol}-${s.candleCloseTime}-${s.direction}`;
+   try{if(localStorage.getItem(key))continue;localStorage.setItem(key,'1');new Notification(`${s.level==='STRONG'?'✦ СИЛЬНЫЙ':'Обычный'} ${s.direction}: ${NAMES[s.symbol]||s.symbol}`,{body:`${s.exchange} · закрытие ${format(s.price)} · действие до ${clock(s.expiresAt)}`,tag:key})}catch(e){console.warn('Browser notifications unavailable:',e)}
+ }
+}
+async function update(){
+ if(busy)return;busy=true;$('refresh').disabled=true;$('refresh').textContent='Проверяем…';
+ $('status').innerHTML='<i class="dot"></i> Запрос к биржам…';
+ const controller=new AbortController(),t=setTimeout(()=>controller.abort(),27000);
+ try{
+  const res=await fetch('/api/signals',{signal:controller.signal,cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);
+  const data=await res.json();if(!data?.symbols?.length)throw new Error('Нет ответа со свечами');
+  latest=data;draw();emitNotifications();
+  const valid=data.symbols.filter(s=>s.status==='ok').length;
+  const fallback=data.symbols.filter(s=>s.exchange==='Bybit').length;
+  $('status').innerHTML=`<i class="dot ${valid?'ok':'err'}"></i> ${valid}/8 источников доступны${fallback?' · резерв Bybit: '+fallback:''}`;
+ }catch(e){$('status').innerHTML=`<i class="dot err"></i> Ошибка: ${safe(e.name==='AbortError'?'Превышено время ожидания':e.message)}. Попробуйте обновить.`;if(!latest)$('signal-container').innerHTML='<strong>Сигналы недоступны</strong><small>Никаких вымышленных данных. Проверьте /api/signals после размещения проекта.</small>';}
+ finally{clearTimeout(t);busy=false;$('refresh').disabled=false;$('refresh').textContent='↻ Проверить сейчас';}
+}
+$('refresh').onclick=update;
+$('notify').onclick=async()=>{
+ if(!('Notification'in window)){$('notify').textContent='На этом браузере нет уведомлений';return;}
+ try{const permission=await Notification.requestPermission();$('notify').textContent=permission==='granted'?'✓ Уведомления включены':permission==='denied'?'Уведомления заблокированы':'Разрешите уведомления';if(permission==='granted')emitNotifications();}
+ catch(e){$('notify').textContent='Не получилось включить уведомления'}
+};
+if('Notification'in window&&Notification.permission==='granted')$('notify').textContent='✓ Уведомления включены';
+update();setInterval(()=>{if(document.visibilityState==='visible')update()},60000);
+setInterval(()=>{if(latest)draw()},1000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')update()});
+</script>
+</body></html>
