@@ -20,6 +20,13 @@ export default async function handler(req,res){
  try{
   if(req.method==='DELETE'){await del(path);return res.status(200).json({ok:true,removed:true})}
   const r=await list({prefix:'subscribers/',limit:11});
+  // Browser reopens with permission already granted: check whether the
+  // push gateway previously rejected and removed this exact endpoint.
+  // A missing subscription must be recreated in the browser, not silently
+  // reinserted with the same stale endpoint.
+  if(req.body?.checkOnly===true)return res.status(200).json({
+    ok:true,present:r.blobs.some(b=>b.pathname===path)
+  });
   if(r.blobs.length>=10&&!r.blobs.some(b=>b.pathname===path))return res.status(429).json({error:'Subscription limit reached'});
   await put(path,JSON.stringify({subscription:sub,createdAt:Date.now()}),{access:'private',allowOverwrite:true,contentType:'application/json',cacheControlMaxAge:60});
   let testSent=false;

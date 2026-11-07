@@ -69,35 +69,81 @@ const toBytes=b64=>{
  const s=atob(b64.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-b64.length%4)%4));
  return Uint8Array.from(s,ch=>ch.charCodeAt(0));
 };
-$('notify').onclick=async()=>{
+let pushBusy=false;
+async function savePushSubscription(subscription,checkOnly=false){
+ const response=await fetch('/api/push-subscribe',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   cache:'no-store',
+   body:JSON.stringify({subscription:subscription.toJSON(),checkOnly})
+ });
+ if(!response.ok)throw Error('Ошибка подписки '+response.status);
+ return response.json();
+}
+async function setupPush(interactive=false){
  const button=$('notify');
+ if(pushBusy)return;
  if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){
-   button.textContent='Откройте сайт в Google Chrome';return;
+   button.textContent='Для push нужен Google Chrome';return;
  }
- button.disabled=true;button.textContent='Подключаем push…';
+ if(!interactive&&Notification.permission!=='granted'){
+   button.textContent='🔔 Разреши push в настройках Android';return;
+ }
+ pushBusy=true;button.disabled=true;
+ button.textContent=interactive?'Подключаем push…':'⏳ Восстанавливаем push…';
  try{
-  const permission=await Notification.requestPermission();
-  if(permission!=='granted'){button.textContent=permission==='denied'?'Уведомления запрещены в Android':'Разреши уведомления';return;}
-  const configResponse=await fetch('/api/push-public',{cache:'no-store'});
-  if(!configResponse.ok)throw Error('Сервис push недоступен');
-  const config=await configResponse.json();
-  if(!config.enabled||!config.publicKey)throw Error('Сервер push не настроен');
-  await navigator.serviceWorker.register('/sw.js',{scope:'/'});
-  const reg=await navigator.serviceWorker.ready;
-  let subscription=await reg.pushManager.getSubscription();
-  if(!subscription)subscription=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:toBytes(config.publicKey)});
-  const response=await fetch('/api/push-subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:subscription.toJSON()})});
-  if(!response.ok)throw Error('Ошибка сохранения подписки '+response.status);
-  const result=await response.json();
-  localStorage.setItem('weex-push-active','1');
-  button.textContent=result.testSent?'✓ Тест отправлен — проверь телефон':'⚠ Тест не отправлен — нажми ещё раз';
-  if(!result.testSent){
-    alert('Подписка сохранена, но тестовое push не отправилось. Код: '+String(result.testError||'UNKNOWN')+'. Сделай скриншот и пришли мне.');
-  }
- }catch(e){console.warn('WEEX push setup failed',e);button.textContent='Ошибка push — нажми ещё раз';alert('Не удалось включить push. Открой WEEX RADAR в Google Chrome и разреши уведомления. '+e.message)}
- finally{button.disabled=false}
-};
-if(localStorage.getItem('weex-push-active')==='1')$('notify').textContent='🔔 Проверить push ещё раз';
+   const permission=interactive?await Notification.requestPermission():Notification.permission;
+   if(permission!=='granted'){
+     button.textContent=permission==='denied'?'Push запрещён в Android':'Разреши уведомления';
+     return;
+   }
+   const configResponse=await fetch('/api/push-public',{cache:'no-store'});
+   if(!configResponse.ok)throw Error('Сервис push недоступен');
+   const config=await configResponse.json();
+   if(!config.enabled||!config.publicKey)throw Error('Push не настроен');
+   await navigator.serviceWorker.register('/sw.js',{scope:'/'});
+   const reg=await navigator.serviceWorker.ready;
+   const key=toBytes(config.publicKey);
+   let subscription=await reg.pushManager.getSubscription();
+   if(subscription&&!interactive){
+     const checked=await savePushSubscription(subscription,true);
+     if(checked.present){
+       button.textContent='🔔 Push подключён';
+       return;
+     }
+     // Removed by Vercel after a 404/410 from the push gateway.
+     await subscription.unsubscribe();
+     subscription=null;
+   }
+   if(!subscription){
+     subscription=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+   }
+   let result=await savePushSubscription(subscription);
+   // Retry once with a new browser endpoint if the gateway rejects this one.
+   if(!result.testSent&&['PUSH_HTTP_404','PUSH_HTTP_410'].includes(result.testError)){
+     await subscription.unsubscribe();
+     subscription=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+     result=await savePushSubscription(subscription);
+   }
+   localStorage.setItem('weex-push-active','1');
+   button.textContent=result.testSent?'✓ Push подключён — тест отправлен':'⚠ Push: проверь подключение';
+   if(!result.testSent&&interactive){
+     alert('Push не подтвердился: '+String(result.testError||'UNKNOWN')+
+       '. Попробуй ещё раз и проверь разрешения Android.');
+   }
+ }catch(e){
+   console.warn('WEEX push subscription recovery failed',e);
+   button.textContent='🔔 Повторить подключение push';
+   if(interactive)alert('Не удалось включить push: '+String(e.message||e));
+ }finally{pushBusy=false;button.disabled=false}
+}
+$('notify').onclick=()=>setupPush(true);
+if(localStorage.getItem('weex-push-active')==='1'){
+ $('notify').textContent='🔔 Проверить push ещё раз';
+ // Recover previously approved push subscription when owner visits the RADAR.
+ // Never request browser permissions or create subscriptions without prior consent.
+ if(Notification.permission==='granted')setupPush(false);
+}
+
 update();setInterval(()=>{if(document.visibilityState==='visible')update()},60000);
 setInterval(()=>{if(latest)draw()},1000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')update()});

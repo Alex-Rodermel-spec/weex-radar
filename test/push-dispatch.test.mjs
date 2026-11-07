@@ -28,3 +28,15 @@ test('audit distinguishes zero phone subscriptions from already-delivered signal
  assert.equal(b.duplicates,2);
  assert.equal(b.subscribers,1);
 });
+
+test('push subscription health check does not reinsert an expired browser endpoint',()=>{
+ const subscribe=readFileSync(new URL('../api/push-subscribe.mjs',import.meta.url),'utf8');
+ const ui=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(subscribe,/if\(req\.body\?\.checkOnly===true\)return/);
+ assert.match(subscribe,/present:r\.blobs\.some/);
+ assert.match(ui,/savePushSubscription\(subscription,true\)/);
+ assert.match(ui,/await subscription\.unsubscribe\(\)/);
+ assert.match(ui,/Notification\.permission==='granted'\)setupPush\(false\)/);
+ assert.match(ui,/\['PUSH_HTTP_404','PUSH_HTTP_410'\]/);
+ assert.match(ui,/localStorage\.getItem\('weex-push-active'\)/);
+});
