@@ -65,7 +65,7 @@ test('signal notification priority, expiry and separately signed live signal rec
  const subscribe=read('../api/push-subscribe.mjs');
  const sw=read('../sw.js');
  const html=read('../index.html');
- assert.match(sw,/renotify:isSignal,requireInteraction:isSignal/);
+ assert.match(sw,/renotify:isSignal&&!isEarly,requireInteraction:isSignal&&!isEarly/);
  assert.match(sw,/isSignal&&Number\.isFinite\(expiration\).*result='expired'/);
  assert.match(subscribe,/receipts\/last-signals\//);
  assert.match(subscribe,/signalDelivery/);
