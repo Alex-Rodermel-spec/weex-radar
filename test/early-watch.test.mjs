@@ -52,5 +52,5 @@ test('existing signals serverless route handles early mode without extra functio
  const chart=readFileSync(new URL('../tradingview.html',import.meta.url),'utf8');
  assert.match(code,/req\.query\?\.mode==='early'/);
  assert.match(code,/import\('\.\.\/lib\/early-watch\.mjs'\)/);
- assert.match(chart,/\/api\/signals\?mode=early&symbol=/);
+ assert.match(chart,/\/api\/signals\?mode=early&chart=1&symbol=/);
 });
