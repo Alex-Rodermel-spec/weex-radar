@@ -54,7 +54,8 @@ export default async function handler(req,res){
   try{
     // This fixed path is a distributed mutex. Never overwrite it.
     try{
-      await put(LOCK,JSON.stringify({symbol:plan.symbol,nonce:hash,createdAt:Date.now()}),
+      await put(LOCK,JSON.stringify({symbol:plan.symbol,nonce:hash,direction:plan.direction,
+        stopLoss:plan.stopLoss,takeProfit:plan.takeProfit,createdAt:Date.now()}),
         {access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
       locked=true;
     }catch(e){if(isBlobConflict(e))return res.status(409).json({error:'Another trade is being verified. Check WEEX positions.'});throw e;}

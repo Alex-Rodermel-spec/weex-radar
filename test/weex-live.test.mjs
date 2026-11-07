@@ -177,3 +177,12 @@ test('OIDC dry-run exercises pure market plan and order payload without a real o
  assert.match(code,/orderPayload\(plan\)/);
  assert.doesNotMatch(code,/weex\.placeOrder\(/);
 });
+
+test('execution release requires exchange evidence of both TP/SL orders',()=>{
+ const code=readFileSync(new URL('../api/trade-release.mjs',import.meta.url),'utf8');
+ assert.match(code,/weex\.openAlgoOrders\(lock\.symbol\)/);
+ assert.match(code,/verifyActiveProtection\(algoOrders,lock,same\[0\]\)/);
+ assert.match(code,/if\(!protection\.verified\)/);
+ const confirm=readFileSync(new URL('../api/trade-confirm.mjs',import.meta.url),'utf8');
+ assert.match(confirm,/stopLoss:plan\.stopLoss,takeProfit:plan\.takeProfit/);
+});
