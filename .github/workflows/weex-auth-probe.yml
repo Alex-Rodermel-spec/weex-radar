@@ -29,7 +29,7 @@ jobs:
             -H 'Accept: application/json' \
             'https://weex-radar.vercel.app/api/weex-auth-probe')"
           echo "Result HTTP: $status"
-          jq -c '{ok,stage,code,ordersSent}' "$temp"
+          jq -c '{ok,stage,code,checks,clockSkewMs,ordersSent}' "$temp"
           if [[ "$status" != "200" ]]; then
             echo "::warning::WEEX account authentication is not yet verified (read-only probe)"
           fi

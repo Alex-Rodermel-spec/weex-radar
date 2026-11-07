@@ -139,3 +139,11 @@ test('WEEX headers ignore accidental paste whitespace around credentials',()=>{
  const h2=signedHeaders('GET','/capi/v3/account/accountConfig','','',1794049000000,padded);
  assert.deepEqual(h1,h2);
 });
+
+test('read-only probe uses independent account and balance requests and reports no money',()=>{
+ const code=readFileSync(new URL('../api/weex-auth-probe.mjs',import.meta.url),'utf8');
+ assert.match(code,/Promise\.allSettled\(\[weex\.account\(\),weex\.balance\(\)\]\)/);
+ assert.match(code,/market\/time/);
+ assert.match(code,/ordersSent:0/);
+ assert.doesNotMatch(code,/weex\.placeOrder\(/);
+});

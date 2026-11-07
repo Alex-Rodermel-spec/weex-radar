@@ -28,12 +28,31 @@ export default async function handler(req,res) {
   if(!auth.startsWith('Bearer ')||!(await validProbeToken(auth.slice(7))))
     return res.status(401).json({ok:false});
   if(!configured())return res.status(503).json({ok:false,stage:'missing_credentials'});
+  // Public server clock and TWO independent authenticated reads.
+  // Never echo account configuration, balances, raw error messages or secrets.
+  let clockSkewMs=null;
   try{
-    const account=await weex.account();
-    if(typeof account?.canTrade!=='boolean'||typeof account?.dualSidePosition!=='boolean')
-      return res.status(502).json({ok:false,stage:'unexpected_account_schema'});
-    return res.status(200).json({ok:true,stage:'authenticated',ordersSent:0});
-  }catch(error){
-    return res.status(502).json({ok:false,...safeProbeError(error),ordersSent:0});
-  }
+    const r=await fetch('https://api-contract.weex.com/capi/v3/market/time',
+      {method:'GET',signal:AbortSignal.timeout(6000),cache:'no-store'});
+    const t=await r.json();
+    if(r.ok&&Number.isFinite(Number(t?.serverTime)))
+      clockSkewMs=Math.round((Date.now()-Number(t.serverTime))/100)*100;
+  }catch{}
+  const [account,balance]=await Promise.allSettled([weex.account(),weex.balance()]);
+  const check={
+    account:account.status==='fulfilled'
+      ?(typeof account.value?.canTrade==='boolean'?'authenticated':'unexpected_schema')
+      :safeProbeError(account.reason).code||safeProbeError(account.reason).stage,
+    balance:balance.status==='fulfilled'
+      ?(Array.isArray(balance.value)?'authenticated':'unexpected_schema')
+      :safeProbeError(balance.reason).code||safeProbeError(balance.reason).stage
+  };
+  const ok=check.account==='authenticated'&&check.balance==='authenticated';
+  return res.status(ok?200:502).json({
+    ok,stage:ok?'authenticated':'two_endpoint_diagnosis',code:ok?null:
+      (check.account!=='authenticated'?check.account:check.balance),
+    checks:check,
+    clockSkewMs,
+    ordersSent:0
+  });
 }
