@@ -28,13 +28,13 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
 <body><main>
 <header><div class="brand"><span class="brandmark">◈</span><span>WEEX <span style="color:#b48dff">SIGNAL RADAR</span></span></div><div class="top-pill">WEEX <b>основной</b> · Bybit резерв</div></header>
 <section aria-label="Главная"><div class="eyebrow">СКАНЕР ФЬЮЧЕРСОВ · 5M + 15M</div><h1>Сигналы <span class="highlight">LONG / SHORT</span><br>без догадок</h1><p class="sub">Только закрытые свечи, подтверждение тренда и пробоя. Сильные сигналы — фиолетовым. Если условий нет, честно показываем «ЖДАТЬ».</p></section>
-<div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary">🔔 Включить push в фоне</button><button id="bg-test" class="btn secondary" disabled title="Временно выключено для экономии лимита хранилища">🌙 Фоновый тест на паузе</button><button id="signal-test" class="btn secondary" disabled title="Временно выключено для экономии лимита хранилища">🧪 Тест на паузе</button><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/tradingview.html">📊 TradingView · 1м/5м/15м</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/quality.html">📊 Статистика сигналов</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/history.html">📒 Журнал 90 дней</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/backtest.html">🧪 Исторический тест</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="https://www.weex.com/help/articles/50717160193561" target="_blank" rel="noopener">💰 Комиссии WEEX</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/health.html">🛡️ Состояние бота</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/liquidity.html">🌊 Ликвидность WEEX</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/trade.html">💼 План сделки</a><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
+<div class="toolbar"><button id="refresh" class="btn">↻ Проверить сейчас</button><button id="notify" class="btn secondary" disabled title="Режим ntfy-only">🔕 Chrome Push отключён</button><button id="bg-test" class="btn secondary" disabled title="Временно выключено для экономии лимита хранилища">🌙 Фоновый тест на паузе</button><button id="signal-test" class="btn secondary" disabled title="Временно выключено для экономии лимита хранилища">🧪 Тест на паузе</button><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/tradingview.html">📊 TradingView · 1м/5м/15м</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/quality.html">📊 Статистика сигналов</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/history.html">📒 Журнал 90 дней</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/backtest.html">🧪 Исторический тест</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="https://www.weex.com/help/articles/50717160193561" target="_blank" rel="noopener">💰 Комиссии WEEX</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/health.html">🛡️ Состояние бота</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/liquidity.html">🌊 Ликвидность WEEX</a><a class="btn secondary" style="text-decoration:none;display:inline-block" href="/trade.html">💼 План сделки</a><span id="status" class="status"><i class="dot"></i> Подготовка…</span></div>
 <p id="bg-diagnostics" class="push-diagnostics" role="status">⚠️ Диагностические тесты временно на паузе: лимит Vercel Blob превышен. Это не останавливает сканирование WEEX; доставку Push пока нельзя гарантировать.</p>
 <p id="signal-delivery" class="push-diagnostics" role="status">Последний торговый сигнал: нет подтверждённой доставки.</p>
 <p id="push-diagnostics" class="push-diagnostics" role="status" aria-live="polite">Push: проверка доступна через кнопку 🔔. Подтверждение Chrome не гарантирует звук или баннер Android.</p>
 <section class="ntfy-section" aria-label="Отдельное Android-приложение ntfy">
  <h2>📱 ntfy — отдельные уведомления</h2>
- <p>Доставка в приложение ntfy без открытого Chrome. Chrome остаётся резервным каналом.</p>
+ <p>Доставка в приложение ntfy без открытого Chrome. Chrome Push и Telegram отключены: рабочие уведомления идут только в ntfy.</p>
  <p id="ntfy-status" role="status">Проверяется только браузерная подписка ntfy. Серверные сигналы могут работать независимо — смотри «🛡️ Состояние бота».</p>
  <div class="ntfy-controls"><button id="ntfy-enable" class="btn secondary" type="button">Подключить ntfy</button></div>
  <div id="ntfy-details" hidden>
@@ -55,6 +55,8 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
 </main>
 <script>
 'use strict';
+// Phone notifications are ntfy-only; legacy browser push controls are inactive.
+const NTFY_ONLY_ALERTS=true;
 const NAMES={BTCUSDT:'BTC',ETHUSDT:'ETH',XRPUSDT:'XRP',SOLUSDT:'SOL',ALGOUSDT:'ALGO','1000SHIBUSDT':'1000 SHIB',DOGEUSDT:'DOGE',XAUTUSDT:'Золото XAUT',ZECUSDT:'ZEC','1000PEPEUSDT':'1000 PEPE',HYPEUSDT:'HYPE',BNBUSDT:'BNB',ADAUSDT:'ADA',LINKUSDT:'LINK',SUIUSDT:'SUI',AVAXUSDT:'AVAX'};
 const $=id=>document.getElementById(id);
 let latest=null,busy=false,backgroundPushReady=false,ntfyTopic=null;
@@ -123,6 +125,7 @@ function draw(){
 function emitNotifications(){
  // Avoid two Android notifications for the same candle when background push is active.
  if(backgroundPushReady)return;
+ if(NTFY_ONLY_ALERTS)return;
  if(!latest||!('Notification'in window)||Notification.permission!=='granted'||document.visibilityState!=='visible')return;
  for(const s of currentSignals()) {
    const key=`weex-radar-${s.exchange}-${s.symbol}-${s.candleCloseTime}-${s.direction}`;
@@ -242,6 +245,7 @@ $('bg-test').onclick=()=>scheduleBackgroundPushTest(false);
 $('signal-test').onclick=()=>scheduleBackgroundPushTest(true);
 async function setupPush(interactive=false){
  const button=$('notify');
+ if(NTFY_ONLY_ALERTS){button.disabled=true;return;}
  if(pushBusy)return;
  backgroundPushReady=false;
  if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){
@@ -358,6 +362,7 @@ $('ntfy-copy').onclick=async()=>{
  catch(e){$('ntfy-status').textContent='Не удалось скопировать автоматически. Выдели строку с каналом и скопируй вручную.';}
 };
 async function inspectExistingPush(){
+ if(NTFY_ONLY_ALERTS)return;
  // Check an existing subscription only: do not request permission or silently subscribe.
  if(!('serviceWorker' in navigator)||!('Notification' in window))return;
  if(Notification.permission!=='granted'){
