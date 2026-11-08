@@ -188,6 +188,10 @@ export default async function handler(req,res){
   const {default:handleQuality}=await import('../lib/signal-quality-route.mjs');
   return handleQuality(req,res);
  }
+ if(req.query?.mode==='journal'||req.query?.mode==='journal-export'){
+  const {handleJournal}=await import('../lib/journal-route.mjs');
+  return handleJournal(req,res,req.query.mode);
+ }
  if(req.query?.mode==='health'){
   const {handleHealth}=await import('../lib/health-route.mjs');
   return handleHealth(req,res,scanAll);

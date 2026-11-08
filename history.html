@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#11101b">
+<title>WEEX RADAR · Журнал 90 дней</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#11101b;color:#f5f1fa}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 5% 0%,#372347,transparent 40%),#11101b;min-height:100vh}
+main{max-width:960px;margin:auto;padding:25px 16px 60px}
+header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:28px}
+.brand{font-size:13px;font-weight:900;letter-spacing:.1em;color:#d1adff}
+a{color:#d8bbff}
+.back{padding:10px 14px;border:1px solid #50415e;border-radius:12px;text-decoration:none}
+h1{font-size:clamp(27px,6vw,41px);letter-spacing:-.04em;margin:0 0 12px}
+p{line-height:1.5}.muted{color:#b7b1c3}
+.lead{max-width:760px;margin-bottom:20px}
+.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:19px 0}
+select{background:#2b2638;color:white;border:1px solid #695881;font:inherit;border-radius:11px;padding:11px 13px}
+button{font:700 14px system-ui;background:#a37af0;color:#1c0e2f;border:none;padding:12px 16px;border-radius:11px;cursor:pointer}
+button:disabled{opacity:.55}
+#state{font-size:13px;color:#c9bbda;min-height:20px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(137px,1fr));gap:12px;margin:20px 0}
+.card{background:linear-gradient(140deg,#282237,#1c1a27);padding:18px;border:1px solid #50405c;border-radius:15px}
+.card small{display:block;color:#bbaeca}.card strong{font-size:29px;letter-spacing:-.05em;margin-top:7px;display:block}
+.card .good{color:#89e8b5}.card .bad{color:#ffa4ac}
+h2{margin:30px 0 12px;font-size:19px}
+.table-box{background:#1c1a28;border:1px solid #483b53;border-radius:16px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:490px}
+th{text-align:left;font-size:11px;color:#bcadca;text-transform:uppercase;letter-spacing:.05em}
+th,td{padding:13px 12px;border-bottom:1px solid #392f45}
+tr:last-child td{border-bottom:0}
+.note{font-size:13px;border:1px solid #685074;padding:15px 16px;border-radius:14px;background:#281f32;line-height:1.5;margin-top:22px}
+.empty{padding:18px;border-radius:14px;border:1px dashed #625074;color:#c8bbd8}
+</style>
+</head>
+<body>
+<main>
+<header><span class="brand">◈ WEEX RADAR · JOURNAL</span><a href="/" class="back">← Вернуться к радару</a></header>
+<h1>📒 Долгосрочный журнал сигналов</h1>
+<p class="muted lead">Теперь сравниваем результаты подтверждённых WEEX LONG/SHORT за 30 и 90 дней. Это история <b>отправленных через ntfy</b> сигналов, а не реально исполненных сделок.</p>
+<div class="controls">
+ <label for="days">Период</label>
+ <select id="days"><option value="30">Последние 30 дней</option><option value="90">Последние 90 дней</option></select>
+ <button type="button" id="refresh">↻ Обновить</button>
+ <span id="state" role="status">Получаем журнал…</span>
+</div>
+<div class="metrics">
+ <div class="card"><small>Сигналов сохранено</small><strong id="total">—</strong></div>
+ <div class="card"><small>Достигли TP</small><strong class="good" id="tp">—</strong></div>
+ <div class="card"><small>Достигли SL</small><strong class="bad" id="sl">—</strong></div>
+ <div class="card"><small>Доля TP из проверенных</small><strong id="rate">—</strong></div>
+ <div class="card"><small>Средний результат, R*</small><strong id="average">—</strong></div>
+</div>
+<p class="muted" id="detail">Для статистического сравнения нужны реальные наблюдения, а не придуманные результаты.</p>
+<h2>По монетам</h2>
+<div class="table-box"><table><thead><tr><th>Монета</th><th>Сигналов</th><th>TP</th><th>SL</th><th>Доля TP</th></tr></thead><tbody id="market"></tbody></table></div>
+<h2>По направлению</h2>
+<div class="table-box"><table><thead><tr><th>Направление</th><th>Сигналов</th><th>TP</th><th>SL</th><th>Доля TP</th></tr></thead><tbody id="direction"></tbody></table></div>
+<h2>Сравнение предупреждений нового фильтра</h2>
+<div class="table-box"><table><thead><tr><th>Метка</th><th>Сигналов</th><th>TP</th><th>SL</th><th>Доля TP</th></tr></thead><tbody id="shadow"></tbody></table></div>
+<div class="note">⚠️ <b>Это исследование, не подтверждение прибыльности.</b> Статусы TP/SL считаются по последующим закрытым минутным свечам за 60 минут. Если оба уровня коснулись одной свечи, исход считается неопределённым. Не учитываются комиссия биржи, funding, проскальзывание, риск ликвидации и реальное исполнение. *R — условное изменение доходности в единицах первоначального риска, рассчитанное только для однозначных TP и SL и без издержек. Значения не гарантируют будущий заработок.</div>
+<p class="muted" style="font-size:13px">🔐 Полная история хранится в зашифрованном виде AES-GCM в отдельной ветке существующего публичного GitHub-репозитория. Страница показывает только агрегированные результаты. Период до установки журнала не восстанавливается автоматически, кроме ещё доступных уведомлений. Архив обновляет отдельная бесплатная задача GitHub Actions примерно каждые 20 минут; возможны задержки и пробелы при сбоях планировщика. WEEX RADAR и ntfy работают независимо.</p>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let report=null;
+const pct=v=>v===null||v===undefined?'—':String(v)+'%';
+const showN=v=>Number.isFinite(v)?String(v):'—';
+const utc=ms=>new Date(ms).toLocaleString('ru-RU',{timeZone:'Europe/Berlin',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+function rows(id,items,translate=x=>x){
+ const body=$(id);body.replaceChildren();
+ if(!items?.length){
+  const tr=document.createElement('tr'),td=document.createElement('td');
+  td.colSpan=5;td.textContent='Нет данных за выбранный период.';
+  tr.appendChild(td);body.appendChild(tr);return;
+ }
+ for(const item of items){
+  const tr=document.createElement('tr');
+  const fields=[translate(item.name),item.total,item.TP,item.SL,pct(item.hitRatePct)];
+  for(const value of fields){const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);}
+  body.appendChild(tr);
+ }
+}
+function display(){
+ if(!report)return;
+ const days=$('days').value,stats=report.windows?.[days];
+ if(!stats)return;
+ $('total').textContent=showN(stats.total);
+ $('tp').textContent=showN(stats.TP);
+ $('sl').textContent=showN(stats.SL);
+ $('rate').textContent=pct(stats.hitRatePct);
+ $('average').textContent=stats.illustrativeAverageR===null?'—':showN(stats.illustrativeAverageR)+' R';
+ $('detail').textContent=
+  'Однозначных исходов: '+stats.resolved+
+  ' · Ожидают: '+stats.PENDING+
+  ' · Не достигли TP/SL: '+stats.TIMEOUT+
+  ' · Неопределённые: '+(stats.AMBIGUOUS+stats.INTRABAR)+
+  ' · Нет данных: '+stats.NO_DATA+'.';
+ rows('market',stats.byMarket);
+ rows('direction',stats.byDirection,x=>x==='LONG'?'📈 LONG':x==='SHORT'?'📉 SHORT':x);
+ rows('shadow',stats.byShadow,x=>x==='SKIP'?'⚠️ Тест: пропустить':
+  x==='OBSERVE'?'🔎 Тест: без замечаний':'Без отметки');
+ $('state').textContent=report.state==='EMPTY'?
+  'Архив ещё пуст. Первая запись появится после следующего нового сигнала.':
+  'Архив: '+report.archivedSignals+' сигналов · последнее оповещение: '+
+    (report.lastSignalAt?utc(report.lastSignalAt):'—');
+}
+async function load(){
+ $('refresh').disabled=true;$('state').textContent='Проверяем зашифрованный архив…';
+ try{
+  const r=await fetch('/api/signals?mode=journal',{cache:'no-store'});
+  const data=await r.json();
+  if(!r.ok)throw Error(data.error||'Архив временно недоступен');
+  if(!data.windows?.['30']||!data.windows?.['90'])throw Error('Неполный ответ архива');
+  report=data;display();
+ }catch(e){$('state').textContent='⚠️ '+(e.message||'Архив недоступен')+
+  '. Сигналы бота продолжают работать.'}
+ finally{$('refresh').disabled=false}
+}
+$('days').addEventListener('change',display);
+$('refresh').addEventListener('click',load);
+load();
+</script>
+</body></html>
