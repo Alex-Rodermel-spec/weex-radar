@@ -73,14 +73,14 @@ code{background:#30283f;border-radius:5px;padding:2px 5px}
 <p class="muted">Без регистрации TradingView и вставки кода. Раннее предупреждение появляется только при совпадении пробоя, объёма, тренда 15м и свежей котировки WEEX. Проверка на странице примерно каждые 20 секунд; отдельный ранний Push отправляется через существующий Cron и подписку Chrome, когда есть свежий сигнал. Push может приходить с задержкой и не гарантирован. Это не подтверждённая сделка.</p>
 </section>
 <section class="panel">
-<h2>Дополнительно: Pine-индикатор в своём аккаунте TradingView</h2>
-<p>Я добавил собственный индикатор <b>WEEX RADAR Early 1m</b> для TradingView Pine Script v6. Он проверяет тренд 15м, пробой, RSI, объём и форму свечи. Результат — <b>EARLY WATCH</b>, то есть предупреждение, а не разрешение на вход.</p>
+<h2>⚡ TradingView: 16 наших монет на одном минутном графике</h2>
+<p>Наш новый <b>WEEX RADAR · Early 1m · 16 Coins</b> следит за всеми 16 выбранными контрактами WEEX, независимо от открытой монеты на графике. Показывает таблицу по всем 16 и может отправлять общее оповещение TradingView с названием монеты и LONG/SHORT. Это только <b>EARLY WATCH</b>, не подтверждённая сделка.</p><p class="muted">Открой любой график с таймфреймом <b>1m</b>, добавь код через Pine Editor и создай одно оповещение <b>Any alert() function call</b>. Не все тикеры WEEX обязательно доступны в TradingView: такие строки будут «NO DATA». Минутный сервер WEEX RADAR и ntfy продолжают работать отдельно, даже без TradingView.</p>
 <div class="actions">
-<button class="primary" type="button" id="copy-pine">📋 Скопировать Pine Script</button>
-<a class="action" href="/tradingview/weex-radar-early-1m.pine" download>Скачать код</a>
+<button class="primary" type="button" id="copy-pine">📋 Скопировать сканер 16 монет</button>
+<a class="action" href="/tradingview/weex-radar-early-1m-multi16.pine" download>Скачать код 16 монет</a>
 <a class="action" href="https://www.tradingview.com/" rel="noopener noreferrer" target="_blank">Открыть Pine Editor</a>
 </div>
-<p id="copy-status" role="status" class="muted">В TradingView открой Pine Editor, вставь код, нажми «Добавить на график» и при желании создай отдельное оповещение в TradingView.</p>
+<p id="copy-status" role="status" class="muted">TradingView → Pine Editor → вставь новый код → Добавить на график → Создать оповещение → Any alert() function call. Твой сохранённый старый Pine-индикатор автоматически не обновится.</p>
 </section>
 <section class="panel warning">
 <h2>Статус интеграции</h2>
@@ -227,7 +227,7 @@ symbolSelect.addEventListener('change',()=>{selected=symbolSelect.value;if(!SYMB
 for(const btn of document.querySelectorAll('[data-interval]'))btn.addEventListener('click',()=>{interval=btn.dataset.interval;showChart()});
 $('copy-pine').addEventListener('click',async()=>{
  try{
-  const response=await fetch('/tradingview/weex-radar-early-1m.pine',{cache:'no-store'});
+  const response=await fetch('/tradingview/weex-radar-early-1m-multi16.pine',{cache:'no-store'});
   if(!response.ok)throw Error('HTTP '+response.status);
   const code=await response.text();await navigator.clipboard.writeText(code);
   $('copy-status').textContent='✅ Код скопирован. Вставь его в TradingView → Pine Editor.';
