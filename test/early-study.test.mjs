@@ -80,6 +80,8 @@ test('summary deduplicates notifications and clearly separates observed/pending 
  assert.equal(sum.windows[15].observed,1);
  assert.equal(sum.windows[30].pending,1);
  assert.equal(sum.windows[5].favorablePct,100);
+ assert.equal(sum.byType.BREAKOUT.windows[5].favorablePct,100);
+ assert.equal(sum.byType.PRE_BREAK.windows[5].favorablePct,null);
  assert.equal(sum.pairs.confirmedWithin30m,1);
  assert.deepEqual(EARLY_HORIZONS,[5,15,30]);
 });
@@ -91,6 +93,7 @@ test('research route cannot write, place trades, send notifications, or reveal n
  assert.match(signals,/mode==='early-study'/);
  assert.match(route,/NTFY_TOPIC/);
  assert.match(route,/source:'actual ntfy WEEX early alerts/);
+ assert.match(route,/Object\.fromEntries\(Object\.entries\(study\)/);
  assert.doesNotMatch(route,/trade-confirm|placeOrder|@vercel\/blob|publishNtfy|\/capi\/v3\/order/);
  assert.doesNotMatch(core,/fetch\(|placeOrder|@vercel\/blob/);
 });
