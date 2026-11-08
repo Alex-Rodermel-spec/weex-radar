@@ -6,6 +6,7 @@ import {_test as marketSafety} from './signals.mjs';
 import {sendEarlyPush} from '../lib/early-push.mjs';
 import {telegramPoll,telegramSend} from '../lib/telegram-alerts.mjs';
 import {ntfySend} from '../lib/ntfy-alerts.mjs';
+import {checkEntryLevels} from '../lib/entry-quality.mjs';
 const JWKS=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 function secureEquals(a,b){if(!a||!b)return false;let x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
 async function authorized(req){
@@ -195,7 +196,15 @@ export default async function handler(req,res){
       const quote=await marketSafety.fetchCurrentQuote(signal.symbol,signal.exchange);
       const quality=marketSafety.currentPriceQuality(signal.direction,signal.price,
         Number(signal.indicators?.atr),quote.price);
-      return quality.ok?{...signal,livePrice:quote.price}:null;
+      // A second live quote can invalidate the remaining R/R or nearby level.
+      // Re-evaluate before any notification; never mix WEEX/Bybit prices.
+      const entry=checkEntryLevels({
+        direction:signal.direction,entry:quote.price,
+        stop:Number(signal.stop),take:Number(signal.take),
+        nearestLevel:signal.entryQuality?.nearestLevel??null
+      });
+      return quality.ok&&signal.entryQuality?.ok===true&&entry.ok?
+        {...signal,livePrice:quote.price,entryQuality:entry}:null;
     }catch{return null}
   }));
   const signals=checked.filter(Boolean);
