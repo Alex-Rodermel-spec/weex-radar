@@ -207,7 +207,7 @@ export default async function handler(req,res){
       symbol:selected.length===1?primary.symbol:'BATCH',
       exchange:primary.exchange,
       direction:selected.length===1?primary.direction:'MULTI',
-      candleCloseTime:primary.candleCloseTime,expiresAt:Math.min(...selected.map(s=>s.expiresAt)),
+      candleCloseTime:primary.candleCloseTime,sentAt:Date.now(),expiresAt:Math.min(...selected.map(s=>s.expiresAt)),
       deliveryId,deliveryProof,subscriberId,kind:'signal',
       url:selected.length===1&&primary.exchange==='WEEX'?'/trade.html?symbol='+encodeURIComponent(primary.symbol):'/'};
     try{
