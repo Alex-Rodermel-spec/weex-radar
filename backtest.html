@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#14111e">
+<title>WEEX RADAR · Исторический тест</title>
+<style>
+:root{color-scheme:dark;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:#12101a;color:#f7f4fc}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 0% 0%,#342340,transparent 40%),#12101a}
+main{max-width:1000px;margin:0 auto;padding:22px 16px 70px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 28px}
+a{color:#dbbaff}.back{border:1px solid #645375;border-radius:12px;padding:10px 14px;text-decoration:none;color:#faf6ff}
+.brand{font-size:13px;letter-spacing:.12em;font-weight:900;color:#d2adff}
+h1{font-size:clamp(27px,6vw,42px);line-height:1.14;margin:0 0 13px;letter-spacing:-.035em}
+h2{font-size:19px;margin:28px 0 12px}
+p{color:#c7bfd3;margin:8px 0 17px}
+.lead{max-width:800px}
+.settings{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding:16px;background:#211c2c;border:1px solid #524563;border-radius:15px;margin:20px 0}
+.settings label{font-size:12px;color:#c9bbd9;display:flex;flex-flow:column;gap:6px;flex:1 1 135px}
+select{padding:11px 12px;border-radius:10px;color:#f8f4fb;background:#322a42;border:1px solid #78658e;font:600 14px system-ui;min-width:0}
+button{border:0;border-radius:11px;padding:12px 19px;background:#bb91ff;color:#22102e;font:800 15px system-ui;cursor:pointer}
+button:disabled{opacity:.5}
+#status{min-height:22px;font-size:13px;color:#d0bfd9;margin:12px 0}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:13px}
+.card{background:linear-gradient(135deg,#262138,#1c1a28);border:1px solid #5a476b;border-radius:16px;padding:17px}
+.card h3{font-size:17px;margin:0 0 16px}
+.card .flag{font-size:11px;font-weight:800;letter-spacing:.04em;background:#493657;color:#efd9ff;padding:4px 7px;border-radius:6px;white-space:nowrap}
+.metric{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:1px solid #40364d;padding:9px 0}
+.metric:last-child{border-bottom:0}
+.metric span{color:#c3b6d0}.metric strong{font-size:16px}
+.positive{color:#9cdebe}.negative{color:#ffafbb}
+.compare{padding:14px 16px;border-radius:13px;border:1px solid #66527b;background:#241d30;margin:18px 0;font-size:14px}
+.small{font-size:13px}
+.info{background:#211d2b;border:1px solid #50445f;border-radius:14px;padding:15px;margin:16px 0}
+.info p{margin:5px 0}
+table{width:100%;border-collapse:collapse;min-width:500px;font-size:13px}
+th{text-align:left;color:#d5c0e1;font-size:12px}
+td,th{padding:12px 10px;border-bottom:1px solid #42384e}
+.table-wrap{overflow-x:auto;border:1px solid #51435e;border-radius:13px}
+li{padding:4px 0;color:#beb1cc}
+#notice{display:none}
+</style>
+</head>
+<body><main>
+<header><span class="brand">◈ WEEX RADAR · RESEARCH</span><a href="/" class="back">← Назад в RADAR</a></header>
+<h1>🧪 Проверка стратегии на истории</h1>
+<p class="lead">Сравниваем пробои <strong>без дополнительных фильтров</strong> и <strong>с нашими действующими фильтрами</strong> на одних и тех же прошлых свечах. Учитываем условные комиссии и проскальзывание. Это эксперимент, а не торговый сигнал.</p>
+<div class="settings">
+ <label for="coin">Рынок WEEX
+ <select id="coin">
+ <option>BTCUSDT</option><option>ETHUSDT</option><option>XRPUSDT</option>
+ <option>SOLUSDT</option><option>ALGOUSDT</option><option>1000SHIBUSDT</option>
+ <option>DOGEUSDT</option><option>XAUTUSDT</option><option>ZECUSDT</option>
+ <option>1000PEPEUSDT</option><option>HYPEUSDT</option><option>BNBUSDT</option>
+ <option>ADAUSDT</option><option>LINKUSDT</option><option>SUIUSDT</option><option>AVAXUSDT</option>
+ </select></label>
+ <label for="fee">Комиссия, за сторону
+ <select id="fee"><option value="8">0,08% · модель</option><option value="6">0,06%</option><option value="10">0,10%</option><option value="0">0%</option></select>
+ </label>
+ <label for="slip">Проскальзывание, за сторону
+ <select id="slip"><option value="3">0,03% · модель</option><option value="5">0,05%</option><option value="10">0,10%</option><option value="0">0%</option></select></label>
+ <button id="run" type="button">▶ Запустить тест</button>
+</div>
+<p id="status" role="status">Выбери рынок и запусти сравнение.</p>
+<section id="output" hidden>
+<div id="coverage" class="info small"></div>
+<div class="pair">
+ <article class="card">
+  <h3>Базовые пробои <span class="flag">БЕЗ ФИЛЬТРОВ</span></h3>
+  <div class="metric"><span>Входов в модели</span><strong id="b-count">—</strong></div>
+  <div class="metric"><span>TP / SL</span><strong id="b-ratio">—</strong></div>
+  <div class="metric"><span>Доля TP*</span><strong id="b-rate">—</strong></div>
+  <div class="metric"><span>Средний итог после издержек</span><strong id="b-avg">—</strong></div>
+  <div class="metric"><span>Сумма результатов, R*</span><strong id="b-sum">—</strong></div>
+  <div class="metric"><span>Неоднозначные</span><strong id="b-amb">—</strong></div>
+ </article>
+ <article class="card">
+  <h3>Наши фильтры <span class="flag">ТЕКУЩИЕ ПРАВИЛА</span></h3>
+  <div class="metric"><span>Входов в модели</span><strong id="f-count">—</strong></div>
+  <div class="metric"><span>TP / SL</span><strong id="f-ratio">—</strong></div>
+  <div class="metric"><span>Доля TP*</span><strong id="f-rate">—</strong></div>
+  <div class="metric"><span>Средний итог после издержек</span><strong id="f-avg">—</strong></div>
+  <div class="metric"><span>Сумма результатов, R*</span><strong id="f-sum">—</strong></div>
+  <div class="metric"><span>Неоднозначные</span><strong id="f-amb">—</strong></div>
+ </article>
+</div>
+<div id="comparison" class="compare"></div>
+<h2>Сравнение LONG и SHORT</h2>
+<div class="table-wrap"><table><thead><tr><th>Направление</th><th>Режим</th><th>Входов</th><th>TP</th><th>SL</th><th>Средний R после издержек</th></tr></thead><tbody id="directions"></tbody></table></div>
+<div id="notice" class="compare">⚠️ Слишком мало проверенных исходов. По этой выборке нельзя делать выводы о прибыльности или автоматически менять фильтры.</div>
+</section>
+<h2>Как устроен эксперимент</h2>
+<div class="info small">
+ <p><strong>Данные:</strong> исторические закрытые свечи 5м + 15м WEEX, ориентировочно последние двое суток. Используются только данные, известные к моменту каждого сигнала.</p>
+ <p><strong>Вход:</strong> цена открытия следующей 5м свечи — приближение, а не фактическая котировка и не реальный ордер. <strong>Выход:</strong> первый TP или SL за следующие 60 минут. При двух касаниях в одной свече исход неоднозначен.</p>
+ <p><strong>Две модели:</strong> одинаковые условия EMA, 15м тренда, RSI и пробоя. Вторая дополнительно использует действующие фильтры ложного/перегретого пробоя, цены, уровней R/R и боковика. Историческая проверка живой котировки лишь приближённая.</p>
+ <p><strong>R</strong> — условная прибыль/убыток на единицу начального риска. Прибыльность реального счёта, плечо, funding, ликвидации, реальные спреды, задержка ntfy и ограничения исполнения <strong>не моделируются</strong>. Возможно перекрытие виртуальных сделок.</p>
+ <p><strong>Доля TP*</strong> считается только среди однозначных TP и SL, средний R также включает истёкшие по времени позиции, но не неоднозначные исходы. Комиссия списывается за открытие и закрытие, проскальзывание ухудшает обе цены. Ставки — редактируемые гипотезы, не индивидуальный тариф аккаунта.</p>
+</div>
+<p class="small">📒 <a href="/history.html">Наш журнал реальных отправленных уведомлений</a> автоматически накапливает последующие результаты. Этот исторический тест — отдельный эксперимент; он не заменяет проверку на новых сигналах.</p>
+<p class="small">⚠️ Тест не меняет сигналы, уведомления, риск или сделки. Если покажет улучшение на истории, его всё равно необходимо проверить на будущих данных.</p>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const show=x=>x===null||x===undefined?'—':String(x);
+const rr=x=>x===null||x===undefined?'—':x+' R';
+const pct=x=>x===null||x===undefined?'—':x+'%';
+function metrics(prefix,stats){
+ $(prefix+'-count').textContent=show(stats.setups);
+ $(prefix+'-ratio').textContent=stats.TP+' / '+stats.SL;
+ $(prefix+'-rate').textContent=pct(stats.winRatePct);
+ $(prefix+'-avg').textContent=rr(stats.netAverageR);
+ $(prefix+'-sum').textContent=rr(stats.netSumR);
+ $(prefix+'-amb').textContent=show(stats.AMBIGUOUS);
+ for(const id of ['-avg','-sum']){
+  const n=id==='-avg'?stats.netAverageR:stats.netSumR;
+  $(prefix+id).className=n===null?'':n>=0?'positive':'negative';
+ }
+}
+function render(result){
+ $('output').hidden=false;
+ $('coverage').textContent=result.symbol+' · '+result.dataDays+
+  ' суток свечей · проверено 5м свечей: '+result.evaluatedCandles+
+  ' · базовых пробоев: '+result.rawCandidates+
+  ' · исключено при невалидном входе: '+result.excludedEntryGap+
+  ' · отклонено фильтрами: '+result.rejectedQuality+'.';
+ metrics('b',result.baseline);
+ metrics('f',result.filtered);
+ const resolved=result.baseline.resolved+result.filtered.resolved;
+ $('notice').style.display=(resolved<30||result.filtered.resolved<15)?'block':'none';
+ const diff=(result.filtered.netAverageR!==null&&result.baseline.netAverageR!==null)?
+  Number((result.filtered.netAverageR-result.baseline.netAverageR).toFixed(3)):null;
+ $('comparison').textContent=diff===null?
+  'Пока недостаточно однозначных результатов для сравнения средних значений.':
+  'Разница средней условной доходности после издержек (фильтры минус базовые): '+
+  (diff>=0?'+':'')+diff+' R. Это сравнение разных подмножеств одних исторических пробоев, а не доказательство улучшения.';
+ const body=$('directions');body.replaceChildren();
+ for(const side of ['LONG','SHORT']){
+  for(const [name,key] of [['Без фильтров','baseline'],['С фильтрами','filtered']]){
+   const x=result.directions[side][key],tr=document.createElement('tr');
+   for(const value of [side,name,x.setups,x.TP,x.SL,rr(x.netAverageR)]){
+    const td=document.createElement('td');td.textContent=show(value);tr.appendChild(td);
+   }
+   body.appendChild(tr);
+  }
+ }
+}
+async function load(){
+ $('run').disabled=true;$('status').textContent='Запрашиваем исторические свечи WEEX…';
+ const symbol=$('coin').value,fee=$('fee').value,slippage=$('slip').value;
+ try{
+  const query=new URLSearchParams({mode:'backtest',symbol,feeBps:fee,slippageBps:slippage});
+  const response=await fetch('/api/signals?'+query.toString(),{cache:'no-store'});
+  const result=await response.json();
+  if(!response.ok)throw Error(result.error||'Тест недоступен');
+  if(!result.backtestOnly||!result.baseline||!result.filtered)throw Error('Неполные данные исследования');
+  render(result);
+  $('status').textContent='✓ Исторический тест завершён. Данные обновлены.';
+ }catch(e){
+  $('status').textContent='⚠️ '+(e.message||'Не удалось проверить историю')+
+  ' Сигналы и уведомления работают независимо.';
+  $('output').hidden=true;
+ }finally{$('run').disabled=false}
+}
+$('run').addEventListener('click',load);
+load();
+</script>
+</body></html>
