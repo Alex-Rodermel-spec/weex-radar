@@ -7,6 +7,7 @@ import {sendEarlyPush} from '../lib/early-push.mjs';
 import {telegramPoll,telegramSend} from '../lib/telegram-alerts.mjs';
 import {ntfySend} from '../lib/ntfy-alerts.mjs';
 import {checkEntryLevels} from '../lib/entry-quality.mjs';
+import {assessNetCosts} from '../lib/net-costs.mjs';
 import {monitorDispatch,snapshotMarkets} from '../lib/health-monitor.mjs';
 const JWKS=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 function secureEquals(a,b){if(!a||!b)return false;let x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
@@ -210,8 +211,15 @@ export default async function handler(req,res){
         stop:Number(signal.stop),take:Number(signal.take),
         nearestLevel:signal.entryQuality?.nearestLevel??null
       });
+      // Recalculate using the last known bid/ask; never block confirmed
+      // signals if the fee model is missing, uncertain or unfavorable.
+      const costReview=assessNetCosts({
+        exchange:signal.exchange,direction:signal.direction,
+        entryMid:quote.price,stop:Number(signal.stop),take:Number(signal.take),
+        bid:quote.bid,ask:quote.ask
+      });
       return quality.ok&&signal.entryQuality?.ok===true&&entry.ok?
-        {...signal,livePrice:quote.price,entryQuality:entry}:null;
+        {...signal,livePrice:quote.price,entryQuality:entry,costReview}:null;
     }catch{return null}
   }));
   const signals=checked.filter(Boolean);
