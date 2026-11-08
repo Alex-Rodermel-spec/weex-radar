@@ -79,8 +79,11 @@ test('browser dashboard is valid inline JavaScript and read only',()=>{
  assert.doesNotThrow(()=>new Script(script[1],{filename:'quality.html'}));
  const ui=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(ui,/href="\/quality\.html"/);
- const api=readFileSync(new URL('../api/signal-quality.mjs',import.meta.url),'utf8');
+ const api=readFileSync(new URL('../lib/signal-quality-route.mjs',import.meta.url),'utf8');
  assert.match(api,/NTFY_TOPIC/);
+ const signalsApi=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');
+ assert.match(signalsApi,/req.query\?\.mode==='quality'/);
+ assert.match(signalsApi,/signal-quality-route/);
  assert.match(api,/historyOfSentSignals/);
  assert.match(api,/evaluateNotification/);
  assert.doesNotMatch(api,/trade-confirm|trade-prepare|\/capi\/v3\/order|@vercel\/blob|WEEX_API_SECRET/);
