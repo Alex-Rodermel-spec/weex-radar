@@ -2,6 +2,7 @@
 import {checkConfirmedEntry} from '../lib/entry-quality.mjs';
 import {evaluateStructure} from '../lib/market-structure.mjs';
 import {checkSidewaysEntry} from '../lib/sideways-gate.mjs';
+import {evaluateRetestBoth} from '../lib/retest-check.mjs';
 const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 const DUR={'5m':300000,'15m':900000};
 function numeric(x){const n=Number(x);return Number.isFinite(n)?n:NaN;}
@@ -72,6 +73,11 @@ function getAnalysis(five,fifteen,livePrice=null){
  const last=five.at(-1),c5=five.map(c=>c.close),c15=fifteen.map(c=>c.close);
  const e20=ema(c5,20),e50=ema(c5,50),t20=ema(c15,20),t50=ema(c15,50);
  const r=rsi(c5),volatility=atr(five),previous=five.slice(-13,-1);
+ // Retest observations use already completed SAME-EXCHANGE 5m candles only.
+ // They do not qualify an entry or cancel a fresh breakout notification.
+ const aligned15=t20>t50&&fifteen.at(-1).close>t20?'LONG':
+   t20<t50&&fifteen.at(-1).close<t20?'SHORT':null;
+ const retest=evaluateRetestBoth(five,volatility,aligned15);
  const upper=Math.max(...previous.map(x=>x.high)),lower=Math.min(...previous.map(x=>x.low));
  const avgVolume=five.slice(-21,-1).reduce((a,c)=>a+c.volume,0)/20;
  const volumeRatio=avgVolume>0?last.volume/avgVolume:0;
@@ -100,7 +106,7 @@ function getAnalysis(five,fifteen,livePrice=null){
  return {direction,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
  stop:direction?(direction==='LONG'?last.close-1.2*volatility:last.close+1.2*volatility):null,
  take:direction?(direction==='LONG'?last.close+2.4*volatility:last.close-2.4*volatility):null,
- entryQuality,shadowFilter,sidewaysGate,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
+ entryQuality,shadowFilter,sidewaysGate,retest,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
  livePrice:Number.isFinite(livePrice)&&livePrice>0?livePrice:null,
  reason:direction?'Свежая котировка API · пробой 5м · тренд 15м · RSI '+Math.round(r):
  (quality&&!quality.ok?quality.reason:priceQuality&&!priceQuality.ok?priceQuality.reason:entryQuality&&!entryQuality.ok?entryQuality.reason:sidewaysGate?.blocked?sidewaysGate.reason:'Нет свежего подтверждённого пробоя')};
