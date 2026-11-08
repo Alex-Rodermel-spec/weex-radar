@@ -198,7 +198,16 @@ export default async function handler(req,res){
    return {enabled:false,delivered:0,failed:1,duplicates:0};
   }):Promise.resolve({enabled:false,delivered:0,failed:0,duplicates:0});
   if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
-  const entries=await loadSubscriptions();
+  let entries;
+  try{entries=await loadSubscriptions();}
+  catch(e){
+   // Storage quota errors must NOT stop independent ntfy delivery or 1m scans.
+   // This only affects Chrome Web Push; no order or trading API is touched.
+   console.warn('WEEX_RADAR_CHROME_STORAGE_UNAVAILABLE '+String(e.message||e).slice(0,90));
+   return reply(res,source,200,{ok:true,signals:signals.length,subscribers:null,
+    delivered:0,browserPushUnavailable:true,background,
+    early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
+  }
   if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
   webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
   let delivered=0,failed=0,duplicates=0,retried=0;

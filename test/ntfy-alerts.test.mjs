@@ -44,3 +44,32 @@ test('ntfy controls are parsed as valid browser JavaScript',()=>{
  assert.ok(m);
  assert.doesNotThrow(()=>new Script(m[1]));
 });
+
+test('owner ntfy topic bypasses blocked Blob and deduplicates on Android',async()=>{
+ const {ntfySend}=await import('../lib/ntfy-alerts.mjs');
+ const previousTopic=process.env.NTFY_TOPIC,previousFetch=globalThis.fetch;
+ const topic='WR_Private_'+('a'.repeat(24));
+ const sent=[];
+ process.env.NTFY_TOPIC=topic;
+ globalThis.fetch=async(url,init)=>{sent.push({url,body:JSON.parse(init.body)});return {ok:true,status:200};};
+ try{
+  assert.equal(checks.configuredTopic(),topic);
+  const signal={symbol:'ALGOUSDT',exchange:'WEEX',direction:'LONG',level:'STRONG',
+   price:1.0,livePrice:1.01,stop:0.98,take:1.04,
+   candleCloseTime:Date.now()-10000,expiresAt:Date.now()+90000};
+  const first=await ntfySend('confirmed',[signal]);
+  const again=await ntfySend('confirmed',[signal]);
+  assert.equal(first.enabled,true);
+  assert.equal(first.delivered,1);
+  assert.equal(first.failed,0);
+  assert.equal(again.delivered,1);
+  assert.equal(sent.length,2);
+  assert.equal(sent[0].url,'https://ntfy.sh/');
+  assert.equal(sent[0].body.topic,topic);
+  assert.match(sent[0].body.sequence_id,/^[a-f0-9]{32}$/);
+  assert.equal(sent[0].body.sequence_id,sent[1].body.sequence_id);
+ }finally{
+  globalThis.fetch=previousFetch;
+  if(previousTopic===undefined)delete process.env.NTFY_TOPIC;else process.env.NTFY_TOPIC=previousTopic;
+ }
+});
