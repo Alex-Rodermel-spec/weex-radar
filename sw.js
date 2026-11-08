@@ -5,9 +5,13 @@ self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim())})
 self.addEventListener('push',event=>{
  let msg={};try{msg=event.data?.json()||{}}catch{msg={title:'WEEX RADAR',body:event.data?.text()||''}}
  const title=String(msg.title||'WEEX RADAR');
+ const isLateConfirmedSignal=msg.kind==='signal'&&(
+   (Number.isFinite(Number(msg.sentAt))&&Number(msg.sentAt)>0&&Date.now()-Number(msg.sentAt)>=45000)||
+   (Number.isFinite(Number(msg.candleCloseTime))&&Number(msg.candleCloseTime)>0&&Date.now()-Number(msg.candleCloseTime)>=90000));
+ const visibleTitle=isLateConfirmedSignal?'⚠️ ПОЗДНИЙ СИГНАЛ · '+title:title;
  const isEarly=msg.kind==='early_watch';
  const isSignal=msg.kind==='signal'||msg.kind==='signal_test'||isEarly;
- const options={body:String(msg.body||''),tag:'weex-radar-'+String(msg.kind||'')+'-'+String(msg.exchange||'')+'-'+String(msg.symbol||'')+'-'+String(msg.candleCloseTime||'')+'-'+String(msg.direction||''),
+ const options={body:(isLateConfirmedSignal?'⚠️ Проверь актуальную цену перед входом. ':'')+String(msg.body||''),tag:'weex-radar-'+String(msg.kind||'')+'-'+String(msg.exchange||'')+'-'+String(msg.symbol||'')+'-'+String(msg.candleCloseTime||'')+'-'+String(msg.direction||''),
   icon:'/radar-icon.svg',badge:'/radar-icon.svg',vibrate:[350,150,350],renotify:isSignal&&!isEarly,requireInteraction:isSignal&&!isEarly,
   data:{url:typeof msg.url==='string'&&(
     /^\/trade\.html\?symbol=[A-Z0-9]{2,20}USDT$/.test(msg.url)||
@@ -19,7 +23,7 @@ self.addEventListener('push',event=>{
   // Do not display trading signals that were delayed beyond their expiry.
   if(isSignal&&Number.isFinite(expiration)&&expiration>0&&Date.now()>=expiration)result='expired';
   else {
-   try{await self.registration.showNotification(title,options)}
+   try{await self.registration.showNotification(visibleTitle,options)}
    catch(e){result='show_error'}
   }
   // The acknowledgement means the service worker called showNotification,
