@@ -194,7 +194,7 @@ function renderRadarChart(rows,watch){
   ctx.strokeStyle=watch.direction==='LONG'?'#69f3bf':'#ff8ba2';
   ctx.lineWidth=3;ctx.beginPath();ctx.arc(x(rows.length-1),yy,7,0,Math.PI*2);ctx.stroke();
   ctx.fillStyle=ctx.strokeStyle;
-  const t='WATCH '+watch.direction;ctx.fillText(t,Math.max(left,x(rows.length-1)-75),
+  const t=(watch.watchType==='PRE_BREAK'?'ПРОГНОЗ ':'WATCH ')+watch.direction;ctx.fillText(t,Math.max(left,x(rows.length-1)-75),
    Math.max(top+10,Math.min(top+plotH-10,yy+(watch.direction==='LONG'?17:-17))));
  }
  const tformat=ms=>new Date(ms).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit'});
@@ -202,7 +202,7 @@ function renderRadarChart(rows,watch){
  ctx.fillText(tformat(rows[0].time),left,height-12);
  ctx.fillText(tformat(rows.at(-1).time),Math.max(left,width-right-38),height-12);
  const caption='WEEX · '+rows.length+' закрытых свечей · цена '+label(rows.at(-1).close)+
-  ' · '+(active?'⚡ WATCH '+watch.direction:'⏳ ЖДАТЬ');
+  ' · '+(active?(watch.watchType==='PRE_BREAK'?'🔮 ПРОГНОЗ ':'⚡ WATCH ')+watch.direction:'⏳ ЖДАТЬ');
  $('radar-chart-caption').textContent=caption;
 }
 window.addEventListener('resize',()=>{if(latestDrawing)renderRadarChart(latestDrawing.rows,latestDrawing.watch)});
@@ -216,8 +216,16 @@ async function fetchEarlyWatch(){
   if(code!==selected)return;
   if(Array.isArray(result.chart))renderRadarChart(result.chart,result);
   const active=result.level==='EARLY_WATCH'&&['LONG','SHORT'].includes(result.direction)&&result.expiresAt>Date.now();
-  output.textContent=code+' · '+(active?'⚡ EARLY WATCH '+result.direction+' (предварительно)':'⏳ ЖДАТЬ')+
+  const forecast=active&&result.watchType==='PRE_BREAK'&&result.forecast?.mode==='PRE_BREAK_SCENARIO'?
+    result.forecast:null;
+  output.textContent=code+' · '+(forecast?'🔮 ПРОГНОЗ '+result.direction+' — НЕ ВХОДИТЬ':
+    active?'⚡ EARLY WATCH '+result.direction+' (предварительно)':'⏳ ЖДАТЬ')+
    ' · '+result.reason+
+   (forecast?' · Ожидаемый пробой '+(result.direction==='LONG'?'выше ':'ниже ')+
+      formatPrice(forecast.triggerPrice)+
+      ' · Отмена сценария '+(result.direction==='LONG'?'ниже ':'выше ')+
+      formatPrice(forecast.invalidationPrice)+
+      ' · Ближайшие '+forecast.horizonMinutes+' минут. Вероятность не рассчитана.':'')+
    ' · Закрытие свечи: '+new Date(result.candleCloseTime).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})+
    (result.livePrice?' · Цена WEEX: '+formatPrice(result.livePrice):'')+
    (active?' · Действует до '+new Date(result.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'}):'');
