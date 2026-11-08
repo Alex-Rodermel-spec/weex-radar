@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#11101b">
+<title>WEEX RADAR · Проверка ранних сигналов</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#11101b;color:#f4f1fa}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 5% 0%,#34213f,transparent 42%),#11101b}
+main{max-width:960px;margin:auto;padding:22px 16px 64px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+a{color:#d7b6ff}h1{font-size:clamp(26px,5vw,40px);margin:20px 0 8px}
+p{line-height:1.5}.muted{color:#bbb2cb}button{background:#ae8bf4;border:0;border-radius:10px;padding:11px 18px;font-weight:800;cursor:pointer}
+button:disabled{opacity:.55}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:20px 0}
+.card{background:#211a2c;border:1px solid #4c3d60;border-radius:15px;padding:16px}
+.card small{display:block;color:#cabddd}.card strong{display:block;font-size:29px;margin-top:8px}
+table{border-collapse:collapse;width:100%}th,td{padding:13px 11px;border-bottom:1px solid #40344d;text-align:left;font-size:13px}
+th{color:#c6b4db}.tablebox{overflow-x:auto;border:1px solid #524264;border-radius:12px;background:#211a2c}
+.note{border:1px solid #71607f;border-radius:13px;padding:16px;background:#2c2234;margin:22px 0}
+#status{min-height:20px;color:#d7c6e5;font-size:13px;margin:14px 0}
+</style></head>
+<body><main>
+<header><b style="color:#caabf4">◈ WEEX RADAR · EARLY STUDY</b><a href="/history.html">← Журнал 90 дней</a></header>
+<h1>🧪 Прав ли сигнал «ЖДАТЬ»?</h1>
+<p class="muted">Проверка реальных уведомлений ⚡ EARLY WATCH и 🔮 PRE_BREAK по последующим минутным свечам WEEX. Здесь нет автоматических сделок.</p>
+<button id="refresh" type="button">↻ Проверить снова</button>
+<div id="status" role="status">Читаем последние уведомления…</div>
+<section class="grid">
+<div class="card"><small>Ранних предупреждений</small><strong id="total">—</strong></div>
+<div class="card"><small>До пробоя (PRE_BREAK)</small><strong id="pre">—</strong></div>
+<div class="card"><small>С поздним подтверждением</small><strong id="pairs">—</strong></div>
+<div class="card"><small>Среднее ухудшение цены, б.п.</small><strong id="chase">—</strong></div>
+</section>
+<h2>Цена после предупреждения</h2>
+<div class="tablebox"><table><thead><tr><th>Через</th><th>Измерено</th><th>В сторону сигнала</th><th>Против сигнала</th><th>Верное направление</th><th>Средний ход (б.п.)</th></tr></thead>
+<tbody id="periods"></tbody></table></div>
+<h2>Предупреждение до пробоя или на пробое?</h2>
+<div class="tablebox"><table><thead><tr><th>Тип</th><th>Сигналов</th><th>5 мин</th><th>15 мин</th><th>30 мин</th></tr></thead><tbody id="bytype"></tbody></table></div>
+<p class="muted" id="details"></p>
+<div class="note">⚠️ <b>Верное направление — не доказательство прибыли.</b>
+Оценка учитывает только закрытые свечи после момента получения уведомления; первая неполная минута исключена. Ранняя цена отображается округлённой, а вход в сделку мог быть недоступен. Здесь нет комиссий, спреда, проскальзывания и исполнения ордеров. Неполные данные не учитываются как успех. Исследование использует лишь краткую историю ntfy и <b>пока не сохраняется на 90 дней</b>.</div>
+<p class="muted">Для полноценного сравнения нужны десятки реальных ранних уведомлений и постоянный журнал. Никакие настройки рабочего сканера эта страница не меняет.</p>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id);
+const num=n=>n===null||n===undefined?'—':String(n);
+async function load(){
+ $('refresh').disabled=true;$('status').textContent='Сверяем уведомления с минутными свечами…';
+ try{
+  const response=await fetch('/api/signals?mode=early-study',{cache:'no-store'});
+  const d=await response.json();
+  if(!response.ok)throw Error(d.error||'Сервис недоступен');
+  $('total').textContent=num(d.totalEarly);
+  $('pre').textContent=num(d.types?.PRE_BREAK);
+  $('pairs').textContent=num(d.pairs?.confirmedWithin30m);
+  $('chase').textContent=num(d.pairs?.meanChaseBps);
+  $('periods').replaceChildren();
+  for(const minute of [5,15,30]){
+   const value=d.windows?.[minute]||{};
+   const tr=document.createElement('tr');
+   const fields=[minute+' мин',num(value.observed),num(value.favorable),
+    num(value.adverse),value.favorablePct===null?'—':num(value.favorablePct)+'%',
+    num(value.meanDirectionBps)];
+   for(const field of fields){
+    const td=document.createElement('td');
+    td.textContent=field;tr.appendChild(td);
+   }
+   $('periods').appendChild(tr);
+  }
+  $('bytype').replaceChildren();
+  for(const [key,label] of [['PRE_BREAK','🔮 До пробоя'],['BREAKOUT','⚡ Минутный пробой']]){
+   const group=d.byType?.[key]||{},tr=document.createElement('tr');
+   const percent=n=>n===null||n===undefined?'—':String(n)+'%';
+   const fields=[label,num(group.total),...([5,15,30].map(m=>percent(group.windows?.[m]?.favorablePct)))];
+   for(const field of fields){const td=document.createElement('td');td.textContent=field;tr.appendChild(td)}
+   $('bytype').appendChild(tr);
+  }
+  $('details').textContent='Верхний предел: '+d.windowMinutes+
+   ' минут · позиций с полными данными может быть меньше · пропусков и ожиданий не считаем выигрышами.'+
+   (d.sampleTruncated?' История обрезана: слишком много сообщений.':'');
+  $('status').textContent=d.totalEarly?
+   'Получено '+d.totalEarly+' ранних предупреждений для исследования.':
+   'Пока нет подходящих ранних сообщений в доступной истории ntfy.';
+ }catch(e){$('status').textContent='⚠️ '+(e.message||'Ошибка')+
+  '. Рабочие уведомления и бот продолжают работать.';}
+ finally{$('refresh').disabled=false}
+}
+$('refresh').addEventListener('click',load);
+load();
+</script></body></html>

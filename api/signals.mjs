@@ -192,6 +192,10 @@ export default async function handler(req,res){
   const {handleEarlyWatch}=await import('../lib/early-watch.mjs');
   return handleEarlyWatch(req,res);
  }
+ if(req.query?.mode==='early-study'){
+  const {handleEarlyStudy}=await import('../lib/early-study-route.mjs');
+  return handleEarlyStudy(req,res);
+ }
  if(req.query?.mode==='quality'){
   const {default:handleQuality}=await import('../lib/signal-quality-route.mjs');
   return handleQuality(req,res);
