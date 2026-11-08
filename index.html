@@ -111,7 +111,11 @@ function showSignalDeliveryHealth(checked){
  if(!s){el.textContent='Последний торговый сигнал: пока нет данных о доставке.';return;}
  const name=String(s.symbol)+' '+String(s.direction);
  if(s.result==='shown'){
-  el.textContent='✅ '+clock(s.workerAt)+' Chrome обработал '+name+'. Проверь появление уведомления на телефоне.';
+  const delaySec=Math.max(0,Math.round((s.workerAt-s.at)/1000));
+  el.textContent='✅ '+clock(s.workerAt)+' Chrome обработал '+name+
+    ' через ~'+delaySec+' с после принятия Push-сервисом.'+
+    (delaySec>=45?' ⚠️ Доставка запоздала — перед входом обязательно проверь цену.':'')+
+    ' Баннер и звук Android отдельно не подтверждены.';
  }else if(s.result==='expired'){
   el.textContent='⌛ '+name+' пришёл после окончания срока действия и не был показан.';
  }else if(s.result==='show_error'){
