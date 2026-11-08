@@ -92,6 +92,8 @@ test('closed 15m candles must not be borrowed from the future when replaying 5m'
  assert.equal(v.mode,'RESEARCH_SHADOW');
  assert.ok(v.evaluatedCandles>0);
  assert.ok(v.baseline.setups>=v.filtered.setups);
+ assert.equal(typeof v.baseline.tpNetLoss,'number');
+ assert.equal(typeof v.filtered.tpNetPositive,'number');
  assert.ok(v.rawCandidates>=v.filtered.setups);
  assert.equal(v.baseline.setups,v.directions.LONG.baseline.setups+v.directions.SHORT.baseline.setups);
  assert.match(v.assumptions.entry,/OPEN/);

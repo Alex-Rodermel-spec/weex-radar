@@ -70,6 +70,7 @@ li{padding:4px 0;color:#beb1cc}
   <h3>Базовые пробои <span class="flag">БЕЗ ФИЛЬТРОВ</span></h3>
   <div class="metric"><span>Входов в модели</span><strong id="b-count">—</strong></div>
   <div class="metric"><span>TP / SL</span><strong id="b-ratio">—</strong></div>
+  <div class="metric"><span>TP, но минус после издержек</span><strong id="b-tp-loss">—</strong></div>
   <div class="metric"><span>Доля TP*</span><strong id="b-rate">—</strong></div>
   <div class="metric"><span>Средний итог после издержек</span><strong id="b-avg">—</strong></div>
   <div class="metric"><span>Сумма результатов, R*</span><strong id="b-sum">—</strong></div>
@@ -79,6 +80,7 @@ li{padding:4px 0;color:#beb1cc}
   <h3>Наши фильтры <span class="flag">ТЕКУЩИЕ ПРАВИЛА</span></h3>
   <div class="metric"><span>Входов в модели</span><strong id="f-count">—</strong></div>
   <div class="metric"><span>TP / SL</span><strong id="f-ratio">—</strong></div>
+  <div class="metric"><span>TP, но минус после издержек</span><strong id="f-tp-loss">—</strong></div>
   <div class="metric"><span>Доля TP*</span><strong id="f-rate">—</strong></div>
   <div class="metric"><span>Средний итог после издержек</span><strong id="f-avg">—</strong></div>
   <div class="metric"><span>Сумма результатов, R*</span><strong id="f-sum">—</strong></div>
@@ -95,6 +97,7 @@ li{padding:4px 0;color:#beb1cc}
  <p><strong>Данные:</strong> исторические закрытые свечи 5м + 15м WEEX, ориентировочно последние двое суток. Используются только данные, известные к моменту каждого сигнала.</p>
  <p><strong>Вход:</strong> цена открытия следующей 5м свечи — приближение, а не фактическая котировка и не реальный ордер. <strong>Выход:</strong> первый TP или SL за следующие 60 минут. При двух касаниях в одной свече исход неоднозначен.</p>
  <p><strong>Две модели:</strong> одинаковые условия EMA, 15м тренда, RSI и пробоя. Вторая дополнительно использует действующие фильтры ложного/перегретого пробоя, цены, уровней R/R и боковика. Историческая проверка живой котировки лишь приближённая.</p>
+ <p><strong>Важно:</strong> даже достижение TP не гарантирует плюс после комиссии и проскальзывания. Число таких случаев показано выше.</p>
  <p><strong>R</strong> — условная прибыль/убыток на единицу начального риска. Прибыльность реального счёта, плечо, funding, ликвидации, реальные спреды, задержка ntfy и ограничения исполнения <strong>не моделируются</strong>. Возможно перекрытие виртуальных сделок.</p>
  <p><strong>Доля TP*</strong> считается только среди однозначных TP и SL, средний R также включает истёкшие по времени позиции, но не неоднозначные исходы. Комиссия списывается за открытие и закрытие, проскальзывание ухудшает обе цены. Ставки — редактируемые гипотезы, не индивидуальный тариф аккаунта.</p>
 </div>
@@ -110,6 +113,7 @@ const pct=x=>x===null||x===undefined?'—':x+'%';
 function metrics(prefix,stats){
  $(prefix+'-count').textContent=show(stats.setups);
  $(prefix+'-ratio').textContent=stats.TP+' / '+stats.SL;
+ $(prefix+'-tp-loss').textContent=show(stats.tpNetLoss);
  $(prefix+'-rate').textContent=pct(stats.winRatePct);
  $(prefix+'-avg').textContent=rr(stats.netAverageR);
  $(prefix+'-sum').textContent=rr(stats.netSumR);
