@@ -161,6 +161,17 @@ export default async function handler(req,res){
   }catch(e){console.warn('WEEX_RADAR_BLOB_PROBE '+String(e?.message||e).slice(0,90))}
  }
  if(!process.env.BLOB_READ_WRITE_TOKEN||!process.env.VAPID_PRIVATE_KEY||!process.env.VAPID_PUBLIC_KEY||!process.env.PUSH_CRON_KEY)return res.status(503).json({error:'Push not configured'});
+ // Start the 1m watch immediately. It must not wait for the 5m API scan,
+ // Telegram polling, Chrome Blob operations or slow 5m quote rechecks.
+ // Its own ntfy publishing and deduplication run independently.
+ const earlyStartedAt=Date.now();
+ const earlyPromise=safeEarlyPush().then(early=>{
+  console.info('WEEX_RADAR_EARLY_RUNTIME '+JSON.stringify({
+   elapsedMs:Date.now()-earlyStartedAt,checked:early.checked,
+   earlySignals:early.earlySignals,failed:early.failed
+  }));
+  return early;
+ });
  try{
   // Optional scheduled background push smoke tests require a billed Blob
   // list() on every cron tick. The free store exceeded its quota in 1 day.
@@ -197,7 +208,7 @@ export default async function handler(req,res){
    console.warn('WEEX_RADAR_NTFY_DISPATCH_FAILED '+String(e.message||e).slice(0,80));
    return {enabled:false,delivered:0,failed:1,duplicates:0};
   }):Promise.resolve({enabled:false,delivered:0,failed:0,duplicates:0});
-  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
+  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await earlyPromise,telegram,ntfy:await ntfyPromise});
   let entries;
   try{entries=await loadSubscriptions();}
   catch(e){
@@ -206,9 +217,9 @@ export default async function handler(req,res){
    console.warn('WEEX_RADAR_CHROME_STORAGE_UNAVAILABLE '+String(e.message||e).slice(0,90));
    return reply(res,source,200,{ok:true,signals:signals.length,subscribers:null,
     delivered:0,browserPushUnavailable:true,background,
-    early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
+    early:await earlyPromise,telegram,ntfy:await ntfyPromise});
   }
-  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
+  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await earlyPromise,telegram,ntfy:await ntfyPromise});
   webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
   let delivered=0,failed=0,duplicates=0,retried=0;
   for(const blob of entries){
@@ -280,6 +291,11 @@ export default async function handler(req,res){
     }
    }catch(e){failed++;console.warn('Push item failed',e.message)}
   }
-  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried,early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
- }catch(e){console.error('Push check failed:',e.message);return reply(res,source,503,{error:'Scan or notification delivery unavailable'})}
+  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried,early:await earlyPromise,telegram,ntfy:await ntfyPromise});
+ }catch(e){
+  // Even if the 5m scanner fails, allow the already-running 1m ntfy work to finish.
+  await earlyPromise;
+  console.error('Push check failed:',e.message);
+  return reply(res,source,503,{error:'Scan or notification delivery unavailable'});
+ }
 }
