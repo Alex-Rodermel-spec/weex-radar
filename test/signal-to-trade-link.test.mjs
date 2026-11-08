@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 const read=p=>readFileSync(new URL(p,import.meta.url),'utf8');
-test('signal push opens selected coin plan, not a real order',()=>{
- const dispatch=read('../api/push-dispatch.mjs'),sw=read('../sw.js'),page=read('../trade.html');
- assert.match(dispatch,/url:selected\.length===1&&primary\.exchange==='WEEX'/);
+test('ntfy opens the same WEEX coin plan; legacy browser worker cannot open an order',()=>{
+ const dispatch=read('../api/push-dispatch.mjs'),ntfy=read('../lib/ntfy-alerts.mjs'),sw=read('../sw.js'),page=read('../trade.html');
+ assert.match(dispatch,/ntfySend\('confirmed',signals\)/);
+ assert.match(ntfy,/trade\.html\?symbol=/);
+ assert.match(ntfy,/encodeURIComponent\(s\.symbol\)/);
  assert.match(sw,/client\.navigate\(target\)/);
  assert.match(sw,/symbol=\[A-Z0-9\]/);
  assert.match(page,/coin\.includes\(symbolFromSignal\)/);
