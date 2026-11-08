@@ -1,6 +1,7 @@
 import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {get,put,list,del} from '@vercel/blob';
 import webpush from 'web-push';
+import {readNtfy,registerNtfy,publishNtfy} from '../lib/ntfy-alerts.mjs';
 const ORIGIN='https://weex-radar.vercel.app';
 function secureEqual(a,b){if(!a||!b)return false;const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
 function valid(s){
@@ -114,7 +115,39 @@ export default async function handler(req,res){
         }
       }catch(e){console.warn('WEEX_RADAR signal status unavailable',String(e.message||e).slice(0,85))}
     }
-    return res.status(200).json({ok:true,present,lastReceipt,backgroundTest,signalDelivery});
+    let ntfy={enabled:false};
+    if(present)try{const saved=await readNtfy(id);if(saved)ntfy={enabled:true,topic:saved.topic};}catch{}
+    return res.status(200).json({ok:true,present,lastReceipt,backgroundTest,signalDelivery,ntfy});
+  }
+  // ntfy opt-in is allowed only for an already registered Chrome subscriber.
+  // The topic is generated with crypto.getRandomValues on the user's device.
+  if(req.body?.ntfySetup===true){
+    if(!r.blobs.some(b=>b.pathname===path))return res.status(409).json({error:'Activate push first'});
+    if(!/^wr-[a-f0-9]{32}$/.test(req.body.topic||''))return res.status(400).json({error:'Invalid random topic'});
+    await registerNtfy(id,req.body.topic);
+    return res.status(200).json({ok:true,ntfy:{enabled:true}});
+  }
+  if(req.body?.ntfyTest===true){
+    if(!r.blobs.some(b=>b.pathname===path))return res.status(409).json({error:'Activate push first'});
+    const current=await readNtfy(id);
+    if(!current)return res.status(409).json({error:'ntfy not enabled'});
+    const windowId=Math.floor(Date.now()/60000);
+    try{await put('ntfy/test-limits/'+id+'/'+windowId+'.txt','1',
+      {access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'text/plain'});}
+    catch(e){if(/exist|already|conflict|409/i.test(String(e?.message||e)))return res.status(429).json({error:'Wait one minute before testing again'});throw e;}
+    try{
+      await publishNtfy(current.topic,{title:'🧪 WEEX RADAR — тест ntfy',
+        message:'Это проверка связи с Android, а НЕ реальный LONG/SHORT. Сделку не открывать.',
+        priority:5,click:ORIGIN});
+      console.info('WEEX_RADAR_NTFY_TEST_SENT',{accepted:true});
+      return res.status(200).json({ok:true,testSent:true});
+    }catch(e){console.warn('WEEX_RADAR_NTFY_TEST_FAILED '+String(e.message||e).slice(0,70));
+      return res.status(502).json({error:'ntfy delivery service unavailable'});}
+  }
+  if(req.body?.ntfyDisable===true){
+    if(!r.blobs.some(b=>b.pathname===path))return res.status(409).json({error:'Activate push first'});
+    await del('ntfy/subscribers/'+id+'.json');
+    return res.status(200).json({ok:true,ntfy:{enabled:false}});
   }
   if(req.body?.queueBackgroundTest===true){
     if(!r.blobs.some(b=>b.pathname===path))return res.status(409).json({error:'Activate push subscription first'});
