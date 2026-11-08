@@ -159,11 +159,14 @@ export default async function handler(req,res){
     JSON.stringify({candidates:candidates.length,accepted:signals.length,blocked:candidates.length-signals.length}));
   let telegram={enabled:false,delivered:0,failed:0,duplicates:0};
   if(signals.length)try{telegram=await telegramSend('confirmed',signals)}catch(e){console.warn('WEEX_RADAR_TELEGRAM_SEND_FAILED '+String(e.message||e).slice(0,80))}
-  let ntfy={enabled:false,delivered:0,failed:0,duplicates:0};
-  if(signals.length)try{ntfy=await ntfySend('confirmed',signals)}catch(e){console.warn('WEEX_RADAR_NTFY_DISPATCH_FAILED '+String(e.message||e).slice(0,80))}
-  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await safeEarlyPush(),telegram,ntfy});
+  // ntfy runs concurrently so this relay cannot postpone Chrome Push.
+  const ntfyPromise=signals.length?ntfySend('confirmed',signals).catch(e=>{
+   console.warn('WEEX_RADAR_NTFY_DISPATCH_FAILED '+String(e.message||e).slice(0,80));
+   return {enabled:false,delivered:0,failed:1,duplicates:0};
+  }):Promise.resolve({enabled:false,delivered:0,failed:0,duplicates:0});
+  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
   const entries=await loadSubscriptions();
-  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await safeEarlyPush(),telegram,ntfy});
+  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
   webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
   let delivered=0,failed=0,duplicates=0,retried=0;
   for(const blob of entries){
@@ -235,6 +238,6 @@ export default async function handler(req,res){
     }
    }catch(e){failed++;console.warn('Push item failed',e.message)}
   }
-  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried,early:await safeEarlyPush(),telegram,ntfy});
+  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried,early:await safeEarlyPush(),telegram,ntfy:await ntfyPromise});
  }catch(e){console.error('Push check failed:',e.message);return reply(res,source,503,{error:'Scan or notification delivery unavailable'})}
 }
