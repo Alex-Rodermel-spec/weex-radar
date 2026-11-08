@@ -30,6 +30,22 @@ async function loadSubscriptions(){
  return rows.slice(0,20);
 }
 function key(x){return createHash('sha256').update(x).digest('hex')}
+// A cached private-Blob read can fail at the CDN; retry directly against origin
+// only for HTTP 403, without changing stored subscriptions or disabling security.
+async function privateRead(path){
+ try{return await get(path,{access:'private'});}
+ catch(e){
+  if(!/403 Forbidden/.test(String(e?.message||e)))throw e;
+  try{
+   const row=await get(path,{access:'private',useCache:false});
+   console.info('WEEX_RADAR_BLOB_ORIGIN_READ_RECOVERED');
+   return row;
+  }catch(error){
+   console.warn('WEEX_RADAR_BLOB_ORIGIN_READ_FAILED '+String(error?.message||error).slice(0,90));
+   throw error;
+  }
+ }
+}
 
 function isConflict(e){return /exist|already|conflict|409/i.test(String(e?.message||e));}
 function signalReceiptPath(mark){return 'receipts/signals/'+key(mark)+'.json';}
@@ -61,7 +77,7 @@ async function sendDueBackgroundTests(){
  webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
  for(const blob of jobs.blobs){
   try{
-   const row=await get(blob.pathname,{access:'private'});
+   const row=await privateRead(blob.pathname);
    if(!row)continue;
    const task=JSON.parse(await new Response(row.stream).text());
    if(task.status!=='queued'||!Number.isFinite(task.dueAt)||task.dueAt>now||now-task.dueAt>600000)continue;
@@ -69,7 +85,7 @@ async function sendDueBackgroundTests(){
    try{await put('background-test-locks/'+task.id+'.txt','1',{access:'private',allowOverwrite:false,addRandomSuffix:false})}
    catch(e){if(/exist|already|conflict|409/i.test(String(e.message||e)))continue;throw e}
    try{
-    const subscriberFile=await get('subscribers/'+task.subscriberId+'.json',{access:'private'});
+    const subscriberFile=await privateRead('subscribers/'+task.subscriberId+'.json');
     if(!subscriberFile)throw Error('SUBSCRIBER_MISSING');
     const subscriber=JSON.parse(await new Response(subscriberFile.stream).text()).subscription;
     if(!subscriber?.endpoint||key(subscriber.endpoint)!==task.subscriberId)throw Error('SUBSCRIBER_CHANGED');
@@ -176,7 +192,7 @@ export default async function handler(req,res){
   let delivered=0,failed=0,duplicates=0,retried=0;
   for(const blob of entries){
    try{
-    const record=await get(blob.pathname,{access:'private'});
+    const record=await privateRead(blob.pathname);
     if(!record)continue;
     const subscriber=JSON.parse(await new Response(record.stream).text()).subscription;
     if(!subscriber?.endpoint)continue;
