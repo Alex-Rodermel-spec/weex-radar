@@ -77,7 +77,9 @@ test('owner ntfy topic sends once per candle, with exact Berlin time, without Bl
   assert.equal(again.duplicates,1);
   assert.equal(posts.length,1);
   assert.equal(posts[0].topic,topic);
-  assert.equal(posts[0].title,'🟣 СИЛЬНЫЙ ALGOUSDT LONG');
+  assert.equal(posts[0].title,'🟡 ПРОВЕРИТЬ РАСХОДЫ · 🟣 СИЛЬНЫЙ ALGOUSDT LONG');
+  assert.match(posts[0].message,/Прибыль \(TP\)/);
+  assert.match(posts[0].message,/Стоп \(SL\)/);
   assert.match(posts[0].sequence_id,/^[a-f0-9]{32}$/);
   assert.match(posts[0].message,/свеча \d\d:\d\d:\d\d · отправка \d\d:\d\d:\d\d · задержка \d+с · до \d\d:\d\d:\d\d/);
   assert.equal(calls.filter(c=>c.method==='POST').length,1);
@@ -112,7 +114,7 @@ test('if ntfy cache is unavailable, retain emergency delivery using stable seque
   assert.equal(result.delivered,1);
   assert.equal(result.failed,0);
   assert.equal(sends.length,1);
-  assert.equal(sends[0].title,'🔔 ОБЫЧНЫЙ BTCUSDT LONG');
+  assert.equal(sends[0].title,'🟡 ПРОВЕРИТЬ РАСХОДЫ · 🔔 ОБЫЧНЫЙ BTCUSDT LONG');
   assert.match(sends[0].message,/свеча/);
  }finally{
   globalThis.fetch=oldFetch;
@@ -120,6 +122,7 @@ test('if ntfy cache is unavailable, retain emergency delivery using stable seque
  }
 });
 
-test('browser fallback also distinguishes strong and ordinary alerts',()=>{
- assert.equal((ntfy.match(/s\.level==='STRONG'\?'🟣 СИЛЬНЫЙ':'🔔 ОБЫЧНЫЙ'/g)||[]).length,2);
+test('Android ntfy channels use shared independent strength and risk',()=>{
+ assert.match(ntfy,/formatNotice\(kind,s/);
+ assert.match(ntfy,/formatNotice\(kind,x/);
 });
