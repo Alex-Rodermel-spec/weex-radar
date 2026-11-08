@@ -13,14 +13,15 @@ test('scheduler audit separates cron-job and GitHub without revealing secrets',(
  assert.throws(()=>dispatchAudit('untrusted',200,{}),/scheduler/);
 });
 
-test('push failures reset deduplication markers to permit safe retry',()=>{
+test('ntfy-only signed dispatch preserves filtering, starts early watch, skips old relays',()=>{
  const code=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
- assert.match(code,/webpush\.sendNotification/);
- assert.match(code,/catch\(e\)\{\s*failed\+\+;[\s\S]*?await del\(mark\)/);
- assert.match(code,/if\(!signals\.length\)return reply\(res,source,200/);
- assert.match(code,/source=await authorized\(req\)/);
+ assert.match(code,/ntfySend\('confirmed',signals\)/);
+ assert.match(code,/const earlyPromise=safeEarlyPush\(\)/);
+ assert.match(code,/const \[early,ntfy\]=await Promise\.all\(\[earlyPromise,ntfyPromise\]\)/);
+ assert.match(code,/const source=await authorized\(req\)/);
+ assert.match(code,/entry\.ok\?\s*\{\.\.\.signal,livePrice:quote\.price,entryQuality:entry,costReview\}:null/);
+ assert.doesNotMatch(code,/webpush|telegramPoll|telegramSend|@vercel\/blob|VAPID_PRIVATE_KEY/);
 });
-
 test('audit distinguishes zero phone subscriptions from already-delivered signals',()=>{
  const a=JSON.parse(dispatchAudit('cron',200,{signals:2,subscribers:0,delivered:0,failed:0,duplicates:0},123));
  const b=JSON.parse(dispatchAudit('cron',200,{signals:2,subscribers:1,delivered:0,failed:0,duplicates:2},124));
@@ -54,16 +55,17 @@ test('RADAR home page browser script is valid JavaScript',async()=>{
  assert.doesNotThrow(()=>new Script(match[1],{filename:'index.html'}));
 });
 
-test('signed push receipts distinguish subscriber and signal/test and are visible in health check',()=>{
+test('ntfy sequence IDs deduplicate without depending on Chrome worker receipts',()=>{
  const dispatch=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
+ const ntfy=readFileSync(new URL('../lib/ntfy-alerts.mjs',import.meta.url),'utf8');
  const subscribe=readFileSync(new URL('../api/push-subscribe.mjs',import.meta.url),'utf8');
  const worker=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
- const ui=readFileSync(new URL('../index.html',import.meta.url),'utf8');
- assert.match(dispatch,/subscriberId=key\(subscriber\.endpoint\)/);
- assert.match(dispatch,/deliveryId\+'\|'\+subscriberId\+'\|signal'/);
+ assert.match(ntfy,/sequenceForSignal\(kind,s\)/);
+ assert.match(ntfy,/previous\.has\(id\)/);
+ assert.match(ntfy,/await publishNtfy\(topic/);
+ assert.match(dispatch,/deliveryMode:'ntfy-only'/);
+ assert.doesNotMatch(dispatch,/subscriberId=key\(subscriber\.endpoint\)/);
+ // Archived browser diagnostics still validate signatures when accessed manually.
  assert.match(subscribe,/deliveryId\+'\|'\+id\+'\|test'/);
- assert.ok(subscribe.includes("'receipts/'+subscriberId+'.json'"));
- assert.match(subscribe,/lastReceipt/);
  assert.match(worker,/subscriberId:msg\.subscriberId,kind:msg\.kind,result/);
- assert.match(ui,/function showPushHealth\(checked\)/);
 });
