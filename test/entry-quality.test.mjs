@@ -66,7 +66,7 @@ test('the 5m feed and cron use the same risk gate but 1m early stays watch only'
  const ntfy=readFileSync(new URL('../lib/ntfy-alerts.mjs',import.meta.url),'utf8');
  const site=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(signals,/checkConfirmedEntry\(candidate,last\.close,livePrice,volatility,five\)/);
- assert.match(signals,/entryQuality\?\.ok\?candidate:null/);
+ assert.match(signals,/entryQuality\?\.ok&&/);
  assert.match(dispatcher,/checkEntryLevels\(/);
  assert.match(dispatcher,/signal\.entryQuality\?\.ok===true&&entry\.ok/);
  assert.match(dispatcher,/fetchCurrentQuote\(signal\.symbol,signal\.exchange\)/);
