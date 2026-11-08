@@ -33,6 +33,8 @@ th{color:#c6b4db}.tablebox{overflow-x:auto;border:1px solid #524264;border-radiu
 <h2>Цена после предупреждения</h2>
 <div class="tablebox"><table><thead><tr><th>Через</th><th>Измерено</th><th>В сторону сигнала</th><th>Против сигнала</th><th>Верное направление</th><th>Средний ход (б.п.)</th></tr></thead>
 <tbody id="periods"></tbody></table></div>
+<h2>Предупреждение до пробоя или на пробое?</h2>
+<div class="tablebox"><table><thead><tr><th>Тип</th><th>Сигналов</th><th>5 мин</th><th>15 мин</th><th>30 мин</th></tr></thead><tbody id="bytype"></tbody></table></div>
 <p class="muted" id="details"></p>
 <div class="note">⚠️ <b>Верное направление — не доказательство прибыли.</b>
 Оценка учитывает только закрытые свечи после момента получения уведомления; первая неполная минута исключена. Ранняя цена отображается округлённой, а вход в сделку мог быть недоступен. Здесь нет комиссий, спреда, проскальзывания и исполнения ордеров. Неполные данные не учитываются как успех. Исследование использует лишь краткую историю ntfy и <b>пока не сохраняется на 90 дней</b>.</div>
@@ -63,6 +65,14 @@ async function load(){
     td.textContent=field;tr.appendChild(td);
    }
    $('periods').appendChild(tr);
+  }
+  $('bytype').replaceChildren();
+  for(const [key,label] of [['PRE_BREAK','🔮 До пробоя'],['BREAKOUT','⚡ Минутный пробой']]){
+   const group=d.byType?.[key]||{},tr=document.createElement('tr');
+   const percent=n=>n===null||n===undefined?'—':String(n)+'%';
+   const fields=[label,num(group.total),...([5,15,30].map(m=>percent(group.windows?.[m]?.favorablePct)))];
+   for(const field of fields){const td=document.createElement('td');td.textContent=field;tr.appendChild(td)}
+   $('bytype').appendChild(tr);
   }
   $('details').textContent='Верхний предел: '+d.windowMinutes+
    ' минут · позиций с полными данными может быть меньше · пропусков и ожиданий не считаем выигрышами.'+
