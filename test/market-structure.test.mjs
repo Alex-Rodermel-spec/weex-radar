@@ -118,7 +118,7 @@ test('the ntfy history parser preserves shadow labels for honest cohort comparis
  assert.equal(aggregateQuality(rows).TP,2);
 });
 
-test('no live trade filter is changed; 1m early and cron remain independent',()=>{
+test('only the intended 5m flat gate may block; 1m early and cron remain independent',()=>{
  const signals=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');
  const ntfy=readFileSync(new URL('../lib/ntfy-alerts.mjs',import.meta.url),'utf8');
  const dispatch=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
@@ -126,7 +126,9 @@ test('no live trade filter is changed; 1m early and cron remain independent',()=
  const site=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  const quality=readFileSync(new URL('../quality.html',import.meta.url),'utf8');
  assert.match(signals,/candidate\?evaluateStructure\(five,volatility,candidate\):null/);
- assert.match(signals,/entryQuality\?\.ok\?candidate:null/);
+ assert.match(signals,/entryQuality\?\.ok&&/);
+ assert.match(signals,/checkSidewaysEntry\(shadowFilter\)/);
+ assert.match(signals,/!sidewaysGate\?\.blocked\?candidate:null/);
  assert.doesNotMatch(dispatch,/evaluateStructure|shadowFilter/);
  assert.doesNotMatch(early,/evaluateStructure|shadowFilter/);
  assert.match(ntfy,/ТЕСТ: ПРОПУСТИТЬ/);
