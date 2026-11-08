@@ -178,6 +178,10 @@ export default async function handler(req,res){
   const {handleHealth}=await import('../lib/health-route.mjs');
   return handleHealth(req,res,scanAll);
  }
+ if(req.query?.mode==='liquidity'){
+  const {handleLiquidity}=await import('../lib/liquidity-route.mjs');
+  return handleLiquidity(req,res,SYMBOLS);
+ }
  try{
   const symbols=await scanAll();
   res.setHeader('Cache-Control','no-store');
