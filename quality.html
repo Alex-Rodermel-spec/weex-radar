@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#151320">
+<title>WEEX RADAR · Проверка сигналов</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#11111b;color:#f2edf9}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top left,#2d2145 0,transparent 35%),#11111b}
+main{max-width:980px;margin:0 auto;padding:26px 17px 55px}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:28px}
+.brand{font-weight:900;letter-spacing:.09em;font-size:13px;color:#d8baff}
+a{color:#d5b9ff}a.back{color:#efe5ff;text-decoration:none;border:1px solid #51425e;padding:10px 13px;border-radius:11px}
+h1{font-size:clamp(26px,5vw,40px);letter-spacing:-.04em;line-height:1.12;margin:0 0 10px}
+p{line-height:1.5;color:#b9b5c9}
+.lede{max-width:750px;margin:0 0 22px}
+.info{background:#211a2d;border:1px solid #6d4c85;border-radius:13px;padding:13px 15px;font-size:14px;color:#e9ddf3;line-height:1.5}
+.toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:20px 0}
+button{background:#a780fb;color:#150c27;border:0;border-radius:12px;font-weight:800;font-size:15px;padding:12px 20px;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+#status{color:#bab3c8;font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:18px 0}
+.card{border:1px solid #40374b;background:linear-gradient(150deg,#272334,#1b1b27);border-radius:17px;padding:18px}
+.card .number{font-size:30px;font-weight:800;letter-spacing:-.05em;margin:7px 0}
+.card .label{font-size:13px;color:#c5bdce}
+.card.good .number{color:#71e9ab}.card.bad .number{color:#ff8d93}
+h2{font-size:19px;margin:30px 0 12px}
+.table-wrap{overflow-x:auto;border:1px solid #413749;border-radius:16px;background:#1b1a26}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:590px}
+th,td{text-align:left;padding:12px 13px;border-bottom:1px solid #332d3a}
+th{font-size:11px;color:#b0a7c0;text-transform:uppercase;letter-spacing:.06em}
+tbody tr:last-child td{border-bottom:none}
+.short{color:#ffb6c3}.long{color:#75e6b1}
+.pill{display:inline-block;border:1px solid #756783;color:#d9cdea;padding:5px 8px;border-radius:999px;font-size:11px}
+.pill.TP{color:#83efbd;border-color:#438b68}.pill.SL{color:#ff9da5;border-color:#8b4850}
+.empty{border:1px dashed #554563;padding:21px;border-radius:15px;background:#201b28;color:#ddd3e8}
+.fine{font-size:13px;color:#a9a1b4;margin-top:15px}
+</style>
+</head>
+<body>
+<main>
+<header><span class="brand">◈ WEEX RADAR · SIGNAL QUALITY</span><a href="/" class="back">← На радар</a></header>
+<h1>📊 Как сработали наши сигналы?</h1>
+<p class="lede">Проверяем уже отправленные в ntfy сигналы LONG/SHORT на последующих свечах WEEX. Это проверка условий TP/SL, а не результат реально открытой сделки.</p>
+<div class="info">🔒 Без новых аккаунтов и оплаты. Источник — история ntfy за последние <b>110 минут</b>. Проверяем достижение TP или SL за <b>60 минут после оповещения</b>. Пока Blob заблокирован, долговременного архива нет.</div>
+<div class="toolbar"><button id="refresh" type="button">↻ Обновить статистику</button><span id="status" role="status">Загружаем историю…</span></div>
+<div class="cards">
+ <div class="card"><div class="label">Отправлено сигналов</div><div class="number" id="total">—</div></div>
+ <div class="card good"><div class="label">Достигнут TP</div><div class="number" id="tp">—</div></div>
+ <div class="card bad"><div class="label">Достигнут SL</div><div class="number" id="sl">—</div></div>
+ <div class="card"><div class="label">Доля TP среди однозначных</div><div class="number" id="rate">—</div></div>
+</div>
+<p class="fine" id="extra">Неопределённые и не достигшие уровней сигналы не считаются победами или поражениями.</p>
+<h2>История проверенных уведомлений</h2>
+<div id="empty" class="empty" hidden></div>
+<div class="table-wrap" id="table-wrap" hidden>
+ <table>
+  <thead><tr><th>Время</th><th>Монета</th><th>Сигнал</th><th>Цена сигнала</th><th>Риск / награда</th><th>Исход</th></tr></thead>
+  <tbody id="rows"></tbody>
+ </table>
+</div>
+<p class="fine">Метод осторожный: если TP/SL могли быть задеты в минуту отправки или оба уровня за одну свечу, результат помечается неопределённым. Мы не знаем реальную цену исполнения, комиссии и проскальзывание. Маленькая выборка не доказывает прибыльность.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const statuses={TP:'✅ TP достигнут',SL:'❌ SL достигнут',PENDING:'⏳ Ещё идёт',TIMEOUT:'⌛ Ни TP, ни SL',AMBIGUOUS:'⚠️ Оба уровня в свече',INTRABAR:'⚠️ Касание в минуту сигнала',NO_DATA:'⚠️ Данных недостаточно'};
+const num=value=>Number.isFinite(Number(value))?Number(value).toPrecision(6):'—';
+const clock=ms=>new Date(ms).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit'});
+function show(data){
+ const s=data.stats||{};
+ $('total').textContent=String(s.total??0);
+ $('tp').textContent=String(s.TP??0);
+ $('sl').textContent=String(s.SL??0);
+ $('rate').textContent=s.observedWinRatePct===null?'—':String(s.observedWinRatePct)+'%';
+ $('extra').textContent='Рассчитано по однозначным TP/SL: '+(s.resolved||0)+
+  ' · В ожидании: '+(s.PENDING||0)+
+  ' · Без уровней за час: '+(s.TIMEOUT||0)+
+  ' · Неопределённые: '+((s.AMBIGUOUS||0)+(s.INTRABAR||0))+
+  ' · Недостаточно данных: '+(s.NO_DATA||0)+'.';
+ const rows=data.signals||[];
+ $('rows').replaceChildren();
+ $('table-wrap').hidden=!rows.length;
+ $('empty').hidden=Boolean(rows.length);
+ if(!rows.length)$('empty').textContent='За последние 110 минут в истории ntfy нет подтверждённых LONG/SHORT. Это не ошибка. Дождёмся реальных сигналов.';
+ for(const item of rows){
+  const tr=document.createElement('tr');
+  const fields=[clock(item.sentAt),item.symbol,item.direction,num(item.entry),item.rr+' : 1',statuses[item.status]||item.status];
+  fields.forEach((value,index)=>{
+   const td=document.createElement('td');
+   td.textContent=value;
+   if(index===2)td.className=item.direction==='LONG'?'long':'short';
+   if(index===5){const span=document.createElement('span');span.className='pill '+(item.status==='TP'?'TP':item.status==='SL'?'SL':'');span.textContent=value;td.replaceChildren(span)}
+   tr.appendChild(td);
+  });
+  $('rows').appendChild(tr);
+ }
+ $('status').textContent='Обновлено: '+clock(data.generatedAt);
+}
+async function load(){
+ $('refresh').disabled=true;$('status').textContent='Проверяем сообщения и свечи WEEX…';
+ try{
+  const response=await fetch('/api/signal-quality',{cache:'no-store'});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||'Ошибка сервера');
+  show(data);
+ }catch(e){$('status').textContent=e.message||'Данные недоступны';}
+ finally{$('refresh').disabled=false}
+}
+$('refresh').addEventListener('click',load);
+load();
+</script>
+</body>
+</html>
