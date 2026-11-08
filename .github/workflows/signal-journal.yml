@@ -1,0 +1,64 @@
+name: WEEX RADAR — private 90-day journal
+on:
+  schedule:
+    - cron: '7,27,47 * * * *'
+  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: write
+concurrency:
+  group: weex-radar-journal
+  cancel-in-progress: false
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Write encrypted market-signal journal without revealing private secrets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # GitHub Actions OIDC authenticates the scheduled archive worker.
+          # The journal encryption key never leaves Vercel. Only ciphertext
+          # is committed to the data-only branch of this public repository.
+          oidc="$(curl --fail --silent --show-error --retry 2 --max-time 15 \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=weex-radar-journal")"
+          jwt="$(jq -r '.value // empty' <<<"${oidc}")"
+          test -n "${jwt}"
+          response="$(mktemp)"
+          trap 'rm -f "${response}" "${payload:-}"' EXIT
+          curl --fail-with-body --silent --show-error --retry 2 --max-time 65 \
+            -H "Authorization: Bearer ${jwt}" \
+            -H "Accept: application/json" \
+            "https://weex-radar.vercel.app/api/signals?mode=journal-export" \
+            -o "${response}"
+          jq -e '.ok == true and (.changed | type == "boolean")' "${response}" >/dev/null
+          if [[ "$(jq -r '.changed' "${response}")" != "true" ]]; then
+            echo "No new or updated confirmed outcomes. Existing archive is unchanged."
+            echo "Archive is unchanged; checks completed." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          data="$(jq -r '.contentBase64 // empty' "${response}")"
+          test -n "${data}"
+          test "${#data}" -lt 3000000
+          # Base64 is ENCRYPTED AES-GCM data, not any private ntfy topic,
+          # API secret, trading credential or unencrypted signal history.
+          sha="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/contents/data/journal.enc.json?ref=journal-data" \
+            --jq '.sha' 2>/dev/null || true)"
+          payload="$(mktemp)"
+          if [[ -n "${sha}" ]]; then
+            jq -n --arg content "${data}" --arg sha "${sha}" \
+              '{message:"chore(journal): save encrypted WEEX signal history",branch:"journal-data",content:$content,sha:$sha}' > "${payload}"
+          else
+            jq -n --arg content "${data}" \
+              '{message:"chore(journal): start encrypted WEEX signal history",branch:"journal-data",content:$content}' > "${payload}"
+          fi
+          gh api --method PUT \
+            "repos/${GITHUB_REPOSITORY}/contents/data/journal.enc.json" \
+            --input "${payload}" --silent
+          echo "Encrypted journal updated, no plaintext exposed to GitHub Actions."
+          echo "Saved encrypted journal. New: $(jq -r '.added' "${response}"), updated: $(jq -r '.updated' "${response}"), total: $(jq -r '.total' "${response}")." >> "${GITHUB_STEP_SUMMARY}"
