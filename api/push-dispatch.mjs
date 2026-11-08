@@ -134,9 +134,14 @@ export default async function handler(req,res){
  if(!source)return res.status(401).json({error:'Unauthorized'});
  if(!process.env.BLOB_READ_WRITE_TOKEN||!process.env.VAPID_PRIVATE_KEY||!process.env.VAPID_PUBLIC_KEY||!process.env.PUSH_CRON_KEY)return res.status(503).json({error:'Push not configured'});
  try{
-  let background={accepted:0,failed:0};
+  // Optional scheduled background push smoke tests require a billed Blob
+  // list() on every cron tick. The free store exceeded its quota in 1 day.
+  // Pause ONLY diagnostics by default; live confirmed and 1m scans remain on.
+  let background={accepted:0,failed:0,paused:true};
   try{await telegramPoll()}catch(e){console.warn('WEEX_RADAR_TELEGRAM_POLL_FAILED '+String(e.message||e).slice(0,80))}
-  try{background=await sendDueBackgroundTests()}catch(e){console.warn('WEEX_RADAR background test check unavailable',String(e.message||e).slice(0,90))}
+  if(process.env.PUSH_DIAGNOSTICS_ENABLED==='1'){
+   try{background=await sendDueBackgroundTests()}catch(e){console.warn('WEEX_RADAR background test check unavailable',String(e.message||e).slice(0,90))}
+  }
   const response=await fetch('https://weex-radar.vercel.app/api/signals',{cache:'no-store',signal:AbortSignal.timeout(26000)});
   if(!response.ok)throw Error('Radar API '+response.status);
   const result=await response.json();
