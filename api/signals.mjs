@@ -165,6 +165,10 @@ export default async function handler(req,res){
   const {handleEarlyWatch}=await import('../lib/early-watch.mjs');
   return handleEarlyWatch(req,res);
  }
+ if(req.query?.mode==='quality'){
+  const {default:handleQuality}=await import('../lib/signal-quality-route.mjs');
+  return handleQuality(req,res);
+ }
  try{
   const symbols=await scanAll();
   res.setHeader('Cache-Control','no-store');
