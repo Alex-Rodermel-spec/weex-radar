@@ -7,6 +7,7 @@ import {sendEarlyPush} from '../lib/early-push.mjs';
 import {telegramPoll,telegramSend} from '../lib/telegram-alerts.mjs';
 import {ntfySend} from '../lib/ntfy-alerts.mjs';
 import {checkEntryLevels} from '../lib/entry-quality.mjs';
+import {assessNetCosts} from '../lib/net-costs.mjs';
 import {monitorDispatch,snapshotMarkets} from '../lib/health-monitor.mjs';
 const JWKS=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 function secureEquals(a,b){if(!a||!b)return false;let x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
@@ -210,8 +211,15 @@ export default async function handler(req,res){
         stop:Number(signal.stop),take:Number(signal.take),
         nearestLevel:signal.entryQuality?.nearestLevel??null
       });
+      // Recalculate using the last known bid/ask; never block confirmed
+      // signals if the fee model is missing, uncertain or unfavorable.
+      const costReview=assessNetCosts({
+        exchange:signal.exchange,direction:signal.direction,
+        entryMid:quote.price,stop:Number(signal.stop),take:Number(signal.take),
+        bid:quote.bid,ask:quote.ask
+      });
       return quality.ok&&signal.entryQuality?.ok===true&&entry.ok?
-        {...signal,livePrice:quote.price,entryQuality:entry}:null;
+        {...signal,livePrice:quote.price,entryQuality:entry,costReview}:null;
     }catch{return null}
   }));
   const signals=checked.filter(Boolean);
@@ -276,7 +284,9 @@ export default async function handler(req,res){
       ?(strong?'🟣 СИЛЬНЫЙ':'Сигнал')+' '+primary.symbol+' '+primary.direction
       :(strong?'🟣 СИЛЬНЫЕ':'Сигналы')+' WEEX · '+selected.length+' монет';
     const body=selected.length===1
-      ?primary.exchange+' · цена сейчас '+Number(primary.livePrice).toPrecision(6)+' USDT · свеча '+primary.price+' · SL '+primary.stop+' · TP '+primary.take+' · до '+new Date(primary.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})
+      ?primary.exchange+' · цена сейчас '+Number(primary.livePrice).toPrecision(6)+' USDT · свеча '+primary.price+' · SL '+primary.stop+' · TP '+primary.take+(primary.costReview?.status==='COSTS_EXCEED_TP'?
+        ' · ⚠️ TP меньше расходов (модель)':primary.costReview?.status==='LOW_NET_RR'?
+        ' · ⚠️ чистый R/R ниже 1,5 (модель)':'')+' · до '+new Date(primary.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})
       :selected.slice(0,4).map(s=>s.symbol+' '+s.direction).join(' · ')+(selected.length>4?' · ещё '+(selected.length-4):'')+' · смотри TP/SL в RADAR';
     const message={title,body,
       symbol:selected.length===1?primary.symbol:'BATCH',

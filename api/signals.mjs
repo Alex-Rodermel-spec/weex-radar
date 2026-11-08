@@ -1,5 +1,6 @@
 // WEEX RADAR — market data only, no exchange keys and no trading.
 import {checkConfirmedEntry} from '../lib/entry-quality.mjs';
+import {assessNetCosts} from '../lib/net-costs.mjs';
 import {evaluateStructure} from '../lib/market-structure.mjs';
 import {checkSidewaysEntry} from '../lib/sideways-gate.mjs';
 import {evaluateRetestBoth} from '../lib/retest-check.mjs';
@@ -164,7 +165,14 @@ async function scanSymbol(symbol){
    if(!tentative.direction)return {symbol,exchange,status:'ok',...tentative};
    try{
     const quote=await fetchCurrentQuote(symbol,exchange);
-    return {symbol,exchange,status:'ok',...getAnalysis(five,fifteen,quote.price)};
+    const final=getAnalysis(five,fifteen,quote.price);
+    // Read-only warning only. The user's confirmed LONG/SHORT decision and
+    // delivery timing must never depend on the uncertain cost estimate.
+    const costReview=final.direction?assessNetCosts({
+      exchange,direction:final.direction,entryMid:quote.price,
+      stop:final.stop,take:final.take,bid:quote.bid,ask:quote.ask
+    }):null;
+    return {symbol,exchange,status:'ok',...final,costReview};
    }catch(e){
     return {symbol,exchange,status:'ok',...getAnalysis(five,fifteen,null),
       reason:'Текущая котировка недоступна — вход не подтверждён'};
