@@ -8,7 +8,7 @@ import {sendEarlyPush} from '../lib/early-push.mjs';
 import {ntfySend} from '../lib/ntfy-alerts.mjs';
 import {checkEntryLevels} from '../lib/entry-quality.mjs';
 import {assessNetCosts} from '../lib/net-costs.mjs';
-import {monitorDispatch,snapshotMarkets} from '../lib/health-monitor.mjs';
+import {monitorDispatch,snapshotMarkets,latestHeartbeat,githubBackupStandby} from '../lib/health-monitor.mjs';
 const JWKS=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 function secureEquals(a,b){if(!a||!b)return false;let x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
 async function authorized(req){
@@ -60,6 +60,24 @@ export default async function handler(req,res){
  if(!source)return res.status(401).json({error:'Unauthorized'});
  // No Blob/VAPID/Telegram dependency; secret ntfy topic stays server-side.
  if(!process.env.PUSH_CRON_KEY)return res.status(503).json({error:'Cron not configured'});
+ // The minute-by-minute cron is the PRIMARY source of notifications.
+ // GitHub checks the heartbeat before any 1m/5m scan or ntfy send.
+ // This prevents two concurrently running schedulers from posting the same
+ // candle as two notifications. If cron is stale or monitoring is unavailable,
+ // keep the existing GitHub emergency fallback.
+ if(source==='github'){
+  const heartbeat=await latestHeartbeat();
+  if(githubBackupStandby(heartbeat)){
+   console.info('WEEX_RADAR_GITHUB_STANDBY '+JSON.stringify({
+    reason:'cron-heartbeat-recent',lastSeenAt:heartbeat.last.at
+   }));
+   return res.status(200).json({
+    ok:true,standby:true,deliveryMode:'cron-primary/github-backup',
+    signals:0,delivered:0,failed:0,duplicates:0,
+    note:'Primary cron is active; GitHub backup correctly skipped this scan.'
+   });
+  }
+ }
  // Start the 1m watch immediately. It must not wait for the 5m API scan,
  // other delivery channels or slow 5m quote rechecks.
  // Its own ntfy publishing and deduplication run independently.
