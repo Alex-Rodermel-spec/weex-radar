@@ -17,12 +17,14 @@ test('confirmed messages distinguish Bybit from WEEX',()=>{
  const msg=_test.messageText('confirmed',[{exchange:'Bybit',symbol:'BTCUSDT',direction:'SHORT',level:'STRONG',livePrice:72000}]);
  assert.match(msg,/Bybit/);assert.match(msg,/SHORT/);assert.match(msg,/5м/);
 });
-test('Telegram uses existing signed cron and safe optional integration',()=>{
+test('Telegram integration is dormant; ntfy-only cron retains its signed authorization',()=>{
  const dispatch=read('../api/push-dispatch.mjs'),early=read('../lib/early-push.mjs'),mod=read('../lib/telegram-alerts.mjs');
  assert.match(dispatch,/const source=await authorized\(req\)/);
- assert.match(dispatch,/telegramPoll\(\)/);
- assert.match(dispatch,/telegramSend\('confirmed',signals\)/);
- assert.match(early,/telegramSend\('early',signals\)/);
+ assert.match(dispatch,/ntfySend\('confirmed',signals\)/);
+ assert.match(early,/ntfySend\('early',signals\)/);
+ assert.doesNotMatch(dispatch,/telegramPoll\(|telegramSend\(/);
+ assert.doesNotMatch(early,/telegramConfigured|telegramSend\(/);
+ // The old separate Telegram module remains safely disconnected.
  assert.match(mod,/getUpdates/);
  assert.match(mod,/allowOverwrite:false/);
  assert.doesNotMatch(mod,/WEEX_API_SECRET|capi\/v3\/order/);
