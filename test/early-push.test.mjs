@@ -30,7 +30,10 @@ test('the existing cron dispatch protects 5m notifications even if the 1m scan f
  const receiver=readFileSync(new URL('../api/push-subscribe.mjs',import.meta.url),'utf8');
  const early=readFileSync(new URL('../lib/early-push.mjs',import.meta.url),'utf8');
  assert.match(cron,/async function safeEarlyPush\(\)/);
- assert.match(cron,/early:await safeEarlyPush\(\)/);
+ assert.match(cron,/early:await earlyPromise/);
+ assert.match(cron,/const earlyPromise=safeEarlyPush\(\)/);
+ assert.ok(cron.indexOf('const earlyPromise=safeEarlyPush()')<cron.indexOf("const response=await fetch('https://weex-radar.vercel.app/api/signals'"));
+ assert.match(cron,/await earlyPromise;\s*console\.error\('Push check failed:'/);
  assert.match(cron,/WEEX_RADAR_EARLY_SCAN_FAILED/);
  assert.match(early,/kind:'early_watch'/);
  assert.match(early,/webpush\.sendNotification/);
@@ -54,4 +57,33 @@ test('cron audits each early scan even when the market is quiet',()=>{
  const src=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
  assert.ok(src.includes("WEEX_RADAR_EARLY_DISPATCH"));
  assert.equal(src.includes('if(early.earlySignals||early.failed)'),false);
+});
+
+test('a slow first market does not hold other early-scan workers behind its batch',async()=>{
+ const symbols=Array.from({length:16},(_,i)=>'C'+i);
+ let active=0,peak=0;
+ const started=[];
+ let releaseFirst;
+ const firstGate=new Promise(resolve=>{releaseFirst=resolve});
+ let trigger;
+ const eighthAndNextStarted=new Promise(resolve=>{trigger=resolve});
+ const scan=scanEarlyMarkets(symbols,async(symbol)=>{
+  active++;
+  peak=Math.max(peak,active);
+  started.push(symbol);
+  if(started.includes('C8'))trigger();
+  if(symbol==='C0')await firstGate;
+  else await new Promise(resolve=>setTimeout(resolve,2));
+  active--;
+  return {...good,level:symbol==='C8'?'EARLY_WATCH':'WAIT'};
+ });
+ // The ninth market should start while market zero is still outstanding.
+ await eighthAndNextStarted;
+ assert.ok(started.includes('C8'));
+ assert.ok(!started.includes('C0_COMPLETE'));
+ releaseFirst();
+ const signals=await scan;
+ assert.ok(peak<=8,'WEEX parallel request cap exceeded');
+ assert.equal(started.length,16);
+ assert.deepEqual(signals.map(s=>s.symbol),['C8']);
 });
