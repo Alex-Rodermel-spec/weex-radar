@@ -24,28 +24,24 @@ test('all 16 WEEX markets are checked in a bounded fan-out; errors fail closed',
  assert.equal(watches.length,1);
  assert.equal(watches[0].symbol,'COIN0');
 });
-test('the existing cron dispatch protects 5m notifications even if the 1m scan fails',()=>{
+test('ntfy-only cron preserves 1m scanning independently from 5m and retains safety',()=>{
  const cron=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
  const worker=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
  const receiver=readFileSync(new URL('../api/push-subscribe.mjs',import.meta.url),'utf8');
  const early=readFileSync(new URL('../lib/early-push.mjs',import.meta.url),'utf8');
  assert.match(cron,/async function safeEarlyPush\(\)/);
- assert.match(cron,/early:await earlyPromise/);
  assert.match(cron,/const earlyPromise=safeEarlyPush\(\)/);
  assert.ok(cron.indexOf('const earlyPromise=safeEarlyPush()')<cron.indexOf("const response=await fetch('https://weex-radar.vercel.app/api/signals'"));
  assert.match(cron,/await earlyPromise;\s*console\.error\('Push check failed:'/);
  assert.match(cron,/WEEX_RADAR_EARLY_SCAN_FAILED/);
- assert.match(early,/kind:'early_watch'/);
- assert.match(early,/webpush\.sendNotification/);
- assert.match(early,/early-push-throttle/);
- assert.match(early,/early-push-markers/);
+ assert.match(cron,/ntfySend\('confirmed',signals\)/);
+ assert.match(early,/ntfySend\('early',signals\)/);
+ assert.doesNotMatch(early,/webpush|telegramSend|@vercel\/blob|trade-confirm|trade-prepare|\/capi\/v3\/order/);
+ assert.doesNotMatch(cron,/webpush|telegramSend|telegramPoll|@vercel\/blob/);
+ // Retired Chrome worker and setup routes stay intact for rollback/manual tests.
  assert.match(worker,/msg\.kind==='early_watch'/);
- assert.match(worker,/tradingview\\\.html/);
  assert.match(receiver,/'early_watch'/);
- assert.doesNotMatch(early,/trade-confirm|trade-prepare|\/capi\/v3\/order/);
 });
-
-
 test('updated worker activates early-watch support on existing Chrome',()=>{
  const sw=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
  assert.ok(sw.includes("self.addEventListener('install'"));
