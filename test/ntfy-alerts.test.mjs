@@ -45,31 +45,75 @@ test('ntfy controls are parsed as valid browser JavaScript',()=>{
  assert.doesNotThrow(()=>new Script(m[1]));
 });
 
-test('owner ntfy topic bypasses blocked Blob and deduplicates on Android',async()=>{
+test('owner ntfy topic sends once per candle, with exact Berlin time, without Blob',async()=>{
  const {ntfySend}=await import('../lib/ntfy-alerts.mjs');
  const previousTopic=process.env.NTFY_TOPIC,previousFetch=globalThis.fetch;
  const topic='WR_Private_'+('a'.repeat(24));
- const sent=[];
+ const posts=[],calls=[];
  process.env.NTFY_TOPIC=topic;
- globalThis.fetch=async(url,init)=>{sent.push({url,body:JSON.parse(init.body)});return {ok:true,status:200};};
+ globalThis.fetch=async(url,init)=>{
+  calls.push({url,method:init.method});
+  if(init.method==='GET'){
+   assert.match(url,/\/json\?poll=1&since=10m$/);
+   return {ok:true,status:200,text:async()=>posts.map(b=>
+    JSON.stringify({event:'message',topic,sequence_id:b.sequence_id})).join('\n')};
+  }
+  assert.equal(init.method,'POST');
+  const body=JSON.parse(init.body);
+  posts.push(body);
+  return {ok:true,status:200};
+ };
  try{
   assert.equal(checks.configuredTopic(),topic);
   const signal={symbol:'ALGOUSDT',exchange:'WEEX',direction:'LONG',level:'STRONG',
    price:1.0,livePrice:1.01,stop:0.98,take:1.04,
    candleCloseTime:Date.now()-10000,expiresAt:Date.now()+90000};
   const first=await ntfySend('confirmed',[signal]);
-  const again=await ntfySend('confirmed',[signal]);
+  const again=await ntfySend('confirmed',[{...signal,livePrice:1.02}]);
   assert.equal(first.enabled,true);
   assert.equal(first.delivered,1);
   assert.equal(first.failed,0);
-  assert.equal(again.delivered,1);
-  assert.equal(sent.length,2);
-  assert.equal(sent[0].url,'https://ntfy.sh/');
-  assert.equal(sent[0].body.topic,topic);
-  assert.match(sent[0].body.sequence_id,/^[a-f0-9]{32}$/);
-  assert.equal(sent[0].body.sequence_id,sent[1].body.sequence_id);
+  assert.equal(again.delivered,0);
+  assert.equal(again.duplicates,1);
+  assert.equal(posts.length,1);
+  assert.equal(posts[0].topic,topic);
+  assert.match(posts[0].sequence_id,/^[a-f0-9]{32}$/);
+  assert.match(posts[0].message,/свеча \d\d:\d\d:\d\d · отправка \d\d:\d\d:\d\d · задержка \d+с · до \d\d:\d\d:\d\d/);
+  assert.equal(calls.filter(c=>c.method==='POST').length,1);
+  assert.equal(calls.filter(c=>c.method==='GET').length,2);
+  const changed=await ntfySend('confirmed',[{...signal,direction:'SHORT'}]);
+  assert.equal(changed.delivered,1);
+  assert.equal(posts.length,2);
+  assert.notEqual(posts[0].sequence_id,posts[1].sequence_id);
+  assert.equal(checks.berlinTime(Date.UTC(2026,10,8,11,15,0)),'12:15:00');
  }finally{
   globalThis.fetch=previousFetch;
   if(previousTopic===undefined)delete process.env.NTFY_TOPIC;else process.env.NTFY_TOPIC=previousTopic;
+ }
+});
+
+test('if ntfy cache is unavailable, retain emergency delivery using stable sequence IDs',async()=>{
+ const {ntfySend}=await import('../lib/ntfy-alerts.mjs');
+ const topic='WR_Private_'+('b'.repeat(24));
+ const old=process.env.NTFY_TOPIC,oldFetch=globalThis.fetch;
+ process.env.NTFY_TOPIC=topic;
+ const sends=[];
+ globalThis.fetch=async(url,init)=>{
+  if(init.method==='GET')throw new Error('temporarily unavailable');
+  sends.push(JSON.parse(init.body));
+  return {ok:true,status:200};
+ };
+ try{
+  const signal={symbol:'BTCUSDT',exchange:'WEEX',direction:'LONG',level:'NORMAL',
+   price:70000,stop:69000,take:71500,
+   candleCloseTime:Date.now()-30000,expiresAt:Date.now()+60000};
+  const result=await ntfySend('confirmed',[signal]);
+  assert.equal(result.delivered,1);
+  assert.equal(result.failed,0);
+  assert.equal(sends.length,1);
+  assert.match(sends[0].message,/свеча/);
+ }finally{
+  globalThis.fetch=oldFetch;
+  if(old===undefined)delete process.env.NTFY_TOPIC;else process.env.NTFY_TOPIC=old;
  }
 });
