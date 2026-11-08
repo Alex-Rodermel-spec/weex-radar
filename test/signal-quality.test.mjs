@@ -35,6 +35,56 @@ test('only confirmed signals with consistent 5m TP/SL from WEEX are accepted',()
  assert.equal(parseConfirmedNotification({...alert(),message:alert().message.replace('WEEX','Bybit')}),null);
  assert.equal(parseConfirmedNotification({...alert(),message:alert().message.replace('10.7277','10.6000')}),null);
 });
+test('four-state ntfy confirmed alerts are still recorded with exact raw SL/TP',()=>{
+ const msg={event:'message',time:Math.floor(stamp/1000),
+  sequence_id:'b'.repeat(32),
+  title:'🟢 ПРОВЕРИТЬ · LINKUSDT LONG · 🟣 СИЛЬНЫЙ',
+  message:'📈 РОСТ · WEEX\n📍 Вход: 10,7015 USDT\n'+
+   '✅ Прибыль (TP): 10,73 · 🛑 Стоп (SL): 10,66\n'+
+   'SL 10.6596 · TP 10.7277\n'+
+   'Чистый R/R (модель): 1.87:1\n⚠️ Ретест удержан' };
+ const found=parseConfirmedNotification(msg);
+ assert.ok(found);
+ assert.equal(found.entry,10.7015);
+ assert.equal(found.stop,10.6596);
+ assert.equal(found.take,10.7277);
+ assert.equal(found.symbol,'LINKUSDT');
+ assert.equal(found.direction,'LONG');
+ assert.equal(found.level,'STRONG');
+ assert.equal(found.shadow,'LEGACY');
+ assert.equal(found.id,'b'.repeat(32));
+ const red=parseConfirmedNotification({...msg,
+  title:'🔴 ПРОПУСТИТЬ · LINKUSDT LONG · 🔔 ОБЫЧНЫЙ'});
+ assert.ok(red);
+ assert.equal(red.level,'NORMAL');
+ const amber=parseConfirmedNotification({...msg,
+  title:'🟡 ЖДАТЬ · LINKUSDT LONG · 🔔 ОБЫЧНЫЙ'});
+ assert.ok(amber);
+});
+test('SHIB prices with localized commas are parsed; forecasts never pollute confirmed history',()=>{
+ const msg={event:'message',time:Math.floor(stamp/1000),
+  title:'🔴 ПРОПУСТИТЬ · 1000SHIBUSDT SHORT · 🔔 ОБЫЧНЫЙ',
+  message:'📉 ПАДЕНИЕ · WEEX\n📍 Вход: 0,004445 USDT\n'+
+   '✅ Прибыль (TP): 0,00443028 · 🛑 Стоп (SL): 0,00445236\n'+
+   'SL 0.0044523591435890126 · TP 0.004430281712821975\n'+
+   '⚠️ Пробой уже прошёл' };
+ const found=parseConfirmedNotification(msg);
+ assert.ok(found);
+ assert.equal(found.symbol,'1000SHIBUSDT');
+ assert.equal(found.direction,'SHORT');
+ assert.equal(found.entry,0.004445);
+ assert.equal(found.stop,0.0044523591435890126);
+ assert.equal(found.take,0.004430281712821975);
+ assert.equal(parseConfirmedNotification({...msg,
+  title:'🔮 ПРОГНОЗ · 1000SHIBUSDT SHORT · 🟡 ЖДАТЬ'}),null);
+ assert.equal(parseConfirmedNotification({...msg,
+  title:'🟡 ЖДАТЬ · 1000SHIBUSDT SHORT · ⚡ EARLY WATCH'}),null);
+ assert.equal(parseConfirmedNotification({...msg,
+  message:msg.message.replace('· WEEX','· Bybit')}),null);
+ assert.equal(parseConfirmedNotification({...msg,
+  message:msg.message.replace('SL 0.0044523591435890126','SL 0.00442')}),null);
+});
+
 test('short and long simulated TP/SL are symmetric, only after the alert minute',()=>{
  const short=parseConfirmedNotification(alert());
  const long=parseConfirmedNotification(alert('LONG'));
