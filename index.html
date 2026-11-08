@@ -49,6 +49,7 @@ h2{font-size:19px;margin:26px 0 12px;letter-spacing:-.02em}.market-grid{display:
  </div>
 </section>
 <section class="summary" aria-live="polite"><div class="summary-top"><span class="eyebrow">АКТУАЛЬНЫЕ СИГНАЛЫ</span><small id="updated">Обновление: —</small></div><div id="signal-container"><strong>Проверяем рынок…</strong><small>Вход без подтверждения не предлагаем.</small></div></section>
+<section class="summary" aria-label="Проверка ретестов 5 минут"><div class="summary-top"><span class="eyebrow">🔁 РЕТЕСТЫ УРОВНЕЙ · 5М</span><small>Наблюдение, не торговый сигнал</small></div><div id="retest-container" class="market-grid" aria-live="polite"><small>Проверяем закрытые свечи…</small></div><p class="sub">Проверяем последовательность: закрытый пробой → возврат к уровню → удержание либо провал. Показываем только варианты по направлению 15м тренда. Ретест сам по себе не означает выгодную точку входа; 1м EARLY WATCH и обычные сигналы не изменены.</p></section>
 <section><div class="summary-top"><h2>Рынок · 16 инструментов</h2><small class="muted">WEEX → Bybit</small></div><div id="markets" class="market-grid" aria-live="polite"></div></section>
 <section class="footnotes"><div class="footer-line"><span>Автообновление: раз в 60 сек., пока эта страница открыта.</span><span>Срок действия сигнала: 3 мин. после закрытия свечи.</span></div><p>⚠️ Это учебный сканер, а не команда к сделке. Уровни TP/SL примерные, исходя из ATR; цены двух бирж могут отличаться. Уведомления при открытой странице доступны сразу. Фоновые push после разрешения работают через Android/браузер; внешний планировщик cron-job.org должен запускать проверку примерно раз в минуту, GitHub используется как резерв. При задержках планировщика или Android сигнал со сроком 3 минуты можно пропустить. Звук контролируется настройками Android. Автоматические сделки не подключены. При высоком плече возможна полная потеря маржи.</p></section>
 </main>
@@ -60,12 +61,50 @@ let latest=null,busy=false,backgroundPushReady=false,ntfyTopic=null;
 const format=(x)=>Number(x).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:Math.abs(x)<0.01?8:Math.abs(x)<1?5:2});
 const clock=t=>new Date(t).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit'});
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const RETEST_LABELS={
+ CONFIRMED:'✅ УРОВЕНЬ УДЕРЖАН',
+ RECENT_CONFIRMED:'✅ РАНЕЕ УДЕРЖАН',
+ WAITING:'⏳ ЖДЁМ ВОЗВРАТА',
+ TESTING:'⏳ ЦЕНА НА УРОВНЕ',
+ FAILED:'⚠️ УРОВЕНЬ НЕ УДЕРЖАН'
+};
+function retestHint(s){
+ const r=s.retest?.[s.direction];
+ if(!r)return '<small>🔁 Ретест: не подтверждён на закрытых 5м свечах. Проверка наблюдательная.</small>';
+ return '<small>🔁 Ретест: '+safe(RETEST_LABELS[r.status]||'не подтверждён')+
+   ' · уровень '+format(r.level)+
+   ' · 15м тренд: '+(r.trendAligned?'совпадает':'не подтверждён')+
+   '. Сам по себе не является входом.</small>';
+}
+
 function currentSignals(){return (latest?.symbols||[]).filter(s=>s.status==='ok'&&s.direction&&s.expiresAt>Date.now()).sort((a,b)=>Number(b.level==='STRONG')-Number(a.level==='STRONG')||b.score-a.score)}
 function draw(){
  if(!latest)return;
  const active=currentSignals();
  $('updated').textContent='Проверено: '+clock(latest.generatedAt)+' (Берлин)';
- $('signal-container').innerHTML=active.length?`<div class="signals">${active.map(s=>`<article class="signal ${s.level}"><div class="signal-header"><span class="level ${s.level}">${s.level==='STRONG'?'✦ СИЛЬНЫЙ СИГНАЛ':'ОБЫЧНЫЙ СИГНАЛ'}</span><span class="exchange">${s.exchange}</span></div><h3>${NAMES[s.symbol]||s.symbol} <span class="direction ${s.direction==='LONG'?'long':'short'}">${s.direction}</span></h3><small>${safe(s.reason)}</small><div class="stats"><div><span>Котировка при проверке API</span><b>${format(s.livePrice??s.price)}</b></div><div><span>Осталось</span><b data-expires="${s.expiresAt}">${Math.max(0,Math.ceil((s.expiresAt-Date.now())/1000))} сек.</b></div><div><span>Ориентир Stop</span><b>${format(s.stop)}</b></div><div><span>Ориентир Take</span><b>${format(s.take)}</b></div></div><div class="meter"><i style="width:${s.score}%"></i></div><small>Оценка условий: ${s.score}/100 · объём ×${s.indicators.volumeRatio} · RSI ${s.indicators.rsi}${s.entryQuality?.ok?' · Проверка входа: R/R '+s.entryQuality.rr+':1'+(s.entryQuality.nearestLevel?' · локальный уровень '+format(s.entryQuality.nearestLevel):' · уровень впереди не найден'):''}${s.sidewaysGate?.evaluated&&!s.sidewaysGate.blocked?' · Флэт-фильтр: пройден':''}</small>${s.shadowFilter?.mode==='SHADOW'?'<small>'+safe(s.shadowFilter.label)+(s.shadowFilter.warning?' · '+safe(s.shadowFilter.reasons.join(' · ')):' · ретест: '+(s.shadowFilter.retestConfirmed?'замечен':'не подтверждён'))+' · РЕЖИМ НАБЛЮДЕНИЯ, сигнал не блокируется.</small>':''}<a class="signal-trade-link" href="/tradingview.html?symbol=${encodeURIComponent(s.symbol)}&interval=1">📈 Открыть TradingView (1м)</a>${s.exchange==='WEEX'?`<a class="signal-trade-link" href="/liquidity.html?symbol=${encodeURIComponent(s.symbol)}&direction=${s.direction}">🌊 Проверить стакан WEEX (без ордера)</a>`:''}${s.exchange==='WEEX'?`<a class="signal-trade-link" href="/trade.html?symbol=${encodeURIComponent(s.symbol)}">💼 Проверить план сделки (без ордера)</a>`:''}</article>`).join('')}</div>` : `<strong>Сейчас нет свежего подтверждённого сигнала</strong><small>Это нормально: не нужно входить в рынок без условий. Проверка продолжится автоматически, пока открыт сайт.</small>`;
+ $('signal-container').innerHTML=active.length?`<div class="signals">${active.map(s=>`<article class="signal ${s.level}"><div class="signal-header"><span class="level ${s.level}">${s.level==='STRONG'?'✦ СИЛЬНЫЙ СИГНАЛ':'ОБЫЧНЫЙ СИГНАЛ'}</span><span class="exchange">${s.exchange}</span></div><h3>${NAMES[s.symbol]||s.symbol} <span class="direction ${s.direction==='LONG'?'long':'short'}">${s.direction}</span></h3><small>${safe(s.reason)}</small><div class="stats"><div><span>Котировка при проверке API</span><b>${format(s.livePrice??s.price)}</b></div><div><span>Осталось</span><b data-expires="${s.expiresAt}">${Math.max(0,Math.ceil((s.expiresAt-Date.now())/1000))} сек.</b></div><div><span>Ориентир Stop</span><b>${format(s.stop)}</b></div><div><span>Ориентир Take</span><b>${format(s.take)}</b></div></div><div class="meter"><i style="width:${s.score}%"></i></div><small>Оценка условий: ${s.score}/100 · объём ×${s.indicators.volumeRatio} · RSI ${s.indicators.rsi}${s.entryQuality?.ok?' · Проверка входа: R/R '+s.entryQuality.rr+':1'+(s.entryQuality.nearestLevel?' · локальный уровень '+format(s.entryQuality.nearestLevel):' · уровень впереди не найден'):''}${s.sidewaysGate?.evaluated&&!s.sidewaysGate.blocked?' · Флэт-фильтр: пройден':''}</small>${retestHint(s)}${s.shadowFilter?.mode==='SHADOW'?'<small>'+safe(s.shadowFilter.label)+(s.shadowFilter.warning?' · '+safe(s.shadowFilter.reasons.join(' · ')):' · ретест: '+(s.shadowFilter.retestConfirmed?'замечен':'не подтверждён'))+' · РЕЖИМ НАБЛЮДЕНИЯ, сигнал не блокируется.</small>':''}<a class="signal-trade-link" href="/tradingview.html?symbol=${encodeURIComponent(s.symbol)}&interval=1">📈 Открыть TradingView (1м)</a>${s.exchange==='WEEX'?`<a class="signal-trade-link" href="/liquidity.html?symbol=${encodeURIComponent(s.symbol)}&direction=${s.direction}">🌊 Проверить стакан WEEX (без ордера)</a>`:''}${s.exchange==='WEEX'?`<a class="signal-trade-link" href="/trade.html?symbol=${encodeURIComponent(s.symbol)}">💼 Проверить план сделки (без ордера)</a>`:''}</article>`).join('')}</div>` : `<strong>Сейчас нет свежего подтверждённого сигнала</strong><small>Это нормально: не нужно входить в рынок без условий. Проверка продолжится автоматически, пока открыт сайт.</small>`;
+ const retestRows=latest.symbols.flatMap(s=>['LONG','SHORT'].map(direction=>({
+  symbol:s.symbol,exchange:s.exchange,...(s.retest?.[direction]?{retest:s.retest[direction]}:{retest:null})
+ }))).filter(x=>x.retest&&x.retest.trendAligned===true&&
+  x.retest.ageBars<=4&&['CONFIRMED','WAITING','TESTING','FAILED'].includes(x.retest.status))
+ .sort((a,b)=>({CONFIRMED:0,FAILED:1,TESTING:2,WAITING:3}[a.retest.status]??4)-
+   ({CONFIRMED:0,FAILED:1,TESTING:2,WAITING:3}[b.retest.status]??4)||
+   b.retest.breakoutAt-a.retest.breakoutAt).slice(0,6);
+ $('retest-container').innerHTML=retestRows.length?retestRows.map(x=>{
+  const r=x.retest,kind=r.status==='CONFIRMED'?'long':r.status==='FAILED'?'short':'';
+  const time=r.confirmedAt||r.failedAt||r.breakoutAt;
+  return '<article class="market"><div class="market-top"><div class="market-title">'+
+   safe(NAMES[x.symbol]||x.symbol)+' · '+safe(r.direction)+'</div><span class="exchange">'+
+   safe(x.exchange||'—')+'</span></div><div class="market-price">'+
+   format(r.level)+'</div><div class="market-footer"><span class="chip '+kind+'">'+
+   safe(RETEST_LABELS[r.status]||r.status)+'</span><span>Уровень · '+clock(time)+
+   ' · свеча 5м</span></div>'+
+   (x.exchange==='WEEX'?'<a class="signal-trade-link" href="/tradingview.html?symbol='+
+     encodeURIComponent(x.symbol)+'&interval=5">📈 Посмотреть график 5м</a>':'')+
+   '</article>';
+ }).join(''):'<small>Сейчас по закрытым 5-минутным свечам нет свежих ретестов в направлении 15м тренда. Это нормально — выдуманных подтверждений не показываем.</small>';
+
  $('markets').innerHTML=latest.symbols.map(s=>`<article class="market"><div class="market-top"><div class="market-title">${NAMES[s.symbol]||s.symbol}<span> / USDT</span></div><span class="exchange">${s.exchange||'—'}</span></div><div class="market-price ${s.status!=='ok'?'missing':''}">${s.status==='ok'?format(s.price):'Нет данных'}</div><div class="market-footer"><span class="chip ${s.status!=='ok'?'ERROR':(s.direction&&s.expiresAt>Date.now())?(s.level==='STRONG'?'STRONG':s.direction):''}">${s.status!=='ok'?'ОШИБКА':(s.direction&&s.expiresAt>Date.now())?(s.level==='STRONG'?'✦ СИЛЬНЫЙ '+s.direction:s.direction):'ЖДАТЬ'}</span><span>${s.status==='ok'?(s.reason?.includes('пропущен')?safe(s.reason):(s.shadowFilter?.warning?'⚠️ ТЕСТ: ПРОПУСТИТЬ · ':'')+'Свеча: '+clock(s.candleCloseTime)):'Источник недоступен'}</span></div></article>`).join('');
 }
 function emitNotifications(){
