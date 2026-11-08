@@ -52,11 +52,12 @@ tbody tr:last-child td{border-bottom:none}
  <div class="card"><div class="label">Доля TP среди однозначных</div><div class="number" id="rate">—</div></div>
 </div>
 <p class="fine" id="extra">Неопределённые и не достигшие уровней сигналы не считаются победами или поражениями.</p>
+<div class="info" id="shadow-summary">🧠 Новый анализ ловушек работает в <b>тестовом режиме</b>. Сравнение результатов появится после новых подтверждённых сигналов. Старые уведомления не имеют этой метки.</div>
 <h2>История проверенных уведомлений</h2>
 <div id="empty" class="empty" hidden></div>
 <div class="table-wrap" id="table-wrap" hidden>
  <table>
-  <thead><tr><th>Время</th><th>Монета</th><th>Сигнал</th><th>Цена сигнала</th><th>Риск / награда</th><th>Исход</th></tr></thead>
+  <thead><tr><th>Время</th><th>Монета</th><th>Сигнал</th><th>Цена сигнала</th><th>Риск / награда</th><th>Тест фильтра</th><th>Исход</th></tr></thead>
   <tbody id="rows"></tbody>
  </table>
 </div>
@@ -78,6 +79,12 @@ function show(data){
   ' · Без уровней за час: '+(s.TIMEOUT||0)+
   ' · Неопределённые: '+((s.AMBIGUOUS||0)+(s.INTRABAR||0))+
   ' · Недостаточно данных: '+(s.NO_DATA||0)+'.';
+ const groups=data.shadowStats||{};
+ const x=groups.SKIP||{},y=groups.OBSERVE||{};
+ const label=g=>(g.resolved||0)+' исходов (TP '+(g.TP||0)+', SL '+(g.SL||0)+')';
+ $('shadow-summary').textContent='🧠 РЕЖИМ НАБЛЮДЕНИЯ · ТЕСТ: ПРОПУСТИТЬ — '+(x.total||0)+
+  ' сигналов, '+label(x)+'; БЕЗ ЗАМЕЧАНИЙ — '+(y.total||0)+' сигналов, '+label(y)+
+  '. Для выводов нужна большая выборка. Прошлые сигналы без метки не сравниваются.';
  const rows=data.signals||[];
  $('rows').replaceChildren();
  $('table-wrap').hidden=!rows.length;
@@ -85,12 +92,13 @@ function show(data){
  if(!rows.length)$('empty').textContent='За последние 110 минут в истории ntfy нет подтверждённых LONG/SHORT. Это не ошибка. Дождёмся реальных сигналов.';
  for(const item of rows){
   const tr=document.createElement('tr');
-  const fields=[clock(item.sentAt),item.symbol,item.direction,num(item.entry),item.rr+' : 1',statuses[item.status]||item.status];
+  const shadow=item.shadow==='SKIP'?'⚠️ ПРОПУСТИТЬ':item.shadow==='OBSERVE'?'🔎 БЕЗ ЗАМЕЧАНИЙ':'— (старый)';
+  const fields=[clock(item.sentAt),item.symbol,item.direction,num(item.entry),item.rr+' : 1',shadow,statuses[item.status]||item.status];
   fields.forEach((value,index)=>{
    const td=document.createElement('td');
    td.textContent=value;
    if(index===2)td.className=item.direction==='LONG'?'long':'short';
-   if(index===5){const span=document.createElement('span');span.className='pill '+(item.status==='TP'?'TP':item.status==='SL'?'SL':'');span.textContent=value;td.replaceChildren(span)}
+   if(index===6){const span=document.createElement('span');span.className='pill '+(item.status==='TP'?'TP':item.status==='SL'?'SL':'');span.textContent=value;td.replaceChildren(span)}
    tr.appendChild(td);
   });
   $('rows').appendChild(tr);

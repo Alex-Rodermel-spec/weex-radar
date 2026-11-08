@@ -1,5 +1,6 @@
 // WEEX RADAR — market data only, no exchange keys and no trading.
 import {checkConfirmedEntry} from '../lib/entry-quality.mjs';
+import {evaluateStructure} from '../lib/market-structure.mjs';
 const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 const DUR={'5m':300000,'15m':900000};
 function numeric(x){const n=Number(x);return Number.isFinite(n)?n:NaN;}
@@ -78,6 +79,8 @@ function getAnalysis(five,fifteen,livePrice=null){
  const longBreak=last.close>upper&&last.close>e20&&r>=55&&r<=77;
  const shortBreak=last.close<lower&&last.close<e20&&r>=23&&r<=45;
  const candidate=longTrend&&longBreak?'LONG':shortTrend&&shortBreak?'SHORT':null;
+ // Parallel observation ONLY: don't change existing alerts or entry filters.
+ const shadowFilter=candidate?evaluateStructure(five,volatility,candidate):null;
  const quality=candidate?breakoutQuality(candidate,last,upper,lower,e20,volatility):null;
  const priceQuality=candidate&&quality.ok?currentPriceQuality(candidate,last.close,volatility,livePrice):null;
  // Confirmed entries must still offer >=1.5R at the fresh quote and >=1R
@@ -92,7 +95,7 @@ function getAnalysis(five,fifteen,livePrice=null){
  return {direction,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
  stop:direction?(direction==='LONG'?last.close-1.2*volatility:last.close+1.2*volatility):null,
  take:direction?(direction==='LONG'?last.close+2.4*volatility:last.close-2.4*volatility):null,
- entryQuality,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
+ entryQuality,shadowFilter,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
  livePrice:Number.isFinite(livePrice)&&livePrice>0?livePrice:null,
  reason:direction?'Свежая котировка API · пробой 5м · тренд 15м · RSI '+Math.round(r):
  (quality&&!quality.ok?quality.reason:priceQuality&&!priceQuality.ok?priceQuality.reason:entryQuality&&!entryQuality.ok?entryQuality.reason:'Нет свежего подтверждённого пробоя')};
