@@ -1,6 +1,7 @@
 // WEEX RADAR — market data only, no exchange keys and no trading.
 import {checkConfirmedEntry} from '../lib/entry-quality.mjs';
 import {evaluateStructure} from '../lib/market-structure.mjs';
+import {checkSidewaysEntry} from '../lib/sideways-gate.mjs';
 const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 const DUR={'5m':300000,'15m':900000};
 function numeric(x){const n=Number(x);return Number.isFinite(n)?n:NaN;}
@@ -81,13 +82,17 @@ function getAnalysis(five,fifteen,livePrice=null){
  const candidate=longTrend&&longBreak?'LONG':shortTrend&&shortBreak?'SHORT':null;
  // Parallel observation ONLY: don't change existing alerts or entry filters.
  const shadowFilter=candidate?evaluateStructure(five,volatility,candidate):null;
+ // Conservative flat-market suppression applies only to weak, low-volume 5m
+ // breakouts. The rest of the shadow warnings do NOT block notifications.
+ const sidewaysGate=candidate?checkSidewaysEntry(shadowFilter):null;
  const quality=candidate?breakoutQuality(candidate,last,upper,lower,e20,volatility):null;
  const priceQuality=candidate&&quality.ok?currentPriceQuality(candidate,last.close,volatility,livePrice):null;
  // Confirmed entries must still offer >=1.5R at the fresh quote and >=1R
  // room before an older same-exchange swing high/low. 1m watches are unchanged.
  const entryQuality=candidate&&quality.ok&&priceQuality.ok?
    checkConfirmedEntry(candidate,last.close,livePrice,volatility,five):null;
- const tentative=candidate&&quality.ok&&priceQuality.ok&&entryQuality?.ok?candidate:null;
+ const tentative=candidate&&quality.ok&&priceQuality.ok&&entryQuality?.ok&&
+  !sidewaysGate?.blocked?candidate:null;
  const expiresAt=tentative?last.closeTime+180000:null;
  const active=Boolean(tentative&&Date.now()<expiresAt);
  const direction=active?tentative:null;
@@ -95,10 +100,10 @@ function getAnalysis(five,fifteen,livePrice=null){
  return {direction,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
  stop:direction?(direction==='LONG'?last.close-1.2*volatility:last.close+1.2*volatility):null,
  take:direction?(direction==='LONG'?last.close+2.4*volatility:last.close-2.4*volatility):null,
- entryQuality,shadowFilter,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
+ entryQuality,shadowFilter,sidewaysGate,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
  livePrice:Number.isFinite(livePrice)&&livePrice>0?livePrice:null,
  reason:direction?'Свежая котировка API · пробой 5м · тренд 15м · RSI '+Math.round(r):
- (quality&&!quality.ok?quality.reason:priceQuality&&!priceQuality.ok?priceQuality.reason:entryQuality&&!entryQuality.ok?entryQuality.reason:'Нет свежего подтверждённого пробоя')};
+ (quality&&!quality.ok?quality.reason:priceQuality&&!priceQuality.ok?priceQuality.reason:entryQuality&&!entryQuality.ok?entryQuality.reason:sidewaysGate?.blocked?sidewaysGate.reason:'Нет свежего подтверждённого пробоя')};
 }
 async function fetchJson(url){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4800);
