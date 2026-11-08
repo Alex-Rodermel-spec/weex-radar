@@ -115,7 +115,8 @@ test('Android ntfy confirmed signal embeds caution, 1m EARLY WATCH remains uncha
   const res=await ntfySend('confirmed',[s]);
   assert.equal(res.delivered,1);
   assert.match(posts[0].message,/РАСХОДЫ: TP меньше/);
-  assert.match(posts[0].message,/SL 100.05 · TP 99.9/);
+  assert.match(posts[0].message,/Стоп \(SL\): 100.05/);
+  assert.match(posts[0].message,/Прибыль \(TP\): 99.9/);
   const early=await ntfySend('early',[{...s,level:'EARLY_WATCH'}]);
   assert.equal(early.delivered,1);
   assert.match(posts[1].message,/ЖДАТЬ подтверждения 5м/);
