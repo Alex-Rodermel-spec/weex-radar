@@ -148,6 +148,18 @@ export default async function handler(req,res){
  if(req.method!=='POST'&&req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
  const source=await authorized(req);
  if(!source)return res.status(401).json({error:'Unauthorized'});
+ // Temporary authorized read-only diagnostics, automatically expire today.
+ // Log status only: never private subscription contents.
+ if(Date.now()<1794132000000&&process.env.BLOB_READ_WRITE_TOKEN){
+  try{
+   const probe=await list({prefix:'subscribers/',limit:1});
+   if(!probe.blobs.length)console.info('WEEX_RADAR_BLOB_PROBE no_saved_subscription');
+   else{
+    const sample=await privateRead(probe.blobs[0].pathname);
+    console.info('WEEX_RADAR_BLOB_PROBE '+(sample?.statusCode===200?'read_ok':'no_read_result'));
+   }
+  }catch(e){console.warn('WEEX_RADAR_BLOB_PROBE '+String(e?.message||e).slice(0,90))}
+ }
  if(!process.env.BLOB_READ_WRITE_TOKEN||!process.env.VAPID_PRIVATE_KEY||!process.env.VAPID_PUBLIC_KEY||!process.env.PUSH_CRON_KEY)return res.status(503).json({error:'Push not configured'});
  try{
   // Optional scheduled background push smoke tests require a billed Blob
