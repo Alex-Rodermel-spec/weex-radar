@@ -69,7 +69,7 @@ function currentPriceQuality(direction,close,atrValue,livePrice){
  if(progress>chaseTolerance)return {ok:false,reason:'Цена ушла слишком далеко — вход запоздал'};
  return {ok:true,reason:null};
 }
-function getAnalysis(five,fifteen,livePrice=null){
+function getAnalysis(five,fifteen,livePrice=null,referenceNow=Date.now()){
  const last=five.at(-1),c5=five.map(c=>c.close),c15=fifteen.map(c=>c.close);
  const e20=ema(c5,20),e50=ema(c5,50),t20=ema(c15,20),t50=ema(c15,50);
  const r=rsi(c5),volatility=atr(five),previous=five.slice(-13,-1);
@@ -100,7 +100,7 @@ function getAnalysis(five,fifteen,livePrice=null){
  const tentative=candidate&&quality.ok&&priceQuality.ok&&entryQuality?.ok&&
   !sidewaysGate?.blocked?candidate:null;
  const expiresAt=tentative?last.closeTime+180000:null;
- const active=Boolean(tentative&&Date.now()<expiresAt);
+ const active=Boolean(tentative&&referenceNow<expiresAt);
  const direction=active?tentative:null;
  const score=direction?Math.round(Math.min(95,65+(volumeRatio>=1.3?12:0)+(volumeRatio>=1.8?6:0)+((direction==='LONG'?r>=60:r<=40)?4:0)+(Math.abs(e20-e50)/last.close>.003?5:0)+(Math.abs(t20-t50)/last.close>.004?5:0))):null;
  return {direction,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
@@ -187,6 +187,10 @@ export default async function handler(req,res){
  if(req.query?.mode==='quality'){
   const {default:handleQuality}=await import('../lib/signal-quality-route.mjs');
   return handleQuality(req,res);
+ }
+ if(req.query?.mode==='backtest'){
+  const {handleBacktest}=await import('../lib/backtest-route.mjs');
+  return handleBacktest(req,res,SYMBOLS);
  }
  if(req.query?.mode==='journal'||req.query?.mode==='journal-export'){
   const {handleJournal}=await import('../lib/journal-route.mjs');
