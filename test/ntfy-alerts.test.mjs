@@ -31,13 +31,14 @@ test('ntfy never touches trading/order endpoints',()=>{
  assert.match(ntfy,/priority/);
  assert.match(ntfy,/ntfy\/markers\//);
 });
-test('Chrome fallback remains and ntfy is opt in, with independent delivery',()=>{
+test('ntfy-only cron disables Chrome and Telegram delivery without losing ntfy opt-in controls',()=>{
  assert.match(subscribe,/ntfySetup===true/);
  assert.match(subscribe,/ntfyTest===true/);
  assert.match(subscribe,/ntfyDisable===true/);
- assert.match(push,/webpush\.sendNotification/);
- assert.match(push,/const ntfyPromise=/);
- assert.match(early,/ntfySend\('early'/);
+ assert.match(push,/ntfySend\('confirmed',signals\)/);
+ assert.match(early,/ntfySend\('early',signals\)/);
+ assert.doesNotMatch(push,/webpush\.sendNotification|telegramPoll|telegramSend|@vercel\/blob/);
+ assert.doesNotMatch(early,/webpush\.sendNotification|telegramSend|@vercel\/blob/);
 });
 test('ntfy controls are parsed as valid browser JavaScript',()=>{
  const m=page.match(/<script>\s*([\s\S]*?)<\/script>/);
