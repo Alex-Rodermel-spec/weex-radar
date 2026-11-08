@@ -10,7 +10,7 @@ function sidewaysCandles(direction='LONG'){
  const a=Array.from({length:64},(_,i)=>{
   const close=100+((i%2)?0.01:-0.01);
   return {time:1_000_000+i*300_000,closeTime:1_000_000+(i+1)*300_000,
-   open:close,high:close+.10,low:close-.10,volume:100};
+   open:close,close,high:close+.10,low:close-.10,volume:100};
  });
  const last=a.at(-1);
  // A genuinely closed break just beyond the historical 12-candle boundary.
