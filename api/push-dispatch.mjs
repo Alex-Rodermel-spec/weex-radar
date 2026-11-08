@@ -5,6 +5,7 @@ import {jwtVerify,createRemoteJWKSet} from 'jose';
 import {_test as marketSafety} from './signals.mjs';
 import {sendEarlyPush} from '../lib/early-push.mjs';
 import {telegramPoll,telegramSend} from '../lib/telegram-alerts.mjs';
+import {ntfySend} from '../lib/ntfy-alerts.mjs';
 const JWKS=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 function secureEquals(a,b){if(!a||!b)return false;let x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
 async function authorized(req){
@@ -158,9 +159,11 @@ export default async function handler(req,res){
     JSON.stringify({candidates:candidates.length,accepted:signals.length,blocked:candidates.length-signals.length}));
   let telegram={enabled:false,delivered:0,failed:0,duplicates:0};
   if(signals.length)try{telegram=await telegramSend('confirmed',signals)}catch(e){console.warn('WEEX_RADAR_TELEGRAM_SEND_FAILED '+String(e.message||e).slice(0,80))}
-  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await safeEarlyPush(),telegram});
+  let ntfy={enabled:false,delivered:0,failed:0,duplicates:0};
+  if(signals.length)try{ntfy=await ntfySend('confirmed',signals)}catch(e){console.warn('WEEX_RADAR_NTFY_DISPATCH_FAILED '+String(e.message||e).slice(0,80))}
+  if(!signals.length)return reply(res,source,200,{ok:true,signals:0,delivered:0,background,early:await safeEarlyPush(),telegram,ntfy});
   const entries=await loadSubscriptions();
-  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await safeEarlyPush(),telegram});
+  if(!entries.length)return reply(res,source,200,{ok:true,signals:signals.length,subscribers:0,delivered:0,early:await safeEarlyPush(),telegram,ntfy});
   webpush.setVapidDetails('https://weex-radar.vercel.app',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
   let delivered=0,failed=0,duplicates=0,retried=0;
   for(const blob of entries){
@@ -232,6 +235,6 @@ export default async function handler(req,res){
     }
    }catch(e){failed++;console.warn('Push item failed',e.message)}
   }
-  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried,early:await safeEarlyPush(),telegram});
+  return reply(res,source,200,{ok:true,signals:signals.length,subscribers:entries.length,delivered,failed,duplicates,retried,early:await safeEarlyPush(),telegram,ntfy});
  }catch(e){console.error('Push check failed:',e.message);return reply(res,source,503,{error:'Scan or notification delivery unavailable'})}
 }
