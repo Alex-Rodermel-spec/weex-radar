@@ -148,6 +148,10 @@ function showSignalDeliveryHealth(checked){
 }
 function showBackgroundHealth(checked){
  const task=checked?.backgroundTest,el=$('bg-diagnostics');
+ if($('bg-test').disabled){
+  el.textContent='⚠️ Диагностические тесты на паузе из-за превышения бесплатного лимита Vercel Blob. WEEX сканируется, но Chrome Push сейчас не гарантирован.';
+  return;
+ }
  if(!task){el.textContent='Фоновая доставка: ещё не проверена. Используй кнопку 🌙, затем закрой Chrome.';return}
  if(task.status==='queued'){
   el.textContent=(task.mode==='signal_test'?'🧪 Тестовый LONG/SHORT':'🌙 Фоновый тест')+
