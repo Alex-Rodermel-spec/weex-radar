@@ -100,7 +100,7 @@ function show(data){
 async function load(){
  $('refresh').disabled=true;$('status').textContent='Проверяем сообщения и свечи WEEX…';
  try{
-  const response=await fetch('/api/signal-quality',{cache:'no-store'});
+  const response=await fetch('/api/signals?mode=quality',{cache:'no-store'});
   const data=await response.json();
   if(!response.ok)throw Error(data.error||'Ошибка сервера');
   show(data);
