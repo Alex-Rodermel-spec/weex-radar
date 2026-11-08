@@ -6,6 +6,7 @@ import {_test as marketSafety} from './signals.mjs';
 import {sendEarlyPush} from '../lib/early-push.mjs';
 import {telegramPoll,telegramSend} from '../lib/telegram-alerts.mjs';
 import {ntfySend} from '../lib/ntfy-alerts.mjs';
+import {formatPhoneAlert} from '../lib/alert-presentation.mjs';
 import {checkEntryLevels} from '../lib/entry-quality.mjs';
 import {assessNetCosts} from '../lib/net-costs.mjs';
 import {monitorDispatch,snapshotMarkets} from '../lib/health-monitor.mjs';
@@ -280,14 +281,14 @@ export default async function handler(req,res){
       JSON.stringify({subscriberId,marks:pending.map(({mark})=>mark)}),
       {access:'private',allowOverwrite:true,contentType:'application/json'});
     const deliveryProof=createHmac('sha256',process.env.PUSH_CRON_KEY).update(deliveryId+'|'+subscriberId+'|signal').digest('hex');
-    const title=selected.length===1
-      ?(strong?'🟣 СИЛЬНЫЙ':'Сигнал')+' '+primary.symbol+' '+primary.direction
-      :(strong?'🟣 СИЛЬНЫЕ':'Сигналы')+' WEEX · '+selected.length+' монет';
-    const body=selected.length===1
-      ?primary.exchange+' · цена сейчас '+Number(primary.livePrice).toPrecision(6)+' USDT · свеча '+primary.price+' · SL '+primary.stop+' · TP '+primary.take+(primary.costReview?.status==='COSTS_EXCEED_TP'?
-        ' · ⚠️ TP меньше расходов (модель)':primary.costReview?.status==='LOW_NET_RR'?
-        ' · ⚠️ чистый R/R ниже 1,5 (модель)':'')+' · до '+new Date(primary.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})
-      :selected.slice(0,4).map(s=>s.symbol+' '+s.direction).join(' · ')+(selected.length>4?' · ещё '+(selected.length-4):'')+' · смотри TP/SL в RADAR';
+    const title=selected.length===1?
+      formatPhoneAlert(primary).title:
+      '🔔 WEEX RADAR · '+selected.length+' монет';
+    const body=selected.length===1?
+      formatPhoneAlert(primary,{deadline:new Date(primary.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit'})}).message:
+      selected.slice(0,4).map(s=>formatPhoneAlert(s).title).join('\n')+
+      (selected.length>4?'\nЕщё '+(selected.length-4):'')+
+      '\nПроверь уровни TP/SL в RADAR';
     const message={title,body,
       symbol:selected.length===1?primary.symbol:'BATCH',
       exchange:primary.exchange,
