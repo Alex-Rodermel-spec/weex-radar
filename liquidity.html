@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#161320">
+<title>WEEX RADAR · Ликвидность</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#111019;color:#f5f0fb}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 2% 0%,#322342,transparent 33%),#111019;min-height:100vh}
+main{max-width:850px;margin:0 auto;padding:25px 17px 56px}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:30px}
+.brand{color:#cda7f9;font-weight:900;letter-spacing:.08em;font-size:13px}
+a{color:#d2b4fc}a.back{border:1px solid #514460;padding:10px 14px;text-decoration:none;border-radius:12px;color:#f2eafd}
+h1{font-size:clamp(26px,5vw,40px);letter-spacing:-.045em;margin:0 0 10px}
+p{line-height:1.5}.muted{color:#bcb4c8}.lead{max-width:710px;margin-bottom:22px}
+.controls{border:1px solid #493b5d;border-radius:16px;padding:16px;background:#1c1a29;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:13px;align-items:end}
+label{font-weight:650;font-size:13px;display:block;margin:0 0 8px;color:#d7c5e7}
+select{width:100%;background:#282338;border:1px solid #6c587a;color:white;border-radius:11px;font:inherit;font-size:15px;padding:11px 12px}
+button{width:100%;font:700 15px system-ui;border:0;background:#a47af0;color:#160d27;padding:12px;border-radius:11px;cursor:pointer}
+button:disabled{opacity:.6}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:#b4aac3;margin-top:16px;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:11px;margin-top:18px}
+.panel{border:1px solid #41364e;background:linear-gradient(140deg,#262035,#1b1a25);border-radius:16px;padding:17px}
+.panel strong{display:block;font-size:clamp(18px,4vw,27px);letter-spacing:-.02em;margin-top:8px}
+.panel small{color:#c2b4cd;font-size:12px}
+h2{margin:30px 0 12px;font-size:20px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #383045}
+.row:last-child{border-bottom:0}
+.row span:first-child{color:#b8abc8}
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:13px}
+.side{border:1px solid #4e405b;background:#211d2c;padding:17px;border-radius:16px}
+.side.selected{border-color:#a97cff;box-shadow:0 0 0 1px #a97cff30}
+.side h3{margin:0 0 12px}
+.note{border:1px solid #6b4a70;background:#2b202f;border-radius:14px;padding:14px 16px;margin-top:22px;color:#eee0ef;font-size:14px;line-height:1.5}
+.bps{color:#b59dcc;font-size:14px}
+.bad{color:#ff9d9f}.ok{color:#91e4b7}.warn{color:#f4c083}
+#results[hidden]{display:none}#loading{min-height:25px}
+</style>
+</head>
+<body>
+<main>
+<header><span class="brand">◈ WEEX RADAR · DEPTH WATCH</span><a class="back" href="/">← Наш радар</a></header>
+<h1>🌊 Ликвидность WEEX</h1>
+<p class="muted lead">Пункт №4 · наблюдение за текущим стаканом фьючерсов. Проверяем спред, видимые объёмы покупки/продажи и моделируем влияние объёма на цену. <b>Не влияет на сигналы LONG/SHORT.</b></p>
+<div class="controls">
+ <div><label for="symbol">Торговая пара</label><select id="symbol">
+ <option>BTCUSDT</option><option>ETHUSDT</option><option>XRPUSDT</option><option>SOLUSDT</option>
+ <option>ALGOUSDT</option><option>1000SHIBUSDT</option><option>DOGEUSDT</option><option>XAUTUSDT</option>
+ <option>ZECUSDT</option><option>1000PEPEUSDT</option><option>HYPEUSDT</option><option>BNBUSDT</option>
+ <option>ADAUSDT</option><option>LINKUSDT</option><option>SUIUSDT</option><option>AVAXUSDT</option>
+ </select></div>
+ <div><label for="notional">Объём позиции (USDT)</label><select id="notional">
+ <option value="500">500 USDT</option><option value="1000">1 000 USDT</option>
+ <option value="2500" selected>2 500 USDT</option><option value="5000">5 000 USDT</option>
+ </select></div>
+ <div><label for="direction">Направление для примера</label><select id="direction">
+ <option>LONG</option><option>SHORT</option></select></div>
+ <div><button type="button" id="check">Проверить стакан</button></div>
+</div>
+<div class="bar"><span id="loading" role="status">Подготавливаем проверку…</span><span id="timestamp"></span></div>
+<div id="results" hidden>
+ <div class="grid">
+  <div class="panel"><small>Лучшая цена BID (продажа)</small><strong id="bid">—</strong></div>
+  <div class="panel"><small>Лучшая цена ASK (покупка)</small><strong id="ask">—</strong></div>
+  <div class="panel"><small>Спред, в б.п.</small><strong id="spread">—</strong><small id="spreadlabel"></small></div>
+ </div>
+ <h2>Видимая глубина стакана</h2>
+ <div class="panel">
+  <div class="row"><span>Покупатели (BID), в пределах 0,25%</span><b id="bid025">—</b></div>
+  <div class="row"><span>Продавцы (ASK), в пределах 0,25%</span><b id="ask025">—</b></div>
+  <div class="row"><span>Покупатели (BID), в пределах 0,5%</span><b id="bid050">—</b></div>
+  <div class="row"><span>Продавцы (ASK), в пределах 0,5%</span><b id="ask050">—</b></div>
+ </div>
+ <h2>Моделирование исполнения</h2>
+ <div class="compare">
+  <div class="side" id="long-card"><h3>📈 LONG — покупка</h3>
+   <div class="row"><span>Уровней затронуто</span><b id="long-levels">—</b></div>
+   <div class="row"><span>Покрытие объёма</span><b id="long-covered">—</b></div>
+   <div class="row"><span>Средняя цена*</span><b id="long-average">—</b></div>
+   <div class="row"><span>Влияние на цену*</span><b id="long-impact">—</b></div>
+   <p class="muted" id="long-assessment"></p>
+  </div>
+  <div class="side" id="short-card"><h3>📉 SHORT — продажа</h3>
+   <div class="row"><span>Уровней затронуто</span><b id="short-levels">—</b></div>
+   <div class="row"><span>Покрытие объёма</span><b id="short-covered">—</b></div>
+   <div class="row"><span>Средняя цена*</span><b id="short-average">—</b></div>
+   <div class="row"><span>Влияние на цену*</span><b id="short-impact">—</b></div>
+   <p class="muted" id="short-assessment"></p>
+  </div>
+ </div>
+</div>
+<div class="note">⚠️ <b>*Примерная модель, не цена исполнения.</b> Рассчитываем влияние на цену, предполагая, что размер уровня стакана выражен в базовом активе. WEEX V3 не уточняет единицу в открытом описании — поэтому симуляцию нельзя считать точным прогнозом проскальзывания. Стакан меняется каждую секунду, API не сообщает время снимка; комиссии, funding и задержка не учтены. Плечо увеличивает риск, а не ликвидность. Здесь не выполняются сделки.</div>
+<p class="muted" style="font-size:13px">Снимок запрашивается при открытии страницы и по кнопке, без постоянного фонового опроса. Источник — публичный фьючерсный WEEX V3, только WEEX; Bybit сюда не подмешивается. Максимум 200 видимых уровней на сторону. Режим наблюдения не блокирует и не ускоряет торговые сигналы.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const symbols=new Set(['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT']);
+const params=new URLSearchParams(location.search);
+if(symbols.has(params.get('symbol')))$('symbol').value=params.get('symbol');
+if(['LONG','SHORT'].includes(params.get('direction')))$('direction').value=params.get('direction');
+const price=x=>typeof x==='number'&&Number.isFinite(x)?x.toLocaleString('ru-RU',{maximumFractionDigits:8}):'—';
+const value=x=>typeof x==='number'&&Number.isFinite(x)?x.toLocaleString('ru-RU',{maximumFractionDigits:2}):'—';
+function drawSide(name,side){
+ $(''+name+'-levels').textContent=side.levelsUsed;
+ $(''+name+'-covered').textContent=value(side.coveredPct)+'%';
+ $(''+name+'-average').textContent=side.fullFill?price(side.averagePrice):'Недостаточно данных';
+ $(''+name+'-impact').textContent=side.fullFill?value(side.impactBps)+' б.п.':'Нельзя оценить';
+ $(''+name+'-assessment').textContent=side.assessment;
+}
+function draw(data){
+ $('bid').textContent=price(data.bestBid);
+ $('ask').textContent=price(data.bestAsk);
+ $('spread').textContent=value(data.spreadBps)+' б.п.';
+ $('spreadlabel').textContent=data.spreadLabel+' (примерно '+value(data.spreadPct)+'%)';
+ for(const side of ['bid','ask'])for(const range of ['025','050'])
+  $(side+range).textContent=value(data.nearDepthUSDT[side+range])+' USDT';
+ drawSide('long',data.long);
+ drawSide('short',data.short);
+ $('long-card').classList.toggle('selected',$('direction').value==='LONG');
+ $('short-card').classList.toggle('selected',$('direction').value==='SHORT');
+ $('timestamp').textContent='Получено: '+new Date(data.fetchedAt).toLocaleTimeString('ru-RU',
+  {timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+ $('results').hidden=false;
+ $('loading').textContent='✅ Снимок стакана WEEX получен. Для свежих цен нажми кнопку ещё раз.';
+}
+async function check(){
+ $('check').disabled=true;
+ $('loading').textContent='Получаем стакан с WEEX…';$('timestamp').textContent='';
+ $('results').hidden=true;
+ const symbol=$('symbol').value,notional=$('notional').value,direction=$('direction').value;
+ try{
+  const response=await fetch('/api/signals?mode=liquidity&symbol='+encodeURIComponent(symbol)+
+   '&notional='+encodeURIComponent(notional),{cache:'no-store'});
+  const body=await response.json();
+  if(!response.ok)throw Error(body.reason||body.error||'Нет ответа WEEX');
+  if(body.symbol!==symbol||body.exchange!=='WEEX')throw Error('Биржа не совпадает');
+  draw(body);
+  const next=new URL(location.href);
+  next.searchParams.set('symbol',symbol);next.searchParams.set('direction',direction);
+  history.replaceState(null,'',next);
+ }catch(e){$('loading').textContent='⚠️ '+(e.message||'Снимок временно недоступен')+'. Сигналы бота продолжают работать.'}
+ finally{$('check').disabled=false}
+}
+$('check').addEventListener('click',check);
+$('direction').addEventListener('change',()=>{
+ $('long-card').classList.toggle('selected',$('direction').value==='LONG');
+ $('short-card').classList.toggle('selected',$('direction').value==='SHORT');
+});
+check();
+</script>
+</body></html>
