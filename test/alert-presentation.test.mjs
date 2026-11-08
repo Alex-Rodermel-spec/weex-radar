@@ -54,5 +54,6 @@ test('presentation does not modify live scanner, notification dedup, or cron',()
  assert.doesNotMatch(f,/fetch\(|trade-confirm|trade-prepare|PUSH_CRON_KEY|NTFY_TOPIC/);
  assert.match(n,/sequenceForSignal\(kind,s\)/);
  assert.match(n,/formatPhoneAlert\(s,\{early:isEarly,deadline\}\)/);
- assert.match(p,/formatPhoneAlert\(primary/);
+ assert.match(p,/ntfySend\('confirmed',signals\)/);
+ assert.doesNotMatch(p,/webpush|telegramSend|telegramPoll/);
 });

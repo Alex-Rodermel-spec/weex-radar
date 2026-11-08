@@ -51,8 +51,11 @@ test('expired alerts still stay hidden',async()=>{
  const notices=await renderNotification({...sample(now),sentAt:now-70000,expiresAt:now-1},now);
  assert.equal(notices.length,0);
 });
-test('server stamps dispatch and dashboard reports acknowledged latency',()=>{
- assert.match(dispatcher,/sentAt:Date\.now\(\)/);
+test('ntfy messages keep candle, sent time and lag; historical Chrome receipts remain visible',()=>{
+ const ntfy=readFileSync(new URL('../lib/ntfy-alerts.mjs',import.meta.url),'utf8');
+ assert.match(ntfy,/const stampedAt=Date\.now\(\)/);
+ assert.match(ntfy,/задержка '\+lagSec\+'с/);
+ assert.match(dispatcher,/ntfySend\('confirmed',signals\)/);
  assert.match(page,/Math\.round\(\(s\.workerAt-s\.at\)\/1000\)/);
  assert.match(page,/Доставка запоздала/);
 });

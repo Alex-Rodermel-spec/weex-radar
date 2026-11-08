@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
-test('batches concurrent market signals into one notification to avoid spam',()=>{
- const s=read('../api/push-dispatch.mjs');
- assert.match(s,/const pending=\[\]/);
- assert.match(s,/const selected=pending\.map/);
- assert.match(s,/await webpush\.sendNotification\(subscriber/);
- assert.match(s,/for\(const \{mark,retry\} of pending\)/);
- assert.match(s,/deliveryProof=createHmac\('sha256'/);
+test('ntfy deduplicates per candle and sends at most six fresh signals per scan',()=>{
+ const dispatch=read('../api/push-dispatch.mjs'),ntfy=read('../lib/ntfy-alerts.mjs');
+ assert.match(dispatch,/ntfySend\('confirmed',signals\)/);
+ assert.match(ntfy,/sequenceForSignal\(kind,s\)/);
+ assert.match(ntfy,/previous\.has\(id\)/);
+ assert.match(ntfy,/\.slice\(0,6\)/);
+ assert.match(ntfy,/signal\.candleCloseTime/);
+ assert.doesNotMatch(dispatch,/webpush\.sendNotification/);
 });
 test('push worker acknowledges invocation without pretending Android displayed it',()=>{
  const sw=read('../sw.js'),subscribe=read('../api/push-subscribe.mjs');
@@ -27,72 +28,56 @@ test('interactive push checks also carry a worker receipt token',()=>{
  assert.match(html,/Баннер и звук Android отдельно не подтверждены/);
 });
 
-test('background push test is queued, sent through cron and acknowledged independently of a page',()=>{
+test('legacy Chrome background diagnostics may remain queued but ntfy-only cron never processes them',()=>{
  const dispatch=read('../api/push-dispatch.mjs');
  const subscribe=read('../api/push-subscribe.mjs');
  const worker=read('../sw.js');
  const html=read('../index.html');
  assert.match(subscribe,/queueBackgroundTest===true/);
  assert.match(subscribe,/background-tests\//);
- assert.match(dispatch,/async function sendDueBackgroundTests/);
- assert.match(dispatch,/background-test-locks\//);
- assert.match(dispatch,/kind=signalStyle\?'signal_test':'background_test'/);
- assert.match(dispatch,/sendDueBackgroundTests\(\)/);
+ assert.doesNotMatch(dispatch,/sendDueBackgroundTests\(/);
  assert.match(worker,/background_test/);
  assert.match(html,/id="bg-test"/);
- assert.match(html,/scheduleBackgroundPushTest/);
- assert.match(html,/pageshow/);
+ assert.match(html,/disabled title="Временно выключено/);
+ assert.match(html,/NTFY_ONLY_ALERTS=true/);
 });
-
-test('signals without worker receipt are retried at most once before expiry',()=>{
+test('ntfy stable sequence IDs prevent duplicate Android alerts without worker receipts',()=>{
+ const dispatch=read('../api/push-dispatch.mjs');
+ const ntfy=read('../lib/ntfy-alerts.mjs');
+ assert.match(ntfy,/recentNtfySequences\(topic\)/);
+ assert.match(ntfy,/const id=sequenceForSignal\(kind,s\)/);
+ assert.match(ntfy,/previous\.has\(id\)/);
+ assert.match(ntfy,/sequenceId:id/);
+ assert.doesNotMatch(dispatch,/mayRetrySignal|push-deliveries\//);
+});
+test('ntfy handles confirmation urgency and expiry while old Chrome receipts remain read-only',()=>{
  const dispatch=read('../api/push-dispatch.mjs');
  const subscribe=read('../api/push-subscribe.mjs');
- assert.match(dispatch,/async function mayRetrySignal\(mark,signal\)/);
- assert.match(dispatch,/now-sent\.firstSentAt<55000/);
- assert.match(dispatch,/signal\.expiresAt<now\+30000/);
- assert.match(dispatch,/signalReceiptPath\(mark\)/);
- assert.match(dispatch,/allowOverwrite:false/);
- assert.match(dispatch,/if\(await mayRetrySignal\(mark,signal\)\)/);
- assert.match(dispatch,/pending\.push\(\{signal,mark,retry:true\}\)/);
- assert.match(dispatch,/push-deliveries\//);
- assert.match(subscribe,/kind==='signal'/);
- assert.match(subscribe,/batch\.marks/);
- assert.match(subscribe,/receipts\/signals\//);
-});
-
-test('signal notification priority, expiry and separately signed live signal receipt diagnostics',()=>{
- const dispatch=read('../api/push-dispatch.mjs');
- const subscribe=read('../api/push-subscribe.mjs');
- const sw=read('../sw.js');
- const html=read('../index.html');
- assert.match(sw,/renotify:isSignal&&!isEarly,requireInteraction:isSignal&&!isEarly/);
- assert.match(sw,/isSignal&&Number\.isFinite\(expiration\).*result='expired'/);
+ const ntfy=read('../lib/ntfy-alerts.mjs');
+ const sw=read('../sw.js'),html=read('../index.html');
+ assert.match(ntfy,/priority:isEarly\?4:5/);
+ assert.match(ntfy,/s\.expiresAt<=stampedAt\+12000/);
+ assert.match(ntfy,/fresh\(s\)/);
+ assert.match(dispatch,/deliveryMode:'ntfy-only'/);
  assert.match(subscribe,/receipts\/last-signals\//);
- assert.match(subscribe,/signalDelivery/);
- assert.match(dispatch,/signal-status\//);
- assert.match(html,/id="signal-delivery"/);
+ assert.match(sw,/renotify:isSignal&&!isEarly,requireInteraction:isSignal&&!isEarly/);
  assert.match(html,/function showSignalDeliveryHealth\(checked\)/);
- assert.match(html,/Chrome не подтвердил получение/);
  assert.doesNotThrow(()=>new Script(sw,{filename:'sw.js'}));
- const script=html.match(/<script>([\s\S]*?)<\/script>/);
- assert.ok(script);
- assert.doesNotThrow(()=>new Script(script[1],{filename:'index.html'}));
 });
-
-test('signal-style closed-browser test mimics real alerts but is explicitly not a trade',()=>{
+test('legacy Chrome signal tests are opt-in and disconnected; ntfy never submits trades',()=>{
  const dispatcher=read('../api/push-dispatch.mjs');
  const subscribe=read('../api/push-subscribe.mjs');
  const worker=read('../sw.js');
  const html=read('../index.html');
- assert.match(dispatcher,/ТЕСТ LONG BTCUSDT — НЕ СДЕЛКА/);
- assert.match(dispatcher,/kind=signalStyle\?'signal_test':'background_test'/);
- assert.match(dispatcher,/url:'\/'/);
+ const ntfy=read('../lib/ntfy-alerts.mjs');
+ assert.doesNotMatch(dispatcher,/sendDueBackgroundTests|webpush|trade-confirm/);
  assert.match(subscribe,/mode:req\.body\?\.signalStyle===true/);
  assert.match(worker,/msg\.kind==='signal_test'/);
  assert.match(html,/id="signal-test"/);
  assert.match(html,/scheduleBackgroundPushTest\(true\)/);
- const script=html.match(/<script>([\s\S]*?)<\/script>/);
- assert.ok(script);
- assert.doesNotThrow(()=>new Script(script[1],{filename:'index.html'}));
+ assert.match(html,/const NTFY_ONLY_ALERTS=true/);
+ assert.doesNotMatch(ntfy,/trade-confirm|trade-prepare|\/capi\/v3\/order/);
  assert.doesNotThrow(()=>new Script(worker,{filename:'sw.js'}));
+ const script=html.match(/<script>([\s\S]*?)<\/script>/);
+ assert.ok(script);assert.doesNotThrow(()=>new Script(script[1],{filename:'index.html'}));
 });
