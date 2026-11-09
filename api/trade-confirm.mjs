@@ -14,8 +14,13 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function inspectPosition(symbol,direction){
   const all=await weex.positions();
   if(!Array.isArray(all))throw Error('Cannot confirm exchange position');
-  const p=all.find(x=>x?.symbol===symbol&&x?.side===direction&&Number(x.size)>0);
-  return p||null;
+  const same=all.filter(x=>x?.symbol===symbol&&Number(x.size)>0);
+  // A simultaneous manual hedge or competing same-symbol entry makes the
+  // source of exposure ambiguous. Never label the result bot-owned.
+  if(same.length>1)throw Error('Concurrent manual position on same symbol; inspect WEEX');
+  const p=same[0]||null;
+  if(p&&p.side!==direction)throw Error('Unexpected manual position on same symbol; inspect WEEX');
+  return p;
 }
 async function closeUnprotected(symbol,position){
   if(!position?.id)throw Error('Safety stop: position id unavailable. Manual WEEX intervention required.');
