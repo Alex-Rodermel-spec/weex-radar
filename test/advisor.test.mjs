@@ -39,11 +39,11 @@ test('never green for expired, stale, missing quote or missing costs',()=>{
  assert.equal(adviseSymbol({...x,costReview:{...x.costReview,status:'COSTS_EXCEED_TP',netRR:-.3}},NOW).status,'SKIP');
 });
 
-test('retest is required, and failed retest never gets green',()=>{
+test('fresh cost-eligible breakout can be checked before retest; failed retest remains blocked',()=>{
  const x=signal('LONG');
- assert.equal(adviseSymbol({...x,retest:{}},NOW).status,'WAIT');
+ assert.equal(adviseSymbol({...x,retest:{}},NOW).status,'REVIEW');
  assert.equal(adviseSymbol({...x,retest:{LONG:{status:'FAILED'}}},NOW).status,'SKIP');
- assert.equal(adviseSymbol({...x,retest:{LONG:{status:'CONFIRMED',trendAligned:false}}},NOW).status,'WAIT');
+ assert.equal(adviseSymbol({...x,retest:{LONG:{status:'CONFIRMED',trendAligned:false}}},NOW).status,'REVIEW');
 });
 
 test('no technical setup or exchange data cannot claim an entry',()=>{
