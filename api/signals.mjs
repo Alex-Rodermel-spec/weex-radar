@@ -1,5 +1,6 @@
 // WEEX RADAR — market data only, no exchange keys and no trading.
 import {checkConfirmedEntry} from '../lib/entry-quality.mjs';
+import {ACTIVE_STRATEGY} from '../lib/strategy-profile.mjs';
 import {assessNetCosts} from '../lib/net-costs.mjs';
 import {adviseSymbol,summarizeAdvisor} from '../lib/advisor.mjs';
 import {evaluateStructure} from '../lib/market-structure.mjs';
@@ -121,8 +122,8 @@ function getAnalysis(five,fifteen,livePrice=null,referenceNow=Date.now()){
  })};
  const score=direction?Math.round(Math.min(95,65+(volumeRatio>=1.3?12:0)+(volumeRatio>=1.8?6:0)+((direction==='LONG'?r>=60:r<=40)?4:0)+(Math.abs(e20-e50)/last.close>.003?5:0)+(Math.abs(t20-t50)/last.close>.004?5:0))):null;
  return {direction,filterDiagnostic,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
- stop:direction?(direction==='LONG'?last.close-1.2*volatility:last.close+1.2*volatility):null,
- take:direction?(direction==='LONG'?last.close+2.4*volatility:last.close-2.4*volatility):null,
+ stop:direction?(direction==='LONG'?last.close-ACTIVE_STRATEGY.stopAtr*volatility:last.close+ACTIVE_STRATEGY.stopAtr*volatility):null,
+ take:direction?(direction==='LONG'?last.close+ACTIVE_STRATEGY.takeAtr*volatility:last.close-ACTIVE_STRATEGY.takeAtr*volatility):null,
  entryQuality,shadowFilter,sidewaysGate,retest,levelReview,shadowIndicators:contextOnly,trapReview,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
  livePrice:Number.isFinite(livePrice)&&livePrice>0?livePrice:null,
  reason:direction?'Свежая котировка API · пробой 5м · тренд 15м · RSI '+Math.round(r):

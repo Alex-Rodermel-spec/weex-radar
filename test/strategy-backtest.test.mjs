@@ -96,12 +96,12 @@ test('closed 15m candles must not be borrowed from the future when replaying 5m'
  assert.equal(typeof v.filtered.tpNetPositive,'number');
  assert.ok(v.rawCandidates>=v.filtered.setups);
  assert.equal(v.historicalEconomicStudy.total,v.filtered.setups);
- assert.equal(v.sensitivity.variants.CURRENT.minNetRR,1.5);
+ assert.equal(v.sensitivity.variants.PREVIOUS.minNetRR,1.5);
  assert.equal(v.sensitivity.variants.MODERATE.minNetRR,1.3);
  assert.equal(v.sensitivity.variants.MODERATE.takeAtr,3);
- assert.ok(v.sensitivity.variants.CURRENT.planEligible<=v.sensitivity.variants.CURRENT.netRRPass);
+ assert.ok(v.sensitivity.variants.PREVIOUS.planEligible<=v.sensitivity.variants.PREVIOUS.netRRPass);
  assert.ok(v.sensitivity.variants.MODERATE.planEligible<=v.sensitivity.variants.MODERATE.netRRPass);
- assert.equal(v.sensitivity.variants.CURRENT.checked,v.rawCandidates-v.excludedEntryGap);
+ assert.equal(v.sensitivity.variants.PREVIOUS.checked,v.rawCandidates-v.excludedEntryGap);
  assert.equal(v.historicalPullbackStudy.total,v.filtered.setups);
  assert.equal(v.historicalPullbackStudy.fillRate,null);
  assert.match(v.historicalEconomicStudy.disclaimer,/ZERO spread/);
