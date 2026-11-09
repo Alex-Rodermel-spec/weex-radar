@@ -2,6 +2,7 @@
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled} from '../lib/weex-order.mjs';
 import {_test} from './signals.mjs';
 import {readinessSummary} from '../lib/trade-readiness.mjs';
+import {readOwnedPortfolio,verifyOtherBotProtection} from '../lib/trade-ownership.mjs';
 export default async function handler(req,res) {
  res.setHeader('Cache-Control','private, no-store');
  res.setHeader('X-Content-Type-Options','nosniff');
@@ -16,7 +17,9 @@ export default async function handler(req,res) {
    weex.account(),weex.balance(),weex.positions(),weex.openOrders(),
    weex.symbolConfig(symbol),weex.info(symbol),weex.book(symbol),weex.apiTradingSymbols()
   ]);
-  const summary=readinessSummary({symbol,account,balance,positions,orders,settings,info,book,apiTradingSymbols});
+  const portfolio=await readOwnedPortfolio(positions);
+  await verifyOtherBotProtection(portfolio,sym=>weex.openAlgoOrders(sym));
+  const summary=readinessSummary({symbol,account,balance,positions,orders,settings,info,book,apiTradingSymbols,portfolio});
   return res.status(200).json({ok:true,...summary,liveEnabled:liveEnabled(),
    note:'Read-only. Account flag does not prove API Futures order permission or TP/SL execution.'});
  }catch(err) {
