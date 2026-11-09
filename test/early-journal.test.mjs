@@ -96,8 +96,8 @@ test('ciphertext from previous journal version WITHOUT earlyRows remains readabl
  const confirmed=[{symbol:'ETHUSDT',direction:'SHORT',level:'NORMAL',
   entry:100,stop:101,take:98,sentAt:NOW-5*MINUTE,
   status:'SL',outcomeAt:NOW-2*MINUTE,shadow:'LEGACY'}];
- const key=createHash('sha256').update('weex:journal:v1\\0')
-  .update(env.PUSH_CRON_KEY).update('\\0').update(env.NTFY_TOPIC).digest();
+ const key=createHash('sha256').update('weex:journal:v1\0')
+  .update(env.PUSH_CRON_KEY).update('\0').update(env.NTFY_TOPIC).digest();
  const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv);
  cipher.setAAD(Buffer.from('WEEX-RADAR-JOURNAL-v1'));
  const plain=Buffer.from(JSON.stringify({version:1,days:90,rows:confirmed}));
