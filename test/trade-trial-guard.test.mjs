@@ -25,8 +25,8 @@ test('global atomic lock, per-signal idempotency and explicit human approval are
  assert.match(confirm,/orderAttempted=true/);
  assert.match(confirm,/if\(locked&&!orderAttempted\)/);
  assert.match(confirm,/CONFIRM_REAL_WEEX_ORDER/);
- assert.match(confirm,/validateHumanPassword/);
- assert.match(prepare,/validateHumanPassword/);
+ assert.match(confirm,/authenticatedTradeSession/);
+ assert.match(prepare,/authenticatedTradeSession/);
  assert.match(order,/TRADE_LIMITS\.maxConcurrent/);
 });
 
