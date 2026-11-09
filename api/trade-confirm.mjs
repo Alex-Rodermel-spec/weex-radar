@@ -2,6 +2,8 @@
 // Fail-closed on any network ambiguity. One global persistent atomic lock.
 import {get,put,del} from '@vercel/blob';
 import {_test} from './signals.mjs';
+import {verifyActiveProtection} from '../lib/trade-protection.mjs';
+import {dayTradeKey} from '../lib/trade-trial-guard.mjs';
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
   verifyAccount,checkAvailableMargin,checkPositions,checkOrders,checkSymbolSettings,marketPlan,
   orderPayload,isAccepted,fingerprint} from '../lib/weex-order.mjs';
@@ -49,6 +51,7 @@ export default async function handler(req,res){
   if(!_test.SYMBOLS.includes(plan.symbol)||plan.exchange!=='WEEX')
     return res.status(409).json({error:'Unsafe proposal'});
   let locked=false,orderAttempted=false;
+  let dailyReserved=false,dailyPath=null;
   const hash=fingerprint(req.body.proposal);
   let tradeClientId;
   try{
@@ -101,6 +104,20 @@ export default async function handler(req,res){
       throw Error('Price moved while configuring leverage. Prepare a new trade.');
     const order=orderPayload(finalPlan);
     tradeClientId=order.newClientOrderId;
+    // Reserve one real order attempt per Berlin day atomically in the
+    // existing private Blob store. No extra services or schedules.
+    // If anything fails before reaching WEEX, release the reservation.
+    // Once a request is transmitted, retain it even if WEEX times out.
+    dailyPath=dayTradeKey();
+    try{
+      await put(dailyPath,JSON.stringify({symbol:plan.symbol,at:Date.now()}),
+        {access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+      dailyReserved=true;
+    }catch(e){
+      if(isBlobConflict(e))
+        throw Error('Trial safety: one bot order attempt per Berlin day already used');
+      throw e;
+    }
     // Idempotency is by signal candle + direction; never open the same signal twice.
     const signalHash=fingerprint(tradeClientId);
     try{
@@ -122,18 +139,36 @@ export default async function handler(req,res){
       await sleep(400);
     }
     if(!p)throw Error('Order accepted but position not yet visible. CHECK WEEX.');
-    // Attached TP/SL was included in the initial order; the API does not
-    // expose guaranteed confirmation in the order response, so never claim it was verified.
-    // Fail closed and ask the owner to check protection before unlocking.
+    // Post-order server-side check is READ-ONLY. The exchange may register
+    // attached conditional orders asynchronously; do not infer protection
+    // from the order acceptance response. Keep the global lock until the
+    // owner's separate manual release rechecks both orders from WEEX.
+    let protection={verified:false,stop:false,take:false};
+    for(let i=0;i<3;i++){
+      try {
+        const algo=await weex.openAlgoOrders(plan.symbol);
+        protection=verifyActiveProtection(algo,finalPlan,p);
+        if(protection.verified)break;
+      }catch {
+        protection={verified:false,stop:false,take:false};
+      }
+      if(i<2)await sleep(450);
+    }
     return res.status(202).json({ok:true,status:'PLACED_CHECK_PROTECTION',symbol:plan.symbol,
       direction:plan.direction,orderId:id,clientOrderId:tradeClientId,
       stopLoss:plan.stopLoss,takeProfit:plan.takeProfit,
-      message:'Order accepted. Immediately verify TP and SL in WEEX. New orders blocked until safety release.'});
+      protectionVerified:protection.verified,
+      message:protection.verified?
+        'WEEX reported BOTH active closing TP/SL orders. Check them personally in WEEX; other orders remain locked until manual safety release.':
+        'URGENT: WEEX did NOT verify BOTH active closing TP/SL orders. Check WEEX now and protect/close this position manually if needed. Other trades remain locked.'});
   }catch(e){
     const message=String(e?.message||'Unknown trading error').slice(0,180);
     // If any order was transmitted, DO NOT RELEASE LOCK on ambiguous outcome.
     return res.status(409).json({error:message,requiresManualCheck:orderAttempted});
   }finally{
+    if(dailyReserved&&!orderAttempted){
+      try{await del(dailyPath);}catch{}
+    }
     if(locked&&!orderAttempted){
       // Do not suppress an unknown outcome if a request to WEEX was made.
       try{await del(LOCK);}catch{}

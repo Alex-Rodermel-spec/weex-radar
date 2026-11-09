@@ -29,7 +29,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <header><a class="back" href="/">← Назад к сигналам WEEX RADAR</a>
 <h1>WEEX RADAR · Торговля</h1>
 <span class="pill" id="mode">🔒 Статус: не проверен</span>
-<p class="muted">Реальные фьючерсы WEEX · маржа 50 USDT · плечо 10× · не более 3 разных монет. Новые сделки допускаются только при расчётном чистом R/R ≥1,5 и риске по стопу с модельными расходами ≤10 USDT. Каждую сделку подтверждаешь лично ты.</p>
+<p class="muted">Реальные фьючерсы WEEX · маржа 50 USDT · плечо 10× · первая тестовая торговля: только 1 открытая позиция и 1 новая заявка в день (время Берлина). Новые сделки допускаются только при расчётном чистом R/R ≥1,5 и риске по стопу с модельными расходами ≤10 USDT. Каждую сделку подтверждаешь лично ты.</p>
 <section class="box">
 <h2>1. Подключение и вход</h2>
 <label for="password">Личный пароль подтверждения RADAR</label>
@@ -67,7 +67,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 </section>
 <section class="box">
 <h2>Защита</h2>
-<p class="muted">Вывод средств через API не используется. Бот не открывает позиции без подтверждения. При смене сигнала, цены, расчётном риске свыше 10 USDT с комиссиями/спредом/проскальзыванием, чистом R/R ниже 1,5, отсутствии защиты, открытых ордерах или ошибках WEEX — отклоняет вход.</p>
+<p class="muted">В пробном режиме допускается одна реальная попытка открытия позиции через робота в день, даже если биржа не подтвердила исполнение. Это НЕ лимит фактических дневных убытков аккаунта WEEX. Вывод средств через API не используется. Бот не открывает позиции без подтверждения. При смене сигнала, цены, расчётном риске свыше 10 USDT с комиссиями/спредом/проскальзыванием, чистом R/R ниже 1,5, отсутствии защиты, открытых ордерах или ошибках WEEX — отклоняет вход.</p>
 <p class="alert">Если ордер уже был отправлен, но связь прервалась, сначала проверь приложение WEEX. Повторно нажимать вход нельзя.</p>
 </section>
 </main>
@@ -116,7 +116,7 @@ $('status').onclick=()=>run($('status'),async()=>{
  mode.textContent='⏳ Идёт проверка';
  try{
    const d=await post('/api/trade-status',{password:$('password').value});
-   account.textContent='✅ WEEX API подключён · Двусторонний режим: '+(d.hedgeMode?'да':'нет')+' · Открыто позиций: '+d.openPositions+'/3 · Реальные ордера: '+(d.liveEnabled?'разрешены':'ВЫКЛЮЧЕНЫ')+'.';
+   account.textContent='✅ WEEX API подключён · Двусторонний режим: '+(d.hedgeMode?'да':'нет')+' · Открыто позиций: '+d.openPositions+'/'+d.maxConcurrent+' · Реальные ордера: '+(d.liveEnabled?'разрешены':'ВЫКЛЮЧЕНЫ')+'.';
    mode.textContent=d.liveEnabled?'🟢 Реальный режим разрешён':'✅ WEEX подключён · торговля выключена';
  }catch(e){
    const detail=String(e?.message||'Не удалось связаться с сервером');
@@ -139,7 +139,7 @@ $('preflight').onclick=()=>run($('preflight'),async()=>{
  try {
   const d=await post('/api/trade-preflight',{symbol:$('symbol').value,password:$('password').value});
   const captions={accountTradeFlag:'Аккаунт разрешает торговлю',hedgeMode:'Двусторонний режим',
-   collateral55Usdt:'Доступно ≥55 USDT',positionCapacity:'Меньше 3 открытых позиций',
+   collateral55Usdt:'Доступно ≥55 USDT',positionCapacity:'Нет других открытых позиций (пробный режим: максимум 1)',
    noSameCoinPosition:'Нет позиции на этой монете',noPendingEntryOrders:'Нет открытых ордеров на вход',
    apiListed:'Фьючерс доступен через API',supportedMarket:'Фьючерс поддерживается',
    freshOrderBook:'Цены актуальные',compatiblePositionSettings:'Режим позиции поддерживается'};
@@ -193,7 +193,7 @@ $('confirm').onclick=()=>run($('confirm'),async()=>{
  const token=approvalToken;approvalToken=null;$('approval').hidden=true;
  message('Отправляю подтверждённый ордер WEEX с TP/SL… Не нажимай повторно.');
  const d=await post('/api/trade-confirm',{proposal:token,password:$('password').value,confirmation:'CONFIRM_REAL_WEEX_ORDER'});
- message('WEEX принял ордер '+d.orderId+'. СЕЙЧАС проверь Stop-Loss и Take-Profit в WEEX. До проверки новые сделки заблокированы.');
+ message(d.protectionVerified?'✅ WEEX сообщил о двух активных защитных ордерах для '+d.orderId+'. Проверь их лично в приложении WEEX. Следующие сделки заблокированы до ручного подтверждения.':'🚨 ОРДЕР '+d.orderId+' ОТПРАВЛЕН, но WEEX пока НЕ подтвердил оба защитных ордера! СРОЧНО проверь TP/SL и при необходимости закрой позицию в WEEX. Следующие сделки заблокированы.');
  $('released').hidden=false;$('verified').checked=false;$('unlock').disabled=true;
 });
 $('verified').onchange=()=>{$('unlock').disabled=!$('verified').checked};

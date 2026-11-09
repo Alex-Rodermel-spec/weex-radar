@@ -44,10 +44,11 @@ test('rejects missing authentication, cross-site requests and disabled live flag
   process.env.WEEX_MAX_OPEN_POSITIONS='4';assert.equal(liveEnabled(),false);
   Object.assign(process.env,backup);
 });
-test('one trade per coin and at most 3 concurrent with pending orders blocked',()=>{
+test('trial permits only one concurrent position with pending orders blocked',()=>{
   const p=(symbol)=>({symbol,size:'0.5'});
-  assert.equal(checkPositions([p('BTCUSDT'),p('ETHUSDT')],'XRPUSDT'),2);
-  assert.throws(()=>checkPositions([p('BTCUSDT'),p('ETHUSDT'),p('SOLUSDT')],'XRPUSDT'),/Maximum/);
+  assert.equal(checkPositions([],'XRPUSDT'),0);
+  assert.throws(()=>checkPositions([p('BTCUSDT')],'XRPUSDT'),/maximum 1/i);
+  assert.throws(()=>checkPositions([p('BTCUSDT'),p('ETHUSDT')],'XRPUSDT'),/maximum 1/i);
   assert.throws(()=>checkPositions([p('XRPUSDT')],'XRPUSDT'),/already/);
   assert.throws(()=>checkOrders([{symbol:'BTCUSDT',reduceOnly:false}]),/Pending/);
   assert.doesNotThrow(()=>checkOrders([{symbol:'BTCUSDT',reduceOnly:true}]));
