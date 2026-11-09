@@ -91,7 +91,7 @@ test('research module never places orders, blocks signal, or changes 1m watch',(
  const traps=readFileSync(new URL('../lib/trap-risk.mjs',import.meta.url),'utf8');
  const web=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(radar,/const trapReview=evaluateTrapRisk\(five,volatility\)/);
- assert.match(radar,/sidewaysGate,retest,shadowIndicators:contextOnly,trapReview/);
+ assert.match(radar,/sidewaysGate,retest,levelReview,shadowIndicators:contextOnly,trapReview/);
  assert.match(radar,/const tentative=candidate&&quality\.ok&&priceQuality\.ok&&entryQuality\?\.ok&&/);
  assert.doesNotMatch(traps,/fetch\(|placeOrder|WEEX_API_SECRET|trade-confirm|@vercel\/blob/);
  assert.doesNotMatch(early,/evaluateTrapRisk|trapReview/);
