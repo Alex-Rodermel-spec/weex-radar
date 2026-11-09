@@ -3,6 +3,7 @@ import {checkConfirmedEntry} from '../lib/entry-quality.mjs';
 import {assessNetCosts} from '../lib/net-costs.mjs';
 import {adviseSymbol,summarizeAdvisor} from '../lib/advisor.mjs';
 import {evaluateStructure} from '../lib/market-structure.mjs';
+import {evaluateLevelReview} from '../lib/level-review.mjs';
 import {checkSidewaysEntry} from '../lib/sideways-gate.mjs';
 import {evaluateRetestBoth} from '../lib/retest-check.mjs';
 import {shadowIndicators} from '../lib/shadow-indicators.mjs';
@@ -82,6 +83,8 @@ function getAnalysis(five,fifteen,livePrice=null,referenceNow=Date.now()){
  const r=rsi(c5),volatility=atr(five),previous=five.slice(-13,-1);
  // Potential stop sweeps / failed breaks are contextual warnings only.
  const trapReview=evaluateTrapRisk(five,volatility);
+ // Advisor-only 5m level explanation; never changes the existing signal gates.
+ const levelReview=evaluateLevelReview(five,volatility);
  // Retest observations use already completed SAME-EXCHANGE 5m candles only.
  // They do not qualify an entry or cancel a fresh breakout notification.
  const aligned15=t20>t50&&fifteen.at(-1).close>t20?'LONG':
@@ -120,7 +123,7 @@ function getAnalysis(five,fifteen,livePrice=null,referenceNow=Date.now()){
  return {direction,filterDiagnostic,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
  stop:direction?(direction==='LONG'?last.close-1.2*volatility:last.close+1.2*volatility):null,
  take:direction?(direction==='LONG'?last.close+2.4*volatility:last.close-2.4*volatility):null,
- entryQuality,shadowFilter,sidewaysGate,retest,shadowIndicators:contextOnly,trapReview,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
+ entryQuality,shadowFilter,sidewaysGate,retest,levelReview,shadowIndicators:contextOnly,trapReview,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
  livePrice:Number.isFinite(livePrice)&&livePrice>0?livePrice:null,
  reason:direction?'Свежая котировка API · пробой 5м · тренд 15м · RSI '+Math.round(r):
  (quality&&!quality.ok?quality.reason:priceQuality&&!priceQuality.ok?priceQuality.reason:entryQuality&&!entryQuality.ok?entryQuality.reason:sidewaysGate?.blocked?sidewaysGate.reason:'Нет свежего подтверждённого пробоя')};
