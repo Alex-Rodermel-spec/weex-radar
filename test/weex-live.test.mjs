@@ -79,7 +79,7 @@ test('single MARKET order includes mandatory TP SL and stable deterministic ID',
   assert.throws(()=>orderPayload({...plan,costGate:null}),/Unsafe/);
   assert.throws(()=>orderPayload({...plan,estimatedNetLossUsdt:10.01}),/Unsafe/);
   assert.throws(()=>orderPayload({...plan,estimatedNetProfitUsdt:0}),/Unsafe/);
-  assert.throws(()=>orderPayload({...plan,estimatedNetRR:1.49}),/Unsafe/);
+  assert.throws(()=>orderPayload({...plan,estimatedNetRR:1.29}),/Unsafe/);
   assert.throws(()=>orderPayload({...plan,estimatedNetLossUsdt:4.99}),/Unsafe/);
   assert.throws(()=>orderPayload({...plan,stopLoss:2.2}),/Wrong LONG/);
   const short=orderPayload({...plan,direction:'SHORT',stopLoss:2.02,takeProfit:1.94});
