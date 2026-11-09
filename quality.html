@@ -44,7 +44,7 @@ tbody tr:last-child td{border-bottom:none}
 <h1>📊 Как сработали наши сигналы?</h1>
 <p><a href="/history.html">📒 Посмотреть долгосрочный журнал за 30–90 дней</a></p>
 <p class="lede">Проверяем уже отправленные в ntfy сигналы LONG/SHORT на последующих свечах WEEX. Это проверка условий TP/SL, а не результат реально открытой сделки.</p>
-<div class="info">🔒 Без новых аккаунтов и оплаты. Источник — история ntfy за последние <b>110 минут</b>. Проверяем достижение TP или SL за <b>60 минут после оповещения</b>. Пока Blob заблокирован, долговременного архива нет.</div>
+<div class="info">🔒 Без новых аккаунтов и оплаты. Источник — история ntfy за последние <b>110 минут</b>. Проверяем достижение TP или SL за <b>60 минут после оповещения</b>. Долгосрочный зашифрованный журнал хранится на отдельной странице, а текущий анализ расходов использует только доступную историю уведомлений.</div>
 <div class="toolbar"><button id="refresh" type="button">↻ Обновить статистику</button><span id="status" role="status">Загружаем историю…</span></div>
 <div class="cards">
  <div class="card"><div class="label">Отправлено сигналов</div><div class="number" id="total">—</div></div>
@@ -53,16 +53,32 @@ tbody tr:last-child td{border-bottom:none}
  <div class="card"><div class="label">Доля TP среди однозначных</div><div class="number" id="rate">—</div></div>
 </div>
 <p class="fine" id="extra">Неопределённые и не достигшие уровней сигналы не считаются победами или поражениями.</p>
-<div class="info" id="shadow-summary">🧠 Новый анализ ловушек работает в <b>тестовом режиме</b>. Сравнение результатов появится после новых подтверждённых сигналов. Старые уведомления не имеют этой метки.</div>
+<div class="info" id="shadow-summary">🧠 Анализ ловушек в тестовом режиме.</div>
+<section id="economics">
+<h2>💰 Почему сигнал нельзя открыть?</h2>
+<div class="info">
+ <p><strong>Анализируем реальные отправленные уведомления за 110 минут.</strong> «СИЛЬНЫЙ» — сила движения, не разрешение на торговлю. Система записывает решение и чистый R/R прямо из сообщения на момент отправки.</p>
+ <p>По официальной базовой ставке WEEX VIP0: <strong>taker 0,08%</strong>, <strong>maker 0,02%</strong> за сторону. Фактический тариф твоего аккаунта неизвестен. <a href="https://www.weex.com/help/articles/50717160193561" target="_blank" rel="noopener">Тарифы WEEX</a>.</p>
+ <p><strong>Сравнение двух сценариев — исключительно гипотеза:</strong> MARKET = taker+taker, 0,03% проскальзывание с каждой стороны. LIMIT maker-only = maker+taker, 0,03% проскальзывание только при выходе. <strong>Для обоих берём нулевой спред</strong>, которого на реальном рынке может не быть.</p>
+ <p>Если модель показывает «нужен откат», это математически рассчитанная скидка для R/R ≥1,5 (не больше 0,6% от цены), <strong>не заявка и не прогноз исполнения</strong>. Обычный LIMIT может исполниться как taker; ставка maker не гарантирована.</p>
+</div>
+<div class="cards">
+ <div class="card"><div class="label">Уведомлений за окно</div><div class="number" id="eco-total">—</div></div>
+ <div class="card bad"><div class="label">Отмечено «ПРОПУСТИТЬ»</div><div class="number" id="eco-skip">—</div></div>
+ <div class="card good"><div class="label">R/R ≥ 1,5 при отправке</div><div class="number" id="eco-passed">—</div></div>
+ <div class="card"><div class="label">Гипотетический откат до 0,6%</div><div class="number" id="eco-pullback">—</div></div>
+</div>
+<p class="fine" id="eco-explain">Неизвестные исторические комиссии не считаются прошедшими проверку.</p>
+</section>
 <h2>История проверенных уведомлений</h2>
 <div id="empty" class="empty" hidden></div>
 <div class="table-wrap" id="table-wrap" hidden>
  <table>
-  <thead><tr><th>Время</th><th>Монета</th><th>Сигнал</th><th>Цена сигнала</th><th>Риск / награда</th><th>Тест фильтра</th><th>Исход</th></tr></thead>
+  <thead><tr><th>Время</th><th>Монета</th><th>Сигнал</th><th>Цена сигнала</th><th>Риск / награда</th><th>Тест фильтра</th><th>Исход</th><th>Решение при отправке</th><th>Чистый R/R сообщения</th><th>Теор. откат для maker</th></tr></thead>
   <tbody id="rows"></tbody>
  </table>
 </div>
-<p class="fine">Метод осторожный: если TP/SL могли быть задеты в минуту отправки или оба уровня за одну свечу, результат помечается неопределённым. Мы не знаем реальную цену исполнения, комиссии и проскальзывание. Маленькая выборка не доказывает прибыльность.</p>
+<p class="fine">⚠️ «Нужный откат» — математическое сравнение с гипотетическим maker-only исполнением по нулевому спреду, а НЕ повтор реального 1-минутного алгоритма и НЕ рекомендация входить. Метод осторожный: если TP/SL могли быть задеты в минуту отправки или оба уровня за одну свечу, результат помечается неопределённым. Мы не знаем реальную цену исполнения, комиссии и проскальзывание. Маленькая выборка не доказывает прибыльность.</p>
 </main>
 <script>
 const $=id=>document.getElementById(id);
@@ -86,6 +102,16 @@ function show(data){
  $('shadow-summary').textContent='🧠 РЕЖИМ НАБЛЮДЕНИЯ · ТЕСТ: ПРОПУСТИТЬ — '+(x.total||0)+
   ' сигналов, '+label(x)+'; БЕЗ ЗАМЕЧАНИЙ — '+(y.total||0)+' сигналов, '+label(y)+
   '. Для выводов нужна большая выборка. Прошлые сигналы без метки не сравниваются.';
+ const eco=data.economicStudy||{};
+ $('eco-total').textContent=String(eco.total??0);
+ $('eco-skip').textContent=String(eco.atAlert?.SKIP??0);
+ $('eco-passed').textContent=String(eco.reportedPass??0);
+ $('eco-pullback').textContent=String(eco.passivePossibleWithin06pct??0);
+ $('eco-explain').textContent='R/R после расходов указан в '+(eco.reportedNetRR??0)+
+  ' из '+(eco.total??0)+' уведомлений. Не прошли R/R: '+(eco.reportedFail??0)+
+  ', неизвестно: '+(eco.missingCost??0)+'. '+
+  'Сравнение MARKET и maker ограничено оптимистичным нулевым спредом. '+
+  'Оценка не подтверждает исполнение лимитного ордера или возможность реальной сделки.';
  const rows=data.signals||[];
  $('rows').replaceChildren();
  $('table-wrap').hidden=!rows.length;
@@ -94,7 +120,17 @@ function show(data){
  for(const item of rows){
   const tr=document.createElement('tr');
   const shadow=item.shadow==='SKIP'?'⚠️ ПРОПУСТИТЬ':item.shadow==='OBSERVE'?'🔎 БЕЗ ЗАМЕЧАНИЙ':'— (старый)';
-  const fields=[clock(item.sentAt),item.symbol,item.direction,num(item.entry),item.rr+' : 1',shadow,statuses[item.status]||item.status];
+  const e=item.economics||{};
+  const label={CHECK:'🟢 ПРОВЕРИТЬ',WAIT:'🟡 ЖДАТЬ',SKIP:'🔴 ПРОПУСТИТЬ',
+   LEGACY:'⚪ СТАРОЕ',UNKNOWN:'—'};
+  const pullback=e.passiveRequiredImprovementBps===null||e.passiveRequiredImprovementBps===undefined?
+   'не найден ≤0,6%':e.passiveRequiredImprovementBps===0?'0 б.п. (только гипотеза)':
+   e.passiveRequiredImprovementBps+' б.п. · касание не проверено';
+  const fields=[clock(item.sentAt),item.symbol,item.direction,num(item.entry),
+   item.rr+' : 1',shadow,statuses[item.status]||item.status,
+   label[item.decisionAtAlert]||'—',
+   item.netRRAtAlert===null||item.netRRAtAlert===undefined?'—':item.netRRAtAlert+':1',
+   pullback];
   fields.forEach((value,index)=>{
    const td=document.createElement('td');
    td.textContent=value;

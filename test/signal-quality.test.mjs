@@ -52,14 +52,20 @@ test('four-state ntfy confirmed alerts are still recorded with exact raw SL/TP',
  assert.equal(found.direction,'LONG');
  assert.equal(found.level,'STRONG');
  assert.equal(found.shadow,'LEGACY');
+ assert.equal(found.decisionAtAlert,'CHECK');
+ assert.equal(found.netRRAtAlert,1.87);
  assert.equal(found.id,'b'.repeat(32));
  const red=parseConfirmedNotification({...msg,
   title:'🔴 ПРОПУСТИТЬ · LINKUSDT LONG · 🔔 ОБЫЧНЫЙ'});
  assert.ok(red);
  assert.equal(red.level,'NORMAL');
+ assert.equal(red.decisionAtAlert,'SKIP');
  const amber=parseConfirmedNotification({...msg,
   title:'🟡 ЖДАТЬ · LINKUSDT LONG · 🔔 ОБЫЧНЫЙ'});
  assert.ok(amber);
+ assert.equal(amber.decisionAtAlert,'WAIT');
+ assert.equal(parseConfirmedNotification(alert()).decisionAtAlert,'LEGACY');
+ assert.equal(parseConfirmedNotification(alert()).netRRAtAlert,null);
 });
 test('SHIB prices with localized commas are parsed; forecasts never pollute confirmed history',()=>{
  const msg={event:'message',time:Math.floor(stamp/1000),
