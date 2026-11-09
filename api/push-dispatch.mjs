@@ -7,6 +7,7 @@ import {_test as marketSafety} from './signals.mjs';
 import {sendEarlyPush} from '../lib/early-push.mjs';
 import {ntfySend} from '../lib/ntfy-alerts.mjs';
 import {checkEntryLevels} from '../lib/entry-quality.mjs';
+import {summarizeFilterDiagnostics} from '../lib/filter-diagnostics.mjs';
 import {assessNetCosts} from '../lib/net-costs.mjs';
 import {monitorDispatch,snapshotMarkets,latestHeartbeat,githubBackupStandby} from '../lib/health-monitor.mjs';
 const JWKS=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
@@ -96,6 +97,9 @@ export default async function handler(req,res){
   const result=await response.json();
   if(!Number.isFinite(result.generatedAt)||Math.abs(Date.now()-result.generatedAt)>90000||!Array.isArray(result.symbols))throw Error('Stale/invalid scan');
   healthMarkets=snapshotMarkets(result.symbols);
+  // Snapshot-only telemetry. No order, alert, storage or scan decision changes.
+  console.info('WEEX_RADAR_FILTER_DIAGNOSTICS '+
+    JSON.stringify(summarizeFilterDiagnostics(result.symbols)));
   const candidates=result.symbols.filter(s=>s.status==='ok'&&['LONG','SHORT'].includes(s.direction)&&
     s.expiresAt>Date.now()+15000&&s.exchange&&s.candleCloseTime);
   // A cached or slow scan is NOT a live entry. Recheck exchange quotes immediately
