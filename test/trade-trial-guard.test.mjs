@@ -10,7 +10,7 @@ test('multiple separate trades per Berlin day are allowed after fresh approval',
    assert.doesNotMatch(source,/dayTradeKey|dailyReserved|dailyPath|one bot trade per Berlin day/);
    assert.doesNotMatch(source,/trial-one-order-per-day/);
  }
- assert.match(page,/несколько подтверждённых сделок в день разрешены/);
+ assert.match(page,/несколько подтверждённых сделок в день разрешены/i);
  assert.doesNotMatch(page,/1 новая заявка в день/);
 });
 
