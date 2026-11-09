@@ -3,6 +3,7 @@
 import {get,put,del} from '@vercel/blob';
 import {weex,validateHumanPassword,requireSameOrigin} from '../lib/weex-order.mjs';
 import {verifyActiveProtection} from '../lib/trade-protection.mjs';
+import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
 const LOCK='trading/execution-global.lock';
 export default async function handler(req,res){
   res.setHeader('Cache-Control','private, no-store');
@@ -25,7 +26,8 @@ export default async function handler(req,res){
     if(!Array.isArray(positions)||!Array.isArray(orders))throw Error('Cannot reconcile WEEX orders');
     if(orders.some(x=>x.reduceOnly!==true))throw Error('Pending opening order; wait and check WEEX');
     const active=positions.filter(x=>Number(x.size)>0);
-    if(active.length>3)throw Error('Too many positions; do not unlock');
+    if(active.length>TRADE_LIMITS.maxConcurrent)
+      throw Error('Trial protection: multiple positions. Do not unlock');
     const same=active.filter(x=>x.symbol===lock.symbol);
     if(same.length!==1||same[0].side!==lock.direction)
       throw Error('Expected exactly one matching position; inspect WEEX.');
