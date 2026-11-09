@@ -83,7 +83,7 @@ test('owner ntfy topic sends once per candle, with exact Berlin time, without Bl
   assert.equal(posts[0].title,'🟢 ВХОД LONG · ALGOUSDT');
   assert.match(posts[0].sequence_id,/^[a-f0-9]{32}$/);
   assert.match(posts[0].message,/Свеча \d\d:\d\d:\d\d · отправка \d\d:\d\d:\d\d · задержка \d+с/);
-  assert.match(posts[0].message,/До \d\d:\d\d:\d\d/);
+  assert.match(posts[0].message,/Сигнал действует до \d\d:\d\d:\d\d/);
   assert.equal(calls.filter(c=>c.method==='POST').length,1);
   assert.equal(calls.filter(c=>c.method==='GET').length,2);
   const changed=await ntfySend('confirmed',[{...signal,direction:'SHORT'}]);
