@@ -11,7 +11,8 @@ const example={
  settings:[{symbol:'XRPUSDT',separatedType:'COMBINED',marginType:'ISOLATED',isolatedLongLeverage:'10',isolatedShortLeverage:'10'}],
  info:{symbols:[{symbol:'XRPUSDT',quoteAsset:'USDT',marginAsset:'USDT',contractType:'PERPETUAL',forwardContractFlag:true,maxLeverage:50,minOrderSize:'1',quantityPrecision:-1,baseAssetPrecision:4,pricePrecision:4}]},
  book:{symbol:'XRPUSDT',bidPrice:'2.00',askPrice:'2.001',time:now},
- apiTradingSymbols:['BTCUSDT','XRPUSDT']
+ apiTradingSymbols:['BTCUSDT','XRPUSDT'],
+ portfolio:{active:[],bot:[],manual:[],botOpenPositions:0,manualOpenPositions:0}
 };
 test('readiness is only facts, not proof of real order ability',()=>{
  const s=readinessSummary(example,now);
@@ -22,7 +23,14 @@ test('preflight rejects API-blocked coins, insufficient margin, same-coin positi
  assert.equal(readinessSummary({...example,apiTradingSymbols:['BTCUSDT']},now).checks.apiListed,false);
  assert.equal(readinessSummary({...example,balance:[{asset:'USDT',availableBalance:'49'}]},now).checks.collateral55Usdt,false);
  assert.equal(readinessSummary({...example,positions:[{symbol:'XRPUSDT',size:'1'}]},now).checks.noSameCoinPosition,false);
- assert.equal(readinessSummary({...example,positions:[{symbol:'BTCUSDT',size:'1'}]},now).checks.positionCapacity,false);
+ const manual=[{symbol:'BTCUSDT',size:'1'}];
+ assert.equal(readinessSummary({...example,positions:manual,
+  portfolio:{active:manual,bot:[],manual,botOpenPositions:0,manualOpenPositions:1}},now).checks.positionCapacity,true);
+ assert.equal(readinessSummary({...example,positions:manual,
+  portfolio:{active:manual,bot:[manual[0]],manual:[],botOpenPositions:1,manualOpenPositions:0}},now).checks.positionCapacity,true);
+ const both=[{symbol:'BTCUSDT',size:'1'},{symbol:'ETHUSDT',size:'1'}];
+ assert.equal(readinessSummary({...example,positions:both,
+  portfolio:{active:both,bot:both,manual:[],botOpenPositions:2,manualOpenPositions:0}},now).checks.positionCapacity,false);
  assert.equal(readinessSummary({...example,book:{...example.book,time:now-60000}},now).checks.freshOrderBook,false);
 });
 test('unsupported setting can be detected before any trade',()=>{
