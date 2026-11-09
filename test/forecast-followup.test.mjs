@@ -98,7 +98,7 @@ test('a broken outcome cannot be green; review requires actual same-market 5m ap
  const green=forecastFollowupMessage(s,r,matching,now);
  assert.equal(green.decision,'REVIEW');
  assert.match(green.title,/ПРОВЕРИТЬ ВХОД/);
- assert.match(green.message,/НЕ/);
+ assert.match(green.message,/Перепроверь цену/);
  assert.equal(forecastFollowupMessage(s,r,{...matching,direction:'LONG'},now).decision,'WAIT');
  assert.equal(forecastFollowupMessage(s,r,{...matching,expiresAt:now+5_000},now).decision,'WAIT');
  assert.equal(forecastFollowupMessage(s,r,{...matching,advisor:{status:'SKIP',netRR:1.1}},now).decision,'WAIT');
