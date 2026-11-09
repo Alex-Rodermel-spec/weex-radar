@@ -34,6 +34,7 @@ th,td{padding:13px 12px;border-bottom:1px solid #392f45}
 tr:last-child td{border-bottom:0}
 .note{font-size:13px;border:1px solid #685074;padding:15px 16px;border-radius:14px;background:#281f32;line-height:1.5;margin-top:22px}
 .empty{padding:18px;border-radius:14px;border:1px dashed #625074;color:#c8bbd8}
+progress{width:100%;height:15px;accent-color:#ac7bf5}
 </style>
 </head>
 <body>
@@ -57,6 +58,12 @@ tr:last-child td{border-bottom:0}
  <div class="card"><small>Средний результат, R*</small><strong id="average">—</strong></div>
 </div>
 <p class="muted" id="detail">Для статистического сравнения нужны реальные наблюдения, а не придуманные результаты.</p>
+<section class="card" aria-labelledby="goal-title">
+ <h2 id="goal-title">🔬 Наш эксперимент: 100 подтверждённых сигналов</h2>
+ <p id="goal-text" role="status">Считаем только записанные и подтверждённые оповещения WEEX.</p>
+ <progress id="goal-progress" value="0" max="100">0 / 100</progress>
+ <p class="muted" id="goal-note">Это контрольная точка для оценки стратегии, а не обещание прибыльности.</p>
+</section>
 <h2>По монетам</h2>
 <div class="table-box"><table><thead><tr><th>Монета</th><th>Сигналов</th><th>TP</th><th>SL</th><th>Доля TP</th></tr></thead><tbody id="market"></tbody></table></div>
 <h2>По направлению</h2>
@@ -105,6 +112,17 @@ function display(){
  $('sl').textContent=showN(stats.SL);
  $('rate').textContent=pct(stats.hitRatePct);
  $('average').textContent=stats.illustrativeAverageR===null?'—':showN(stats.illustrativeAverageR)+' R';
+ const goal=report.researchGoal;
+ if(goal){
+  $('goal-progress').value=Math.min(goal.target,goal.collected);
+  $('goal-progress').max=goal.target;
+  $('goal-text').textContent=goal.collected+' / '+goal.target+
+   ' сигналов за последние 90 дней · до цели: '+goal.remaining+
+   ' · с однозначным TP/SL: '+goal.resolved+'.';
+  $('goal-note').textContent=goal.reached?
+   'Контрольная точка достигнута, но это НЕ доказательство прибыли: нужна проверка чистой доходности с комиссиями и реальным исполнением.':
+   'Оценивать прибыльность ещё рано. 100 сигналов — минимальная исследовательская цель, не гарантия результата.';
+ }
  $('detail').textContent=
   'Однозначных исходов: '+stats.resolved+
   ' · Ожидают: '+stats.PENDING+
