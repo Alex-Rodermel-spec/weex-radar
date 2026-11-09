@@ -168,7 +168,7 @@ test('read-only probe checks account, balance, and positions without reporting m
 
 test('WEEX readiness probe is strictly read-only and same-origin protected',()=>{
  const code=readFileSync(new URL('../api/trade-preflight.mjs',import.meta.url),'utf8');
- assert.match(code,/validateHumanPassword/);
+ assert.match(code,/authenticatedTradeSession/);
  assert.match(code,/requireSameOrigin/);
  assert.match(code,/weex\.apiTradingSymbols\(\)/);
  assert.doesNotMatch(code,/weex\.(placeOrder|setLeverage|marginIsolated|closeById)\(/);
