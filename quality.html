@@ -60,12 +60,12 @@ tbody tr:last-child td{border-bottom:none}
  <p><strong>Анализируем реальные отправленные уведомления за 110 минут.</strong> «СИЛЬНЫЙ» — сила движения, не разрешение на торговлю. Система записывает решение и чистый R/R прямо из сообщения на момент отправки.</p>
  <p>По официальной базовой ставке WEEX VIP0: <strong>taker 0,08%</strong>, <strong>maker 0,02%</strong> за сторону. Фактический тариф твоего аккаунта неизвестен. <a href="https://www.weex.com/help/articles/50717160193561" target="_blank" rel="noopener">Тарифы WEEX</a>.</p>
  <p><strong>Сравнение двух сценариев — исключительно гипотеза:</strong> MARKET = taker+taker, 0,03% проскальзывание с каждой стороны. LIMIT maker-only = maker+taker, 0,03% проскальзывание только при выходе. <strong>Для обоих берём нулевой спред</strong>, которого на реальном рынке может не быть.</p>
- <p>Если модель показывает «нужен откат», это математически рассчитанная скидка для R/R ≥1,5 (не больше 0,6% от цены), <strong>не заявка и не прогноз исполнения</strong>. Обычный LIMIT может исполниться как taker; ставка maker не гарантирована.</p>
+ <p>Если модель показывает «нужен откат», это математически рассчитанная скидка для дополнительной консервативной цели R/R ≥1,5 (не больше 0,6% от цены), <strong>не заявка и не прогноз исполнения</strong>. Обычный LIMIT может исполниться как taker; ставка maker не гарантирована.</p>
 </div>
 <div class="cards">
  <div class="card"><div class="label">Уведомлений за окно</div><div class="number" id="eco-total">—</div></div>
  <div class="card bad"><div class="label">Отмечено «ПРОПУСТИТЬ»</div><div class="number" id="eco-skip">—</div></div>
- <div class="card good"><div class="label">R/R ≥ 1,5 при отправке</div><div class="number" id="eco-passed">—</div></div>
+ <div class="card good"><div class="label">R/R ≥ 1,3 при отправке (новый порог)</div><div class="number" id="eco-passed">—</div></div>
  <div class="card"><div class="label">Гипотетический откат до 0,6%</div><div class="number" id="eco-pullback">—</div></div>
 </div>
 <p class="fine" id="eco-explain">Неизвестные исторические комиссии не считаются прошедшими проверку.</p>
