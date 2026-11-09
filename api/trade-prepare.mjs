@@ -2,6 +2,7 @@
 import {randomBytes} from 'node:crypto';
 import {put} from '@vercel/blob';
 import {_test} from './signals.mjs';
+import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
   verifyAccount,checkAvailableMargin,checkPositions,checkOrders,marketPlan,fingerprint} from '../lib/weex-order.mjs';
 async function createProposal(symbol) {
@@ -16,7 +17,7 @@ async function createProposal(symbol) {
   const opened=checkPositions(positions,symbol);
   checkOrders(orders);
   const plan=marketPlan(s,info,book);
-  return {...plan,opened,allowedConcurrent:3,requiresConfirmation:true};
+  return {...plan,opened,allowedConcurrent:TRADE_LIMITS.maxConcurrent,requiresConfirmation:true};
 }
 export default async function handler(req,res){
   res.setHeader('Cache-Control','private, no-store');
