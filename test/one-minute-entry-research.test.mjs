@@ -46,8 +46,10 @@ test('one-minute candidate requires a new closed breakout and independent 5m AND
  assert.equal(bad.stage,'TREND_MISMATCH');
  const no=evaluateOneMinuteDiscovery(minuteFixture().map(x=>({...x,volume:0})),five,fifteen);
  assert.equal(no.stage,'LOW_VOLUME');
- const gap=minuteFixture();gap[63].time+=MIN;
+ const gap=minuteFixture();gap[95].time+=MIN;
  assert.equal(evaluateOneMinuteDiscovery(gap,five,fifteen).stage,'INSUFFICIENT_CLOSED_DATA');
+ const futureContext=five.map(x=>({...x,time:x.time+24*60*MIN,closeTime:x.closeTime+24*60*MIN}));
+ assert.equal(evaluateOneMinuteDiscovery(minuteFixture(),futureContext,fifteen).stage,'FUTURE_CONTEXT');
 });
 test('closed minute normalization rejects future and damaged candles',()=>{
  const now=ST+200*MIN+30_000;
