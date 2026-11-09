@@ -14,7 +14,8 @@ test('four independent signal/risk presentation variants',()=>{
  assert.equal(purple.status,'CHECK');
  assert.match(purple.title,/🟣 СИЛЬНЫЙ/);
  const amber=alertPresentation({...base,retest:{SHORT:{status:'PENDING'}},costReview:cost});
- assert.equal(amber.status,'WAIT');
+ assert.equal(amber.status,'CHECK');
+ assert.match(amber.message||amber.reason,/ретест ещё не подтверждён/);
  assert.match(amber.title,/🟡 ЖДАТЬ/);
  const red=alertPresentation({...base,retest:{SHORT:{status:'FAILED'}},costReview:cost});
  assert.equal(red.status,'SKIP');
