@@ -1,6 +1,7 @@
 // POST: authenticated, one-time, server-side trade proposal. Never places orders.
 import {randomBytes} from 'node:crypto';
-import {put} from '@vercel/blob';
+import {put,get} from '@vercel/blob';
+import {dayTradeKey} from '../lib/trade-trial-guard.mjs';
 import {_test} from './signals.mjs';
 import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
@@ -8,6 +9,10 @@ import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
 async function createProposal(symbol) {
   const s=await _test.scanSymbol(symbol);
   if(s.status!=='ok'||s.exchange!=='WEEX'||!s.direction)throw Error('Нет нового подтверждённого сигнала WEEX');
+  // Even proposal generation is blocked once a real order request was
+  // transmitted earlier this Berlin calendar day. This is not a P&L limit.
+  if(await get(dayTradeKey(),{access:'private'}))
+    throw Error('Trial safety: only one bot trade per Berlin day');
   const [info,book,account,positions,orders,balance,apiTradingSymbols]=await Promise.all([
     weex.info(symbol),weex.book(symbol),weex.account(),weex.positions(),weex.openOrders(),weex.balance(),weex.apiTradingSymbols()
   ]);
