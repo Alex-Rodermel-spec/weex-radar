@@ -1,5 +1,5 @@
 // POST-only same-origin login/status/logout. No WEEX account calls or order writes.
-// Session cookie is HttpOnly (JavaScript cannot read it) and expires after 30m.
+// Session cookie is HttpOnly (JavaScript cannot read it) and expires after 24h.
 import {requireSameOrigin,validateHumanPassword} from '../lib/weex-order.mjs';
 import {
  issueTradeSession,authenticatedTradeSession,cookieForSession,cookieForLogout,
@@ -28,5 +28,5 @@ export default async function handler(req,res){
  res.setHeader('Set-Cookie',cookieForSession(session.token));
  return res.status(200).json({ok:true,authenticated:true,
   expiresAt:session.expiresAt,minutes:SESSION_SECONDS/60,
-  note:'30-minute secure session. Every real order still needs explicit approval.'});
+  note:'24-hour secure session. Every real order still needs explicit approval and a fresh Passkey signature when enrolled.'});
 }
