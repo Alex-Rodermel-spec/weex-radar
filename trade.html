@@ -32,10 +32,15 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <p class="muted">Реальные фьючерсы WEEX · маржа 50 USDT · плечо 10× · до 2 одновременно открытых позиций RADAR; ручные позиции WEEX учитываются отдельно. Несколько подтверждённых сделок в день разрешены. Новые сделки допускаются только при расчётном чистом R/R ≥1,5 и риске по стопу с модельными расходами ≤10 USDT. Каждую сделку подтверждаешь лично ты.</p>
 <section class="box">
 <h2>1. Подключение и вход</h2>
-<label for="password">Личный пароль подтверждения RADAR</label>
-<input id="password" type="password" autocomplete="off" spellcheck="false" placeholder="Пароль из секретов Vercel (не WEEX!)">
-<p class="field-note">Используй отдельный пароль, заданный в <code>WEEX_TRADE_APPROVAL_PASSWORD</code>. Не отправляй его в чат. Страница не сохраняет пароль в памяти телефона после закрытия.</p>
-<button class="secondary" id="status">Проверить подключение WEEX</button>
+<div id="login-fields">
+<label for="password">Пароль подтверждения RADAR (раз в 30 минут)</label>
+<input id="password" type="password" autocomplete="current-password" spellcheck="false" placeholder="Пароль RADAR — НЕ пароль WEEX">
+<p class="field-note">Пароль из <code>WEEX_TRADE_APPROVAL_PASSWORD</code>. Не присылай его в чат. Пароль не хранится на сайте: браузер получает защищённую сессию на 30 минут.</p>
+<button id="login">🔐 Войти на 30 минут</button>
+</div>
+<p class="muted" id="session-status" role="status">🔒 Вход требуется один раз на 30 минут.</p>
+<button class="secondary" id="logout" hidden>🚪 Выйти из RADAR</button>
+<button class="secondary" id="status" disabled>Проверить подключение WEEX</button>
 <div id="account" class="muted" role="status">Реальные ордера недоступны, пока не подтвердится подключение и не будет включён защищённый режим торговли.</div>
 </section>
 <section class="box">
@@ -54,7 +59,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 </section>
 <section class="box" id="approval" hidden>
 <h2>3. Подтверждение реального ордера</h2>
-<p class="alert">⚠️ Это реальная заявка с плечом 10×. Комиссии и проскальзывание рассчитаны по модели, а не по твоему персональному тарифу. Стоп не гарантирует максимальный убыток: фактические расходы, проскальзывание и гэпы могут быть выше.</p>
+<p class="alert">⚠️ Даже при активной сессии каждую реальную заявку с плечом 10× подтверждаешь лично. Комиссии и проскальзывание рассчитаны по модели, а не по твоему персональному тарифу. Стоп не гарантирует максимальный убыток: фактические расходы, проскальзывание и гэпы могут быть выше.</p>
 <label class="check"><input type="checkbox" id="accept"><span>Я проверил цену входа, Stop-Loss, Take-Profit и принимаю риск реальных убытков.</span></label>
 <button class="danger" id="confirm" disabled>Подтвердить реальную сделку WEEX</button>
 <p class="field-note">Одобрение действует только для конкретного свежего сигнала, один раз и не более 45 секунд.</p>
@@ -86,6 +91,19 @@ let approvalToken=null,expiresAt=0,busy=false;
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const number=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:8});
 function message(s){$('messages').textContent=s;}
+function sessionUI(active,until=0){
+ $('login-fields').hidden=active;
+ $('logout').hidden=!active;
+ $('status').disabled=!active;
+ $('preflight').disabled=!active;
+ $('prepare').disabled=!active;
+ $('session-status').textContent=active?
+   '✅ Вход выполнен до '+new Date(until).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})+
+   ' (Берлин). Пароль не нужен для каждой сделки.':
+   '🔒 Для проверки счёта и сделок войди по паролю RADAR.';
+ $('password').value='';
+ if(!active){reset();$('mode').textContent='🔒 Не авторизован';}
+}
 function reset(){approvalToken=null;expiresAt=0;$('approval').hidden=true;$('accept').checked=false;$('confirm').disabled=true;$('plan').hidden=true;}
 function render(p){
  const pairs=[['Позиции RADAR',p.opened+'/'+p.maxConcurrent],['Ручных WEEX',p.manualOpenPositions??'—'],['Направление',p.direction],['Маржа',p.marginUsdt+' USDT'],['Плечо',p.leverage+'×'],['Цена входа (оценка)',number(p.entryEstimate)],['Объём',number(p.notionalEstimate)+' USDT'],['Количество',p.quantity],['Stop-Loss',number(p.stopLoss)],['Take-Profit',number(p.takeProfit)],['Убыток до расходов','−'+number(p.estimatedLossUsdt)+' USDT'],['Прибыль до расходов','+'+number(p.estimatedProfitUsdt)+' USDT'],['Риск по SL с расходами (модель)','−'+number(p.estimatedNetLossUsdt)+' USDT'],['Прибыль по TP с расходами (модель)','+'+number(p.estimatedNetProfitUsdt)+' USDT'],['Чистый R/R (модель)',number(p.estimatedNetRR)+':1'],['Комиссия за сторону (модель)',number(p.costAssumptions?.feeBpsEachSide/100)+'%'],['Проскальзывание за сторону (модель)',number(p.costAssumptions?.slippageBpsEachSide/100)+'%'],['Текущий спред (б.п.)',number(p.costAssumptions?.observedSpreadBps)],['Максимум позиций',p.maxConcurrent],['Сигнал действителен до',new Date(p.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})]];
@@ -95,7 +113,11 @@ function render(p){
 }
 async function post(endpoint,payload){
  const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Radar-Trade-Intent':'manual-confirm'},cache:'no-store',credentials:'same-origin',body:JSON.stringify(payload)});
- const data=await r.json();if(!r.ok)throw Error(data.error||'WEEX API error');
+ const data=await r.json();
+ if(!r.ok){
+  if(r.status===401&&endpoint!=='/api/trade-session')sessionUI(false);
+  throw Error(data.error||'WEEX API error');
+ }
  return data;
 }
 async function run(button,fn){
@@ -103,19 +125,25 @@ async function run(button,fn){
  try{await fn()}catch(e){message('Ошибка: '+String(e.message||e));}
  finally{busy=false;button.disabled=false;if(button===$('confirm'))button.disabled=!$('accept').checked||!approvalToken;}
 }
+$('login').onclick=()=>run($('login'),async()=>{
+ if(!$('password').value){$('session-status').textContent='Введи пароль RADAR для входа.';return;}
+ const data=await post('/api/trade-session',{action:'login',password:$('password').value});
+ sessionUI(true,data.expiresAt);
+ message('✅ Вход выполнен. Каждую сделку всё равно подтверждаешь отдельно.');
+});
+$('logout').onclick=()=>run($('logout'),async()=>{
+ await post('/api/trade-session',{action:'logout'});
+ sessionUI(false);
+ $('account').textContent='Выход выполнен. Авторизуйся для проверки WEEX.';
+});
 $('status').onclick=()=>run($('status'),async()=>{
  const account=$('account'),mode=$('mode'),button=$('status');
- if(!$('password').value){
-   account.textContent='❌ Сначала введи личный пароль подтверждения RADAR.';
-   mode.textContent='🔒 Пароль не введён';
-   return;
- }
  const label=button.textContent;
  button.textContent='⏳ Проверяем WEEX…';
- account.textContent='⏳ Проверяю пароль и подключение к счёту WEEX. Ордер не открывается.';
+ account.textContent='⏳ Проверяю подключение к счёту WEEX. Ордер не открывается.';
  mode.textContent='⏳ Идёт проверка';
  try{
-   const d=await post('/api/trade-status',{password:$('password').value});
+   const d=await post('/api/trade-status',{});
    account.textContent='✅ WEEX API подключён · Двусторонний режим: '+(d.hedgeMode?'да':'нет')+' · Позиции RADAR: '+d.botOpenPositions+'/'+d.maxConcurrent+' · Ручных WEEX: '+d.manualOpenPositions+' · Реальные ордера: '+(d.liveEnabled?'разрешены':'ВЫКЛЮЧЕНЫ')+'.';
    mode.textContent=d.liveEnabled?'🟢 Реальный режим разрешён':'✅ WEEX подключён · торговля выключена';
  }catch(e){
@@ -129,15 +157,19 @@ $('status').onclick=()=>run($('status'),async()=>{
 $('password').addEventListener('keydown',e=>{
  if(e.key==='Enter'){
    e.preventDefault();
-   $('status').click();
+   $('login').click();
  }
 });
+sessionUI(false);
+post('/api/trade-session',{action:'status'}).then(d=>{
+ if(d.authenticated)sessionUI(true,d.expiresAt);
+}).catch(()=>{$('session-status').textContent='🔒 Сессия недоступна. Войди по паролю RADAR.';});
 $('symbol').onchange=()=>{reset();$('pullback-plan').textContent='Новая монета: расчёт отката не обновлён.';$('preflight-result').textContent='Для этой монеты готовность ещё не проверена.'};
 $('preflight').onclick=()=>run($('preflight'),async()=>{
  const out=$('preflight-result');
  out.textContent='⏳ Проверяю WEEX без отправки заявок…';
  try {
-  const d=await post('/api/trade-preflight',{symbol:$('symbol').value,password:$('password').value});
+  const d=await post('/api/trade-preflight',{symbol:$('symbol').value});
   const captions={accountTradeFlag:'Аккаунт разрешает торговлю',hedgeMode:'Двусторонний режим',
    collateral55Usdt:'Доступно ≥55 USDT',positionCapacity:'Меньше 2 активных позиций RADAR (ручные не входят)',
    noSameCoinPosition:'Нет позиции на этой монете',noPendingEntryOrders:'Нет открытых ордеров на вход',
@@ -183,7 +215,7 @@ $('preview').onclick=()=>run($('preview'),async()=>{
 });
 $('prepare').onclick=()=>run($('prepare'),async()=>{
  reset();$('released').hidden=true;message('Проверяю твои открытые позиции, сигнал и ограничения…');
- const d=await post('/api/trade-prepare',{symbol:$('symbol').value,password:$('password').value});
+ const d=await post('/api/trade-prepare',{symbol:$('symbol').value});
  render(d.trade);approvalToken=d.proposal;expiresAt=d.expiresAt;
  if(!d.liveEnabled){message('План готов, но реальная торговля в Vercel пока выключена.');return;}
  $('approval').hidden=false;message('Проверь уровни и подтверди только если согласен. Срок — 45 секунд.');
@@ -193,14 +225,14 @@ $('confirm').onclick=()=>run($('confirm'),async()=>{
  if(!$('accept').checked||!approvalToken||Date.now()>expiresAt-12000)throw Error('Одобрение истекло. Запроси новый план.');
  const token=approvalToken;approvalToken=null;$('approval').hidden=true;
  message('Отправляю подтверждённый ордер WEEX с TP/SL… Не нажимай повторно.');
- const d=await post('/api/trade-confirm',{proposal:token,password:$('password').value,confirmation:'CONFIRM_REAL_WEEX_ORDER'});
+ const d=await post('/api/trade-confirm',{proposal:token,confirmation:'CONFIRM_REAL_WEEX_ORDER'});
  message(d.protectionVerified?'✅ WEEX сообщил о двух активных защитных ордерах для '+d.orderId+'. Проверь их лично в приложении WEEX. Следующие сделки заблокированы до ручного подтверждения.':'🚨 ОРДЕР '+d.orderId+' ОТПРАВЛЕН, но WEEX пока НЕ подтвердил оба защитных ордера! СРОЧНО проверь TP/SL и при необходимости закрой позицию в WEEX. Следующие сделки заблокированы.');
  $('released').hidden=false;$('verified').checked=false;$('unlock').disabled=true;
 });
 $('verified').onchange=()=>{$('unlock').disabled=!$('verified').checked};
 $('unlock').onclick=()=>run($('unlock'),async()=>{
  if(!$('verified').checked)return;
- const d=await post('/api/trade-release',{password:$('password').value,confirmation:'CHECKED_TP_SL_ON_WEEX'});
+ const d=await post('/api/trade-release',{confirmation:'CHECKED_TP_SL_ON_WEEX'});
  $('released').hidden=true;message('WEEX подтвердил оба защитных ордера. Новая сделка доступна при следующем свежем сигнале.');
 });
 </script>

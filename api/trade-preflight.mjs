@@ -1,5 +1,6 @@
 // Password-protected WEEX readiness probe. Only read-only requests.
-import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled} from '../lib/weex-order.mjs';
+import {weex,configured,requireSameOrigin,liveEnabled} from '../lib/weex-order.mjs';
+import {authenticatedTradeSession} from '../lib/trade-session.mjs';
 import {_test} from './signals.mjs';
 import {readinessSummary} from '../lib/trade-readiness.mjs';
 import {readOwnedPortfolio,verifyOtherBotProtection} from '../lib/trade-ownership.mjs';
@@ -8,7 +9,7 @@ export default async function handler(req,res) {
  res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
  if(!requireSameOrigin(req))return res.status(403).json({error:'Open official WEEX RADAR'});
- if(!validateHumanPassword(req.body?.password))return res.status(401).json({error:'Wrong RADAR approval password'});
+ if(!authenticatedTradeSession(req))return res.status(401).json({error:'Сессия RADAR истекла. Войди ещё раз.'});
  if(!configured())return res.status(503).json({error:'WEEX connection not configured'});
  const symbol=req.body?.symbol;
  if(!_test.SYMBOLS.includes(symbol))return res.status(400).json({error:'Unsupported coin'});

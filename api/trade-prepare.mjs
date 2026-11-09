@@ -3,8 +3,9 @@ import {randomBytes} from 'node:crypto';
 import {put} from '@vercel/blob';
 import {_test} from './signals.mjs';
 import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
+import {authenticatedTradeSession} from '../lib/trade-session.mjs';
 import {readOwnedPortfolio,verifyOtherBotProtection} from '../lib/trade-ownership.mjs';
-import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
+import {weex,configured,requireSameOrigin,liveEnabled,
   verifyAccount,checkAvailableMargin,checkPositions,checkOrders,marketPlan,fingerprint} from '../lib/weex-order.mjs';
 async function createProposal(symbol) {
   const s=await _test.scanSymbol(symbol);
@@ -30,7 +31,7 @@ export default async function handler(req,res){
   res.setHeader('X-Content-Type-Options','nosniff');
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
   if(!requireSameOrigin(req))return res.status(403).json({error:'Use the official WEEX RADAR website'});
-  if(!validateHumanPassword(req.body?.password))return res.status(401).json({error:'Wrong approval password or it is not configured'});
+  if(!authenticatedTradeSession(req))return res.status(401).json({error:'Сессия RADAR истекла. Войди ещё раз.'});
   if(!configured()||!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Account or private store not configured'});
   const symbol=req.body?.symbol;
   if(!_test.SYMBOLS.includes(symbol))return res.status(400).json({error:'Unsupported coin'});

@@ -1,7 +1,8 @@
 // Manual release after owner has verified TP and SL directly in WEEX.
 // Does NOT place or close orders.
 import {get,put,del} from '@vercel/blob';
-import {weex,validateHumanPassword,requireSameOrigin} from '../lib/weex-order.mjs';
+import {weex,requireSameOrigin} from '../lib/weex-order.mjs';
+import {authenticatedTradeSession} from '../lib/trade-session.mjs';
 import {verifyActiveProtection} from '../lib/trade-protection.mjs';
 import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
 import {readOwnedPortfolio,verifyOtherBotProtection} from '../lib/trade-ownership.mjs';
@@ -10,7 +11,7 @@ export default async function handler(req,res){
   res.setHeader('Cache-Control','private, no-store');
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
   if(!requireSameOrigin(req))return res.status(403).json({error:'Open official WEEX RADAR'});
-  if(!validateHumanPassword(req.body?.password))return res.status(401).json({error:'Approval password incorrect'});
+  if(!authenticatedTradeSession(req))return res.status(401).json({error:'Сессия RADAR истекла. Войди ещё раз.'});
   if(req.body?.confirmation!=='CHECKED_TP_SL_ON_WEEX')
     return res.status(400).json({error:'Confirm that you personally verified TP and SL on WEEX'});
   try{
