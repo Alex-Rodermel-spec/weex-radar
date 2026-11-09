@@ -63,6 +63,15 @@ tr:last-child td{border-bottom:0}
 <div class="table-box"><table><thead><tr><th>Направление</th><th>Сигналов</th><th>TP</th><th>SL</th><th>Доля TP</th></tr></thead><tbody id="direction"></tbody></table></div>
 <h2>Сравнение предупреждений нового фильтра</h2>
 <div class="table-box"><table><thead><tr><th>Метка</th><th>Сигналов</th><th>TP</th><th>SL</th><th>Доля TP</th></tr></thead><tbody id="shadow"></tbody></table></div>
+<h2>⚡ Ранние предупреждения — архив 30/90 дней</h2>
+<p class="muted">Только реально отправленные через ntfy PRE_BREAK и EARLY WATCH. Показываем, куда ушла цена через 5, 15 и 30 минут — не доходность сделки.</p>
+<div class="metrics">
+ <div class="card"><small>Ранних предупреждений в архиве</small><strong id="earlyTotal">—</strong></div>
+ <div class="card"><small>5м · движение в сторону прогноза</small><strong id="early5">—</strong></div>
+ <div class="card"><small>15м · движение в сторону прогноза</small><strong id="early15">—</strong></div>
+ <div class="card"><small>30м · движение в сторону прогноза</small><strong id="early30">—</strong></div>
+</div>
+<p class="muted" id="earlyDetail">Нужны реальные ранние уведомления и закрытые свечи после них.</p>
 <div class="note">⚠️ <b>Это исследование, не подтверждение прибыльности.</b> Статусы TP/SL считаются по последующим закрытым минутным свечам за 60 минут. Если оба уровня коснулись одной свечи, исход считается неопределённым. Не учитываются комиссия биржи, funding, проскальзывание, риск ликвидации и реальное исполнение. *R — условное изменение доходности в единицах первоначального риска, рассчитанное только для однозначных TP и SL и без издержек. Значения не гарантируют будущий заработок.</div>
 <p class="muted" style="font-size:13px">🔐 Полная история хранится в зашифрованном виде AES-GCM в отдельной ветке существующего публичного GitHub-репозитория. Страница показывает только агрегированные результаты. Период до установки журнала не восстанавливается автоматически, кроме ещё доступных уведомлений. Архив обновляет отдельная бесплатная задача GitHub Actions примерно каждые 20 минут; возможны задержки и пробелы при сбоях планировщика. WEEX RADAR и ntfy работают независимо.</p>
 </main>
@@ -106,6 +115,18 @@ function display(){
  rows('direction',stats.byDirection,x=>x==='LONG'?'📈 LONG':x==='SHORT'?'📉 SHORT':x);
  rows('shadow',stats.byShadow,x=>x==='SKIP'?'⚠️ Тест: пропустить':
   x==='OBSERVE'?'🔎 Тест: без замечаний':'Без отметки');
+ const early=report.earlyStudy?.windows?.[days];
+ $('earlyTotal').textContent=showN(early?.total);
+ for(const [h,id] of [[5,'early5'],[15,'early15'],[30,'early30']]){
+  const w=early?.['at'+h+'m'];
+  $(id).textContent=w?.observed?pct(w.favorablePct)+' ('+w.observed+')':'—';
+ }
+ $('earlyDetail').textContent=early?
+  'PRE_BREAK: '+early.types.PRE_BREAK.total+
+  ' · EARLY WATCH: '+early.types.BREAKOUT.total+
+  ' · подтверждения 5м в течение 30 минут: '+early.pairs.confirmedWithin30m+
+  ' · счёт идёт только по доступным закрытым свечам; комиссии и задержка исполнения не учтены.':
+  'Архив ранних предупреждений ещё не создан.';
  $('state').textContent=report.state==='EMPTY'?
   'Архив ещё пуст. Первая запись появится после следующего нового сигнала.':
   'Архив: '+report.archivedSignals+' сигналов · последнее оповещение: '+

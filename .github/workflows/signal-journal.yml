@@ -41,7 +41,7 @@ jobs:
             -o "${response}"
           jq -e '.ok == true and (.changed | type == "boolean")' "${response}" >/dev/null
           if [[ "$(jq -r '.changed' "${response}")" != "true" ]]; then
-            echo "No new or updated confirmed outcomes. Existing archive is unchanged."
+            echo "No new confirmed or early-signal observations. Existing archive is unchanged."
             echo "Archive is unchanged; checks completed." >> "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
@@ -65,4 +65,4 @@ jobs:
             "repos/${GITHUB_REPOSITORY}/contents/data/journal.enc.json" \
             --input "${payload}" --silent
           echo "Encrypted journal updated, no plaintext exposed to GitHub Actions."
-          echo "Saved encrypted journal. New: $(jq -r '.added' "${response}"), updated: $(jq -r '.updated' "${response}"), total: $(jq -r '.total' "${response}")." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Saved encrypted journal. Confirmed: $(jq -r '.total' "${response}"); early: $(jq -r '.earlyTotal // 0' "${response}") (new: $(jq -r '.earlyAdded // 0' "${response}"), updated: $(jq -r '.earlyUpdated // 0' "${response}"))." >> "${GITHUB_STEP_SUMMARY}"
