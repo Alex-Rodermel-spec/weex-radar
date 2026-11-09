@@ -85,7 +85,10 @@ function render(data){
  }else setCard('market','bad','● Нет данных','Проверка свечей не выполнилась.');
  const ntfy=data.ntfy||{};
  if(ntfy.configured&&ntfy.reachable){
-  setCard('ntfy','ok','● Сервер ntfy доступен','Канал настроен. '+(ntfy.lastSignalAt?'Последний рыночный сигнал в истории: '+clock(ntfy.lastSignalAt)+'.':'В последних двух часах сигналов может не быть — это нормально.')+' Получение телефоном отдельно не подтверждено.');
+  const counts=ntfy.recentTwoHours;
+  const countText=counts&&Number.isInteger(counts.early)&&Number.isInteger(counts.confirmed)?
+   ' За 2 часа в ntfy: ранних '+counts.early+', обычных 5м '+counts.confirmed+'.':'';
+  setCard('ntfy','ok','● Сервер ntfy доступен','Канал настроен. '+(ntfy.lastSignalAt?'Последний сигнал в истории: '+clock(ntfy.lastSignalAt)+'.':'За последние два часа сигналов не найдено — это не ошибка.')+countText+' Это история сервера, получение телефоном отдельно не подтверждено.');
  }else if(!ntfy.configured){
   setCard('ntfy','bad','● Нет настройки','Серверный канал ntfy не настроен.');
  }else{
