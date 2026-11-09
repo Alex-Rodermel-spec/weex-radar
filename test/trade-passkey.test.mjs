@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {newFlow,requiredFlow,clearFlowCookie,readPasskey,storePasskey,
- registrationOptions,authenticationOptions,tradeContext,RP_ID,ORIGIN} from '../lib/trade-passkey.mjs';
+ registrationOptions,authenticationOptions,tradeContext,sessionForPasskey,RP_ID,ORIGIN} from '../lib/trade-passkey.mjs';
 import handler from '../api/trade-passkey.mjs';
 
 const previous=process.env.WEEX_TRADE_APPROVAL_PASSWORD;
@@ -19,6 +19,17 @@ const cred={v:1,id:'S'.repeat(45),publicKey:'A'.repeat(60),counter:0,transports:
 test('RP and origin are fixed to public production HTTPS, not another website',()=>{
  assert.equal(RP_ID,'weex-radar.vercel.app');
  assert.equal(ORIGIN,'https://weex-radar.vercel.app');
+});
+test('phone Passkey login grants 24-hour session but leaves trade signature separate',()=>{
+ const before=Date.now();
+ const session=sessionForPasskey();
+ const after=Date.now();
+ assert.ok(session.expiresAt>=before+24*60*60*1000);
+ assert.ok(session.expiresAt<=after+24*60*60*1000);
+ assert.match(session.cookie,/Max-Age=86400/);
+ assert.match(session.cookie,/HttpOnly/);
+ assert.match(session.cookie,/Secure/);
+ assert.match(session.cookie,/SameSite=Strict/);
 });
 test('short challenge cookie binds mode, exact proposal hash, expiration and signature',()=>{
  const now=Date.now(),c='A'.repeat(43),ctx=tradeContext('a'.repeat(64));
