@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@vercel/blob": "^2.3.0",
+    "@simplewebauthn/server": "14.1.0",
     "web-push": "^3.6.7",
     "jose": "^6.1.0"
   }

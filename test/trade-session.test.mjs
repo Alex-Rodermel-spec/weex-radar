@@ -103,8 +103,14 @@ test('trade UI does not retain password in localStorage or send it to order endp
  assert.doesNotMatch(html,/localStorage|sessionStorage/);
  for(const call of ['trade-status','trade-preflight','trade-prepare','trade-confirm','trade-release']){
   const hits=html.match(new RegExp("post\\('/api/"+call+"',\\{[^}\\n]*\\}","g"))||[];
-  assert.equal(hits.length,1,call);
-  assert.ok(hits.every(h=>!h.includes('password')),call);
+  if(call==='trade-confirm'){
+   assert.match(html,/post\('\/api\/trade-confirm',body\)/);
+   assert.match(html,/const body=\{proposal:token,confirmation:'CONFIRM_REAL_WEEX_ORDER'\}/);
+   assert.doesNotMatch(html,/body\.password=/);
+  }else{
+   assert.equal(hits.length,1,call);
+   assert.ok(hits.every(h=>!h.includes('password')),call);
+  }
  }
  const script=html.match(/<script>([\s\S]*?)<\/script>/);
  assert.ok(script);

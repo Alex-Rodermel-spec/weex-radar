@@ -38,6 +38,9 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <p class="field-note">Пароль из <code>WEEX_TRADE_APPROVAL_PASSWORD</code>. Не присылай его в чат. Пароль не хранится на сайте: браузер получает защищённую сессию на 30 минут.</p>
 <button id="login">🔐 Войти на 30 минут</button>
 </div>
+<button class="secondary" id="finger-login">👆 Войти по отпечатку / Passkey</button>
+<button class="secondary" id="finger-register" hidden>👆 Подключить отпечаток для входа и подтверждения сделок</button>
+<p class="field-note" id="finger-status">Отпечаток хранится только в телефоне. Android также может предложить PIN или блокировку экрана. Чтобы подключить впервые, войди по паролю RADAR.</p>
 <p class="muted" id="session-status" role="status">🔒 Вход требуется один раз на 30 минут.</p>
 <button class="secondary" id="logout" hidden>🚪 Выйти из RADAR</button>
 <button class="secondary" id="status" disabled>Проверить подключение WEEX</button>
@@ -62,7 +65,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <p class="alert">⚠️ Даже при активной сессии каждую реальную заявку с плечом 10× подтверждаешь лично. Комиссии и проскальзывание рассчитаны по модели, а не по твоему персональному тарифу. Стоп не гарантирует максимальный убыток: фактические расходы, проскальзывание и гэпы могут быть выше.</p>
 <label class="check"><input type="checkbox" id="accept"><span>Я проверил цену входа, Stop-Loss, Take-Profit и принимаю риск реальных убытков.</span></label>
 <button class="danger" id="confirm" disabled>Подтвердить реальную сделку WEEX</button>
-<p class="field-note">Одобрение действует только для конкретного свежего сигнала, один раз и не более 45 секунд.</p>
+<p class="field-note">Одобрение действует для одного свежего сигнала максимум 45 секунд. После подключения Passkey этот ордер также требует отпечаток/PIN на телефоне. Само сканирование НЕ открывает сделку без нажатия кнопки.</p>
 </section>
 <section class="box" id="released" hidden>
 <h2>4. Проверить защиту на WEEX</h2>
@@ -87,12 +90,65 @@ if(coin.includes(symbolFromSignal)){
  $('symbol').value=symbolFromSignal;
  $('messages').textContent='Монета '+symbolFromSignal+' выбрана из сигнала. Проверь свежесть сигнала и план. Ордер не отправлен.';
 }
-let approvalToken=null,expiresAt=0,busy=false;
+let approvalToken=null,expiresAt=0,busy=false,passkeyEnrolled=false;
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const number=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:8});
 function message(s){$('messages').textContent=s;}
+function webauthnSupported(){
+ return typeof window.PublicKeyCredential!=='undefined'&&
+  typeof navigator.credentials?.get==='function'&&
+  typeof navigator.credentials?.create==='function';
+}
+function fromB64url(b64){
+ const s=b64.replace(/-/g,'+').replace(/_/g,'/');
+ const bin=atob(s+'='.repeat((4-s.length%4)%4));
+ return Uint8Array.from(bin,c=>c.charCodeAt(0));
+}
+function toB64url(value){
+ const a=new Uint8Array(value);let s='';
+ for(let i=0;i<a.length;i+=8192)s+=String.fromCharCode(...a.subarray(i,i+8192));
+ return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function createPhonePasskey(options){
+ if(!webauthnSupported())throw Error('В этом браузере нет поддержки Passkey. Открой RADAR в Chrome на телефоне.');
+ const publicKey={...options,challenge:fromB64url(options.challenge),
+  user:{...options.user,id:fromB64url(options.user.id)},
+  excludeCredentials:(options.excludeCredentials||[]).map(x=>({...x,id:fromB64url(x.id)}))};
+ const c=await navigator.credentials.create({publicKey});
+ if(!c||c.type!=='public-key')throw Error('Создание Passkey отменено.');
+ return {id:c.id,rawId:toB64url(c.rawId),type:c.type,
+  authenticatorAttachment:c.authenticatorAttachment||undefined,
+  response:{clientDataJSON:toB64url(c.response.clientDataJSON),
+   attestationObject:toB64url(c.response.attestationObject),
+   transports:c.response.getTransports?.()||[]},
+  clientExtensionResults:c.getClientExtensionResults()};
+}
+async function verifyPhonePasskey(options){
+ if(!webauthnSupported())throw Error('Нужен Chrome с поддержкой Passkey на телефоне.');
+ const publicKey={...options,challenge:fromB64url(options.challenge),
+  allowCredentials:(options.allowCredentials||[]).map(x=>({...x,id:fromB64url(x.id)}))};
+ const c=await navigator.credentials.get({publicKey});
+ if(!c||c.type!=='public-key')throw Error('Проверка телефона отменена.');
+ return {id:c.id,rawId:toB64url(c.rawId),type:c.type,
+  authenticatorAttachment:c.authenticatorAttachment||undefined,
+  response:{clientDataJSON:toB64url(c.response.clientDataJSON),
+   authenticatorData:toB64url(c.response.authenticatorData),
+   signature:toB64url(c.response.signature),
+   userHandle:c.response.userHandle?toB64url(c.response.userHandle):undefined},
+  clientExtensionResults:c.getClientExtensionResults()};
+}
+async function refreshPhoneStatus(){
+ const d=await post('/api/trade-passkey',{action:'status'});
+ passkeyEnrolled=d.loggedIn&&d.enrolled===true;
+ $('finger-register').hidden=!(d.loggedIn&&d.enrolled===false);
+ $('finger-status').textContent=passkeyEnrolled?
+  '✅ Passkey подключён. Вход и каждую реальную сделку подтверждаешь на телефоне (отпечаток/PIN).':
+  '🔐 Сначала войди по паролю и подключи отпечаток один раз; потом можно входить через Passkey.';
+}
 function sessionUI(active,until=0){
  $('login-fields').hidden=active;
+ $('finger-login').hidden=active;
+ if(!active){passkeyEnrolled=false;$('finger-register').hidden=true;}
  $('logout').hidden=!active;
  $('status').disabled=!active;
  $('preflight').disabled=!active;
@@ -125,10 +181,27 @@ async function run(button,fn){
  try{await fn()}catch(e){message('Ошибка: '+String(e.message||e));}
  finally{busy=false;button.disabled=false;if(button===$('confirm'))button.disabled=!$('accept').checked||!approvalToken;}
 }
+$('finger-login').onclick=()=>run($('finger-login'),async()=>{
+ const begin=await post('/api/trade-passkey',{action:'login-begin'});
+ const response=await verifyPhonePasskey(begin.options);
+ const result=await post('/api/trade-passkey',{action:'login-finish',response});
+ sessionUI(true,result.expiresAt);
+ await refreshPhoneStatus();
+ message('✅ Ты вошёл с помощью телефона. Для каждой сделки потребуется отдельное подтверждение.');
+});
+$('finger-register').onclick=()=>run($('finger-register'),async()=>{
+ if(!webauthnSupported())throw Error('Passkey недоступен: открой RADAR в Chrome на Android.');
+ const begin=await post('/api/trade-passkey',{action:'register-begin'});
+ const response=await createPhonePasskey(begin.options);
+ await post('/api/trade-passkey',{action:'register-finish',response});
+ await refreshPhoneStatus();
+ message('✅ Passkey создан. В следующий раз входи по отпечатку. Теперь каждую реальную сделку подтверждает телефон.');
+});
 $('login').onclick=()=>run($('login'),async()=>{
  if(!$('password').value){$('session-status').textContent='Введи пароль RADAR для входа.';return;}
  const data=await post('/api/trade-session',{action:'login',password:$('password').value});
  sessionUI(true,data.expiresAt);
+ await refreshPhoneStatus();
  message('✅ Вход выполнен. Каждую сделку всё равно подтверждаешь отдельно.');
 });
 $('logout').onclick=()=>run($('logout'),async()=>{
@@ -161,8 +234,11 @@ $('password').addEventListener('keydown',e=>{
  }
 });
 sessionUI(false);
-post('/api/trade-session',{action:'status'}).then(d=>{
- if(d.authenticated)sessionUI(true,d.expiresAt);
+post('/api/trade-session',{action:'status'}).then(async d=>{
+ if(d.authenticated){
+  sessionUI(true,d.expiresAt);
+  await refreshPhoneStatus();
+ }
 }).catch(()=>{$('session-status').textContent='🔒 Сессия недоступна. Войди по паролю RADAR.';});
 $('symbol').onchange=()=>{reset();$('pullback-plan').textContent='Новая монета: расчёт отката не обновлён.';$('preflight-result').textContent='Для этой монеты готовность ещё не проверена.'};
 $('preflight').onclick=()=>run($('preflight'),async()=>{
@@ -224,8 +300,16 @@ $('accept').onchange=()=>{$('confirm').disabled=!$('accept').checked||!approvalT
 $('confirm').onclick=()=>run($('confirm'),async()=>{
  if(!$('accept').checked||!approvalToken||Date.now()>expiresAt-12000)throw Error('Одобрение истекло. Запроси новый план.');
  const token=approvalToken;approvalToken=null;$('approval').hidden=true;
+ let passkeyAssertion=null;
+ if(passkeyEnrolled){
+  message('👆 Подтверди на телефоне именно эту сделку. До проверки ордер НЕ отправляется.');
+  const begin=await post('/api/trade-passkey',{action:'trade-begin',proposal:token});
+  passkeyAssertion=await verifyPhonePasskey(begin.options);
+ }
  message('Отправляю подтверждённый ордер WEEX с TP/SL… Не нажимай повторно.');
- const d=await post('/api/trade-confirm',{proposal:token,confirmation:'CONFIRM_REAL_WEEX_ORDER'});
+ const body={proposal:token,confirmation:'CONFIRM_REAL_WEEX_ORDER'};
+ if(passkeyAssertion)body.passkeyAssertion=passkeyAssertion;
+ const d=await post('/api/trade-confirm',body);
  message(d.protectionVerified?'✅ WEEX сообщил о двух активных защитных ордерах для '+d.orderId+'. Проверь их лично в приложении WEEX. Следующие сделки заблокированы до ручного подтверждения.':'🚨 ОРДЕР '+d.orderId+' ОТПРАВЛЕН, но WEEX пока НЕ подтвердил оба защитных ордера! СРОЧНО проверь TP/SL и при необходимости закрой позицию в WEEX. Следующие сделки заблокированы.');
  $('released').hidden=false;$('verified').checked=false;$('unlock').disabled=true;
 });
