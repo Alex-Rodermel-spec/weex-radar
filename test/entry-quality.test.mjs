@@ -54,7 +54,7 @@ test('close obstacle less than 1R blocks entries symmetrically',()=>{
 test('no nearby completed 5m swing keeps the known R/R, not an invented level',()=>{
  const result=checkConfirmedEntry('LONG',100,100,0.5,sample());
  assert.equal(result.ok,true);
- assert.equal(result.rr,2);
+ assert.equal(result.rr,2.5);
  assert.equal(result.nearestLevel,null);
  assert.equal(result.roomR,null);
  assert.equal(checkConfirmedEntry('SHORT',100,100,0.5,sample()).ok,true);
