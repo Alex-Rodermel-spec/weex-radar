@@ -4,6 +4,7 @@ import {get,put,del} from '@vercel/blob';
 import {weex,validateHumanPassword,requireSameOrigin} from '../lib/weex-order.mjs';
 import {verifyActiveProtection} from '../lib/trade-protection.mjs';
 import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
+import {readOwnedPortfolio,verifyOtherBotProtection} from '../lib/trade-ownership.mjs';
 const LOCK='trading/execution-global.lock';
 export default async function handler(req,res){
   res.setHeader('Cache-Control','private, no-store');
@@ -25,12 +26,17 @@ export default async function handler(req,res){
     ]);
     if(!Array.isArray(positions)||!Array.isArray(orders))throw Error('Cannot reconcile WEEX orders');
     if(orders.some(x=>x.reduceOnly!==true))throw Error('Pending opening order; wait and check WEEX');
-    const active=positions.filter(x=>Number(x.size)>0);
-    if(active.length>TRADE_LIMITS.maxConcurrent)
-      throw Error('Trial protection: multiple positions. Do not unlock');
+    const portfolio=await readOwnedPortfolio(positions);
+    if(portfolio.botOpenPositions>TRADE_LIMITS.maxConcurrent)
+      throw Error('Exceeded RADAR position cap. Do not unlock');
+    const active=portfolio.active;
     const same=active.filter(x=>x.symbol===lock.symbol);
     if(same.length!==1||same[0].side!==lock.direction)
       throw Error('Expected exactly one matching position; inspect WEEX.');
+    if(!portfolio.bot.some(({position:p})=>p.symbol===lock.symbol&&p.side===lock.direction))
+      throw Error('Locked position lacks verified RADAR ownership; manual review required');
+    await verifyOtherBotProtection(portfolio,sym=>sym===lock.symbol?
+      Promise.resolve(algoOrders):weex.openAlgoOrders(sym));
     const protection=verifyActiveProtection(algoOrders,lock,same[0]);
     if(!protection.verified)
       throw Error('WEEX has not verified BOTH active closing Stop-Loss and Take-Profit orders. Trade lock stays.');
