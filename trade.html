@@ -45,6 +45,9 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <button class="secondary" id="preflight">🛡 Проверить готовность без сделки</button>
 <p class="muted" id="preflight-result" role="status">Проверь подключение, доступную маржу и настройки пары без открытия ордера.</p>
 <button class="secondary" id="preview">Посмотреть возможный вход (без ордера)</button>
+<button class="secondary" id="pullback">🧱 Рассчитать вход на откате 1М (без ордера)</button>
+<p class="field-note">Режим на откате только для изучения: рассчитывается цена по трём ЗАКРЫТЫМ свечам 1М. Он не изменяет кнопку «Подготовить реальную сделку», которая пока использует MARKET.</p>
+<div id="pullback-plan" class="muted" role="status">Лимитный вход ещё не подключён к реальной торговле.</div>
 <button id="prepare">Подготовить реальную сделку</button>
 <p class="muted" id="messages" role="status">Если подтверждённого сигнала WEEX нет — вход запрещён.</p>
 <div id="plan" hidden></div>
@@ -129,7 +132,7 @@ $('password').addEventListener('keydown',e=>{
    $('status').click();
  }
 });
-$('symbol').onchange=()=>{reset();$('preflight-result').textContent='Для этой монеты готовность ещё не проверена.'};
+$('symbol').onchange=()=>{reset();$('pullback-plan').textContent='Новая монета: расчёт отката не обновлён.';$('preflight-result').textContent='Для этой монеты готовность ещё не проверена.'};
 $('preflight').onclick=()=>run($('preflight'),async()=>{
  const out=$('preflight-result');
  out.textContent='⏳ Проверяю WEEX без отправки заявок…';
@@ -152,6 +155,25 @@ $('preflight').onclick=()=>run($('preflight'),async()=>{
  }
 });
 
+$('pullback').onclick=()=>run($('pullback'),async()=>{
+ const out=$('pullback-plan');
+ out.textContent='⏳ Рассчитываю только по закрытым свечам WEEX, без заявки…';
+ try{
+  const r=await fetch('/api/pullback-preview?symbol='+encodeURIComponent($('symbol').value),
+   {cache:'no-store'});
+  const data=await r.json();
+  if(!r.ok)throw Error(data.error||'Нет допустимого отката');
+  const side=data.direction==='LONG'?'LONG: купить дешевле':'SHORT: продать выше';
+  out.textContent='🧱 '+data.symbol+' · '+side+
+   '\n📍 Рыночный вход (для сравнения): '+number(data.marketEntryEstimate)+
+   '\n🎯 Лимитная цена (ТОЛЬКО РАСЧЁТ): '+number(data.limitPrice)+
+   '\n📉 Откат от рынка: '+number(data.gapPercent)+'%'+
+   '\n🛑 SL: '+number(data.stopLoss)+' · TP: '+number(data.takeProfit)+
+   '\n⏰ Расчёт истекает: '+new Date(data.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})+
+   '\n⚠️ Не является заявкой! Биржа не получила LIMIT, исполнение и TP/SL не проверены. Кнопка реальной сделки по-прежнему открывает MARKET.';
+ }catch(e){out.textContent='🟡 '+String(e.message||e)+' — лимитный ордер не создавался.';}
+ out.style.whiteSpace='pre-line';
+});
 $('preview').onclick=()=>run($('preview'),async()=>{
  reset();message('Проверяю свежий сигнал и цену WEEX…');
  const r=await fetch('/api/trade-preview?symbol='+encodeURIComponent($('symbol').value),{cache:'no-store'});
