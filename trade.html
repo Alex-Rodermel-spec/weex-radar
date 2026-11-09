@@ -29,7 +29,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <header><a class="back" href="/">← Назад к сигналам WEEX RADAR</a>
 <h1>WEEX RADAR · Торговля</h1>
 <span class="pill" id="mode">🔒 Статус: не проверен</span>
-<p class="muted">Реальные фьючерсы WEEX · маржа 50 USDT · плечо 10× · не более 3 разных монет. Каждую сделку подтверждаешь лично ты.</p>
+<p class="muted">Реальные фьючерсы WEEX · маржа 50 USDT · плечо 10× · не более 3 разных монет. Новые сделки допускаются только при расчётном чистом R/R ≥1,5 и риске по стопу с модельными расходами ≤10 USDT. Каждую сделку подтверждаешь лично ты.</p>
 <section class="box">
 <h2>1. Подключение и вход</h2>
 <label for="password">Личный пароль подтверждения RADAR</label>
@@ -51,7 +51,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 </section>
 <section class="box" id="approval" hidden>
 <h2>3. Подтверждение реального ордера</h2>
-<p class="alert">⚠️ Это реальная заявка с плечом 10×. Если ты подтвердишь, деньги действительно будут задействованы. Стоп не гарантирует точный убыток.</p>
+<p class="alert">⚠️ Это реальная заявка с плечом 10×. Комиссии и проскальзывание рассчитаны по модели, а не по твоему персональному тарифу. Стоп не гарантирует максимальный убыток: фактические расходы, проскальзывание и гэпы могут быть выше.</p>
 <label class="check"><input type="checkbox" id="accept"><span>Я проверил цену входа, Stop-Loss, Take-Profit и принимаю риск реальных убытков.</span></label>
 <button class="danger" id="confirm" disabled>Подтвердить реальную сделку WEEX</button>
 <p class="field-note">Одобрение действует только для конкретного свежего сигнала, один раз и не более 45 секунд.</p>
@@ -64,7 +64,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 </section>
 <section class="box">
 <h2>Защита</h2>
-<p class="muted">Вывод средств через API не используется. Бот не открывает позиции без подтверждения. При смене сигнала, цены, превышении риска 10 USDT, отсутствии защиты, открытых ордерах или ошибках WEEX — отклоняет вход.</p>
+<p class="muted">Вывод средств через API не используется. Бот не открывает позиции без подтверждения. При смене сигнала, цены, расчётном риске свыше 10 USDT с комиссиями/спредом/проскальзыванием, чистом R/R ниже 1,5, отсутствии защиты, открытых ордерах или ошибках WEEX — отклоняет вход.</p>
 <p class="alert">Если ордер уже был отправлен, но связь прервалась, сначала проверь приложение WEEX. Повторно нажимать вход нельзя.</p>
 </section>
 </main>
@@ -85,9 +85,10 @@ const number=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:8});
 function message(s){$('messages').textContent=s;}
 function reset(){approvalToken=null;expiresAt=0;$('approval').hidden=true;$('accept').checked=false;$('confirm').disabled=true;$('plan').hidden=true;}
 function render(p){
- const pairs=[['Направление',p.direction],['Маржа',p.marginUsdt+' USDT'],['Плечо',p.leverage+'×'],['Цена входа (оценка)',number(p.entryEstimate)],['Объём',number(p.notionalEstimate)+' USDT'],['Количество',p.quantity],['Stop-Loss',number(p.stopLoss)],['Take-Profit',number(p.takeProfit)],['Убыток до комиссий','−'+number(p.estimatedLossUsdt)+' USDT'],['Прибыль до комиссий','+'+number(p.estimatedProfitUsdt)+' USDT'],['Максимум позиций',p.maxConcurrent],['Сигнал действителен до',new Date(p.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})]];
+ const pairs=[['Направление',p.direction],['Маржа',p.marginUsdt+' USDT'],['Плечо',p.leverage+'×'],['Цена входа (оценка)',number(p.entryEstimate)],['Объём',number(p.notionalEstimate)+' USDT'],['Количество',p.quantity],['Stop-Loss',number(p.stopLoss)],['Take-Profit',number(p.takeProfit)],['Убыток до расходов','−'+number(p.estimatedLossUsdt)+' USDT'],['Прибыль до расходов','+'+number(p.estimatedProfitUsdt)+' USDT'],['Риск по SL с расходами (модель)','−'+number(p.estimatedNetLossUsdt)+' USDT'],['Прибыль по TP с расходами (модель)','+'+number(p.estimatedNetProfitUsdt)+' USDT'],['Чистый R/R (модель)',number(p.estimatedNetRR)+':1'],['Комиссия за сторону (модель)',number(p.costAssumptions?.feeBpsEachSide/100)+'%'],['Проскальзывание за сторону (модель)',number(p.costAssumptions?.slippageBpsEachSide/100)+'%'],['Текущий спред (б.п.)',number(p.costAssumptions?.observedSpreadBps)],['Максимум позиций',p.maxConcurrent],['Сигнал действителен до',new Date(p.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})]];
  $('plan').innerHTML='<h2>'+safe(p.symbol)+' · '+safe(p.direction)+'</h2><div class="grid">'+pairs.map(([k,v])=>'<div class="metric"><small>'+safe(k)+'</small><strong>'+safe(v)+'</strong></div>').join('')+'</div>';
  $('plan').hidden=false;
+ $('plan').insertAdjacentHTML('beforeend','<p class="alert">⚠️ МОДЕЛЬНЫЕ расходы: реальный тариф WEEX, funding, изменение спреда и исполнение могут отличаться. Стоп не гарантирует убыток ≤10 USDT.</p>');
 }
 async function post(endpoint,payload){
  const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Radar-Trade-Intent':'manual-confirm'},cache:'no-store',credentials:'same-origin',body:JSON.stringify(payload)});
