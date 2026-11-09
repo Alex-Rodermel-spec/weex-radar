@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#141324">
+<title>WEEX RADAR · Советник (без сделок)</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#100f1b;color:#f4f0fc}
+*{box-sizing:border-box}body{margin:0;padding:0;min-height:100vh;background:radial-gradient(circle at 15% 0%,#312443 0%,transparent 35%),#100f1b}
+main{max-width:1020px;margin:auto;padding:24px 17px 60px}
+a{color:#d5b9ff}nav{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:26px;font-size:14px}
+.brand{font-weight:900;letter-spacing:.06em;color:#cc9cf9}
+h1{font-size:clamp(28px,5.5vw,44px);letter-spacing:-.04em;margin:0 0 12px}
+.lead{color:#c0bacf;line-height:1.55;max-width:760px;margin:0 0 20px}
+button{font:700 15px system-ui;border:1px solid #9976d0;color:#f9f4ff;background:#563982;border-radius:11px;padding:12px 17px;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+#stamp{font-size:13px;color:#afa8bc;margin-left:10px}
+.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:22px 0}
+.kpi{border:1px solid #504562;border-radius:15px;padding:16px;background:#221d2e}
+.kpi span{display:block;font-size:12px;color:#ccc0d5}.kpi strong{font-size:31px;font-variant-numeric:tabular-nums}
+.green{color:#72e6ac}.yellow{color:#f4d07c}.red{color:#ff8896}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:12px;margin-top:15px}
+.card{border:1px solid #3e374e;background:#1b1928;border-radius:16px;padding:17px}
+.card.review{border-color:#4ea57b}.card.skip{border-color:#8a4958}
+.head{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:15px;font-weight:800}
+.state{font-size:14px;font-weight:750;margin:10px 0 7px}
+.reason{font-size:14px;line-height:1.55;color:#c9c4d5;min-height:45px}
+.details{font-size:12px;color:#b5aabe;line-height:1.7;margin-top:10px}
+small{font-size:12px;color:#ada4bb}
+.caution{border-top:1px solid #373143;margin-top:30px;padding-top:20px;color:#b8adc6;font-size:13px;line-height:1.65}
+@media(max-width:450px){.summary{gap:7px}.kpi{padding:12px}.kpi strong{font-size:25px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main>
+<nav><span class="brand">◈ WEEX RADAR</span><a href="/">← Сигналы</a><a href="/health.html">Состояние</a><a href="/history.html">Журнал</a><a href="/backtest.html">Тест стратегии</a></nav>
+<h1>🧭 Советник · LONG / SHORT</h1>
+<p class="lead">Показывает не только направление, но и решение по <b>свежему входу</b>. Учитывает уже существующие проверки риска, ретеста и предполагаемых расходов. «ПРОВЕРИТЬ» — не команда купить или продать.</p>
+<button id="refresh" type="button">↻ Проверить рынок сейчас</button><span id="stamp" role="status">Получаем данные…</span>
+<div class="summary" aria-label="Решения">
+ <div class="kpi"><span>🟢 Проверить вручную</span><strong id="count-review" class="green">—</strong></div>
+ <div class="kpi"><span>🟡 Ждать / нет входа</span><strong id="count-wait" class="yellow">—</strong></div>
+ <div class="kpi"><span>🔴 Пропустить / нет данных</span><strong id="count-skip" class="red">—</strong></div>
+</div>
+<h2>16 инструментов · WEEX основной</h2>
+<p class="lead">Сортировка: сначала редкие кандидаты для ручной проверки, затем ожидание и отклонённые сигналы. Данные обновляются по кнопке и раз в минуту, пока открыта эта страница.</p>
+<section class="grid" id="markets" aria-live="polite"><p>Проверяем…</p></section>
+<p class="caution">⚠️ Это <b>наблюдательный</b> советник, не автотрейдер и не подтверждённая прибыльная система. Учёт комиссий использует модель WEEX VIP0 с предполагаемым проскальзыванием; реальные условия могут отличаться. При отсутствии свежих данных и после истечения сигнала решение — не входить. Никаких ордеров, новых подписок, ключей или оплат.</p>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=x=>Number.isFinite(x)?x.toLocaleString('ru-RU',{maximumFractionDigits:x<.01?8:x<1?6:4}):'—';
+const clock=x=>new Date(x).toLocaleString('ru-RU',{timeZone:'Europe/Berlin',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const decision={
+ REVIEW:{label:'🟢 ПРОВЕРИТЬ ВХОД',cl:'review'},
+ WAIT:{label:'🟡 ЖДАТЬ',cl:'wait'},
+ SKIP:{label:'🔴 НЕ ВХОДИТЬ',cl:'skip'},
+ NO_SETUP:{label:'⚪ НЕТ ВХОДА',cl:'wait'},
+ UNAVAILABLE:{label:'🔴 НЕТ ДАННЫХ',cl:'skip'}
+};
+const rank={REVIEW:0,WAIT:1,SKIP:2,NO_SETUP:3,UNAVAILABLE:4};
+let busy=false;
+function render(data){
+ const now=Date.now();
+ if(!Array.isArray(data.symbols)||data.symbols.length!==16||
+    !data.symbols.every(s=>s?.advisor&&decision[s.advisor.status]))throw Error('Данные советника неполные');
+ if(!Number.isFinite(data.generatedAt)||Math.abs(now-data.generatedAt)>90000)
+   throw Error('Рыночные данные устарели');
+ let review=0,wait=0,skip=0;
+ for(const s of data.symbols){
+  const d=s.advisor;
+  if(d.status==='REVIEW'&&d.expiresAt>now+15000)review++;
+  else if(d.status==='SKIP'||d.status==='UNAVAILABLE')skip++;
+  else wait++;
+ }
+ $('count-review').textContent=review;
+ $('count-wait').textContent=wait;
+ $('count-skip').textContent=skip;
+ $('stamp').textContent='Обновлено '+clock(data.generatedAt);
+ const sorted=[...data.symbols].sort((a,b)=>(rank[a.advisor.status]??9)-(rank[b.advisor.status]??9)||
+  a.symbol.localeCompare(b.symbol));
+ $('markets').innerHTML=sorted.map(s=>{
+  const d=s.advisor,expired=d.expiresAt!==null&&d.expiresAt<=now+15000;
+  const status=expired&&d.status==='REVIEW'?'SKIP':d.status;
+  const dd=decision[status]||decision.UNAVAILABLE;
+  const price=Number(s.livePrice??s.price),rawDirection=d.direction;
+  const direction=rawDirection==='LONG'?'📈 LONG':rawDirection==='SHORT'?'📉 SHORT':
+    d.trend15==='UP'?'Фон 15м: рост':d.trend15==='DOWN'?'Фон 15м: падение':'Фон: неизвестен';
+  const reason=expired?'Сигнал истёк — вход не рассматриваем':d.reason;
+  const risk=d.direction?'<div class="details">Сейчас: '+num(price)+
+   ' · TP: '+num(d.take)+' · SL: '+num(d.stop)+
+   '<div>Риск/прибыль до расходов: '+num(d.grossRR)+':1 · после расходов: '+num(d.netRR)+':1 (модель)</div>'+
+   '<div>До: '+(d.expiresAt?clock(d.expiresAt):'—')+'</div></div>':
+   '<div class="details">Последняя свеча: '+(Number.isFinite(s.candleCloseTime)?clock(s.candleCloseTime):'—')+
+   ' · это не предложение для входа</div>';
+  return '<article class="card '+safe(dd.cl)+'"><div class="head"><span>'+safe(s.symbol)+'</span><small>'+safe(s.exchange||'—')+
+   '</small></div><div class="state '+(status==='REVIEW'?'green':status==='SKIP'||status==='UNAVAILABLE'?'red':'yellow')+'">'+
+   safe(dd.label)+'</div><div>'+safe(direction)+'</div><div class="reason">'+safe(reason)+'</div>'+risk+'</article>';
+ }).join('');
+}
+async function refresh(){
+ if(busy)return;busy=true;$('refresh').disabled=true;
+ const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),29000);
+ try{
+  const r=await fetch('/api/signals',{cache:'no-store',signal:ctrl.signal});
+  if(!r.ok)throw Error('HTTP '+r.status);
+  render(await r.json());
+ }catch(e){
+  $('stamp').textContent='⚠️ Не удалось обновить: '+String(e.message||e);
+  $('count-review').textContent='—';$('count-wait').textContent='—';$('count-skip').textContent='—';
+  $('markets').textContent='Нет свежих данных. Не используй старые уровни для входа.';
+ }finally{clearTimeout(timer);busy=false;$('refresh').disabled=false;}
+}
+$('refresh').addEventListener('click',refresh);
+refresh();
+setInterval(()=>{if(document.visibilityState==='visible')refresh()},60000);
+</script>
+</body>
+</html>
