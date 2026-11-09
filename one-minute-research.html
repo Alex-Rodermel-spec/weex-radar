@@ -28,7 +28,7 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 <h1>🔬 Вход раньше: 1М + 5М + 15М</h1>
 <div class="info">
  <strong>Исследование, не торговля.</strong>
- <p>Ищем свежий пробой на закрытой 1М свече при совпадении тенденции по двум <em>уже закрытым</em> таймфреймам 5М/15М. Рассчитываем 1,2 ATR(5М) для SL и 3,0 ATR(5М) для TP. Учитываем условные taker-комиссии 0,08% и проскальзывание 0,03% с каждой стороны; до R/R 1,3 и риска ≤10 USDT при номинале 500 USDT.</p>
+ <p>Сравниваем свежий пробой и вход после отката EMA20 на закрытой 1М свече при совпадении тенденции по двум <em>уже закрытым</em> таймфреймам 5М/15М. Рассчитываем 1,2 ATR(5М) для SL и 3,0 ATR(5М) для TP. Учитываем условные taker-комиссии 0,08% и проскальзывание 0,03% с каждой стороны; до R/R 1,3 и риска ≤10 USDT при номинале 500 USDT.</p>
  <p>Проверяем следующие 60 минут, используя цену OPEN следующей 1М свечи как приближение входа. Нет данных реального спреда, исполнения, funding или задержки. <strong>Здесь не создаются заявки, и результат не включает этот алгоритм в реальную торговлю.</strong></p>
 </div>
 <div class="row">
@@ -52,7 +52,16 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
  <div class="tile"><small>TP / SL по свечам</small><strong id="tp-sl">—</strong></div>
  <div class="tile"><small>Средний итог, R*</small><strong id="netr">—</strong></div>
 </div>
-<h2>Почему были отказы</h2>
+<h2>Второй вариант — 1М откат к EMA20</h2>
+<p>При совпадении 5М и 15М ждём, пока минутная цена вернётся к EMA20 и снова закроется по направлению тренда. Те же расчётные комиссии, стоп, цель и ограничение 10 USDT.</p>
+<div class="grid">
+ <div class="tile"><small>Сигналов отката</small><strong id="p-triggered">—</strong></div>
+ <div class="tile"><small>Допустимых по модели</small><strong id="p-setups">—</strong></div>
+ <div class="tile"><small>TP / SL после отката</small><strong id="p-tpsl">—</strong></div>
+ <div class="tile"><small>Средний R после расходов</small><strong id="p-netr">—</strong></div>
+</div>
+<p class="warn">Сравнение вариантов на одной истории — не независимое подтверждение прибыльности.</p>
+<h2>Почему были отказы при пробое</h2>
 <ul id="reasons"></ul>
 <div class="info">
  <p class="warn">⚠️ Если входов слишком мало, результат статистически ненадёжен. Даже положительный итог не подтверждает, что сделка прошла бы реальные комиссии, риск, котировки и задержку.</p>
@@ -79,6 +88,11 @@ $('run').onclick=async()=>{
   show('setups',d.results?.setups);
   show('tp-sl',(d.results?.TP??0)+' / '+(d.results?.SL??0));
   show('netr',d.results?.netMeanR===null?'Недостаточно данных':d.results.netMeanR);
+  const pr=d.strategies?.pullback||{};
+  show('p-triggered',pr.filter?.triggered);
+  show('p-setups',pr.results?.setups);
+  show('p-tpsl',(pr.results?.TP??0)+' / '+(pr.results?.SL??0));
+  show('p-netr',pr.results?.netMeanR===null?'Недостаточно данных':pr.results?.netMeanR);
   const labels={
    TREND_MISMATCH:'Нет совпадения 5М и 15М',
    NO_BREAK:'Нет нового 1М пробоя',
