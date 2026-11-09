@@ -89,7 +89,25 @@ function render(data){
   const direction=rawDirection==='LONG'?'📈 LONG':rawDirection==='SHORT'?'📉 SHORT':
     d.trend15==='UP'?'Фон 15м: рост':d.trend15==='DOWN'?'Фон 15м: падение':'Фон: неизвестен';
   const reason=expired?'Сигнал истёк — вход не рассматриваем':d.reason;
-  const risk=d.direction?'<div class="details">Сейчас: '+num(price)+
+  const lr=s.levelReview;
+  const states={BREAK_UP:'📈 Закрытие выше сопротивления',BREAK_DOWN:'📉 Закрытие ниже поддержки',
+   FAKE_UP:'⚠️ Ложный пробой вверх',FAKE_DOWN:'⚠️ Ложный пробой вниз',
+   TWO_SIDED_SWEEP:'⚠️ Вынос уровней в обе стороны',INSIDE_RANGE:'Внутри диапазона'};
+  const levels=lr?.mode==='CLOSED_5M_OBSERVATION'?
+   '<div class="details" style="border-top:1px solid #3e374e;padding-top:10px;margin-top:10px">'+
+   '🧱 Поддержка: <b>'+num(lr.support)+'</b> · Сопротивление: <b>'+num(lr.resistance)+'</b>'+
+   '<div>'+safe(states[lr.candleState]||'Уровни не подтверждены')+
+   (lr.breakoutDirection?' · '+(lr.closeQuality==='SUPPORTED'?'объём и свеча поддерживают пробой':'⚠️ свеча/объём слабые'):'')+
+   (Number.isFinite(lr.volumeRatio)?' · объём ×'+num(lr.volumeRatio):'')+'</div>'+
+   (lr.recentFakeouts?.LONG?'⚠️ Ложный пробой вверх '+lr.recentFakeouts.LONG.barsAgo+' свеч. назад. ':'')+
+   (lr.recentFakeouts?.SHORT?'⚠️ Ложный пробой вниз '+lr.recentFakeouts.SHORT.barsAgo+' свеч. назад.':'')+
+   (d.direction&&s.retest?.[d.direction]?
+    '<div>🔁 Ретест '+safe(d.direction)+': '+
+    safe(({CONFIRMED:'уровень удержан',TESTING:'идёт проверка',FAILED:'уровень не удержан',
+      WAITING:'ждём возврата',RECENT_CONFIRMED:'ранее удержан'})[s.retest[d.direction].status]||'не подтверждён')+
+    '</div>':'')+
+   '<div>Уровни из предыдущих 12 закрытых свечей 5М · наблюдение, не сигнал на сделку.</div></div>':'';
+ const risk=d.direction?'<div class="details">Сейчас: '+num(price)+
    ' · TP: '+num(d.take)+' · SL: '+num(d.stop)+
    '<div>Риск/прибыль до расходов: '+num(d.grossRR)+':1 · после расходов: '+num(d.netRR)+':1 (модель)</div>'+
    '<div>До: '+(d.expiresAt?clock(d.expiresAt):'—')+'</div></div>':
@@ -97,7 +115,7 @@ function render(data){
    ' · это не предложение для входа</div>';
   return '<article class="card '+safe(dd.cl)+'"><div class="head"><span>'+safe(s.symbol)+'</span><small>'+safe(s.exchange||'—')+
    '</small></div><div class="state '+(status==='REVIEW'?'green':status==='SKIP'||status==='UNAVAILABLE'?'red':'yellow')+'">'+
-   safe(dd.label)+'</div><div>'+safe(direction)+'</div><div class="reason">'+safe(reason)+'</div>'+risk+'</article>';
+   safe(dd.label)+'</div><div>'+safe(direction)+'</div><div class="reason">'+safe(reason)+'</div>'+risk+levels+'</article>';
  }).join('');
 }
 async function refresh(){
