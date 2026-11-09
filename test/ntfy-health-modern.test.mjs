@@ -16,9 +16,9 @@ const strong='🟢 ПРОВЕРИТЬ · BTCUSDT LONG · 🟣 СИЛЬНЫЙ';
 const skipped='🔴 ПРОПУСТИТЬ · ETHUSDT SHORT · 🔔 ОБЫЧНЫЙ';
 
 test('classifies both historical and current ntfy formats without confusing forecasts and confirmations',()=>{
- for(const title of [confirmed,strong,skipped,'🔔 ОБЫЧНЫЙ ALGOUSDT SHORT',
+ for(const title of [confirmed,strong,skipped,'🟢 ВХОД LONG · BTCUSDT','🔔 ОБЫЧНЫЙ ALGOUSDT SHORT',
   '🟣 СИЛЬНЫЙ XRPUSDT LONG'])assert.equal(classifyMarketNtfyTitle(title),'confirmed');
- for(const title of [early,forecast,'⚡ EARLY WATCH ZECUSDT SHORT'])
+ for(const title of [early,forecast,'🔮 ПРОГНОЗ РОСТА · ZECUSDT','⚡ EARLY WATCH ZECUSDT SHORT'])
   assert.equal(classifyMarketNtfyTitle(title),'early');
  for(const title of [undefined,'','🚨 WEEX RADAR · CRON НЕ ОТВЕЧАЕТ',
   '🟡 ЖДАТЬ · HYPEUSDT SHORT · 🟣 СИЛЬНЫЙ additional text',
