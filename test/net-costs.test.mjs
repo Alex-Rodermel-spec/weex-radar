@@ -79,7 +79,8 @@ test('optional cost warnings are read-only and production scan/dispatch still ac
  const ui=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(signalSource,/const costReview=final.direction\?assessNetCosts/);
  assert.match(push,/const costReview=assessNetCosts/);
- assert.match(push,/\{\.\.\.signal,livePrice:quote.price,entryQuality:entry,costReview\}:null/);
+ assert.match(push,/const refreshed=\{\.\.\.signal,livePrice:quote.price,entryQuality:entry,costReview\}/);
+ assert.match(push,/refreshed\.advisor=adviseSymbol/);
  assert.match(ntfy,/const costText=/);
  assert.match(ntfy,/isEarly\|\|cost\?\.mode!=='SHADOW_COSTS'/);
  assert.match(ui,/function costHint\(s\)/);
@@ -110,15 +111,22 @@ test('Android ntfy confirmed signal embeds caution, 1m EARLY WATCH remains uncha
    symbol:'XAUTUSDT',exchange:'WEEX',direction:'SHORT',
    level:'NORMAL',price:100,livePrice:100,stop:100.05,take:99.9,
    candleCloseTime:now-9000,expiresAt:now+90000,
+   advisor:{status:'REVIEW'},entryQuality:{ok:true},
    costReview:assessNetCosts({...book,direction:'SHORT',stop:100.05,take:99.9})
   };
-  const res=await ntfySend('confirmed',[s]);
-  assert.equal(res.delivered,1);
-  assert.match(posts[0].message,/РАСХОДЫ: TP меньше/);
-  assert.match(posts[0].message,/SL 100.05 · TP 99.9/);
+  // A cost-unfavourable candidate must NOT be announced as a trade entry.
+  const rejected=await ntfySend('confirmed',[s]);
+  assert.equal(rejected.delivered,0);
+  const safe={...s,stop:102,take:95,
+   costReview:assessNetCosts({...book,direction:'SHORT',stop:102,take:95})};
+  assert.equal(safe.costReview.status,'PASS_ESTIMATE');
+  const result=await ntfySend('confirmed',[safe]);
+  assert.equal(result.delivered,1);
+  assert.match(posts[0].message,/SL 102 · TP 95/);
+  assert.match(posts[0].message,/Расчётный R\/R после расходов/);
   const early=await ntfySend('early',[{...s,level:'EARLY_WATCH'}]);
   assert.equal(early.delivered,1);
-  assert.match(posts[1].message,/ЖДАТЬ подтверждения 5м/);
+  assert.match(posts[1].message,/Только прогноз, не разрешение на сделку/);
   assert.doesNotMatch(posts[1].message,/РАСХОДЫ|NET R\/R/);
   assert.doesNotMatch(posts[0].message,/WR_Private/);
  }finally{
