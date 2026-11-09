@@ -1,5 +1,6 @@
 // Protected read-only status. Returns no secrets, identifiers or balances.
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled} from '../lib/weex-order.mjs';
+import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
 // Translate numeric WEEX codes into safe guidance. Never forward raw response text.
 export function describeConnectionFailure(err){
  const code=String(err?.message||'').match(/^WEEX_CODE_(-?\d{1,6})$/)?.[1];
@@ -52,6 +53,6 @@ export default async function handler(req,res){
   const active=positions.filter(x=>Number(x?.size)>0);
   return res.status(200).json({ok:true,connected:true,canTrade:account.canTrade,
     hedgeMode:account.dualSidePosition,openPositions:active.length,
-    liveEnabled:liveEnabled(),marginUsdt:50,leverage:10,maxConcurrent:3,
+    liveEnabled:liveEnabled(),marginUsdt:50,leverage:10,maxConcurrent:TRADE_LIMITS.maxConcurrent,
     note:'canTrade is not a proof of API Futures order permission. No order placed.'});
 }
