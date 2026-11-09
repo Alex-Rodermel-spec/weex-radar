@@ -8,7 +8,7 @@ const market={symbol:'XRPUSDT',quoteAsset:'USDT',marginAsset:'USDT',contractType
 test('preview is never executable and uses fixed limits',()=>{
   const p=createReadOnlyPlan(signal,book,market,now);
   assert.equal(p.canPlaceOrder,false);assert.equal(p.status,'PREVIEW_ONLY');
-  assert.equal(p.leverage,10);assert.equal(p.marginUsdt,50);assert.equal(p.maxConcurrent,3);
+  assert.equal(p.leverage,10);assert.equal(p.marginUsdt,50);assert.equal(p.maxConcurrent,1);
   assert.ok(p.notionalEstimate<=500);assert.ok(p.estimatedLossUsdt<=TRADE_LIMITS.maxRiskUsdt);
   assert.equal(p.costGate,'PASS_ESTIMATE');
   assert.ok(p.estimatedNetLossUsdt>=p.estimatedLossUsdt);
