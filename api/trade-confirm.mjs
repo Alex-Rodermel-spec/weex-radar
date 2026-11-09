@@ -3,7 +3,6 @@
 import {get,put,del} from '@vercel/blob';
 import {_test} from './signals.mjs';
 import {verifyActiveProtection} from '../lib/trade-protection.mjs';
-import {dayTradeKey} from '../lib/trade-trial-guard.mjs';
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
   verifyAccount,checkAvailableMargin,checkPositions,checkOrders,checkSymbolSettings,marketPlan,
   orderPayload,isAccepted,fingerprint} from '../lib/weex-order.mjs';
@@ -51,7 +50,6 @@ export default async function handler(req,res){
   if(!_test.SYMBOLS.includes(plan.symbol)||plan.exchange!=='WEEX')
     return res.status(409).json({error:'Unsafe proposal'});
   let locked=false,orderAttempted=false;
-  let dailyReserved=false,dailyPath=null;
   const hash=fingerprint(req.body.proposal);
   let tradeClientId;
   try{
@@ -104,20 +102,6 @@ export default async function handler(req,res){
       throw Error('Price moved while configuring leverage. Prepare a new trade.');
     const order=orderPayload(finalPlan);
     tradeClientId=order.newClientOrderId;
-    // Reserve one real order attempt per Berlin day atomically in the
-    // existing private Blob store. No extra services or schedules.
-    // If anything fails before reaching WEEX, release the reservation.
-    // Once a request is transmitted, retain it even if WEEX times out.
-    dailyPath=dayTradeKey();
-    try{
-      await put(dailyPath,JSON.stringify({symbol:plan.symbol,at:Date.now()}),
-        {access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-      dailyReserved=true;
-    }catch(e){
-      if(isBlobConflict(e))
-        throw Error('Trial safety: one bot order attempt per Berlin day already used');
-      throw e;
-    }
     // Idempotency is by signal candle + direction; never open the same signal twice.
     const signalHash=fingerprint(tradeClientId);
     try{
@@ -166,9 +150,6 @@ export default async function handler(req,res){
     // If any order was transmitted, DO NOT RELEASE LOCK on ambiguous outcome.
     return res.status(409).json({error:message,requiresManualCheck:orderAttempted});
   }finally{
-    if(dailyReserved&&!orderAttempted){
-      try{await del(dailyPath);}catch{}
-    }
     if(locked&&!orderAttempted){
       // Do not suppress an unknown outcome if a request to WEEX was made.
       try{await del(LOCK);}catch{}
