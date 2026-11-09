@@ -99,6 +99,7 @@ test('preflight, confirm and release all resolve bot ownership before allowing n
  assert.ok(confirm.indexOf('ownershipReceipt({')>confirm.indexOf('await weex.placeOrder(order)'));
  assert.match(confirm,/await put\(ownershipPath\(plan\.symbol\)/);
  assert.match(confirm,/orderAttempted=true/);
+ assert.match(confirm,/if\(same\.length>1\)/);
  assert.match(confirm,/CONFIRM_REAL_WEEX_ORDER/);
  const trade=readFileSync(new URL('../trade.html',import.meta.url),'utf8');
  assert.match(trade,/до 2 одновременно открытых позиций RADAR/);
