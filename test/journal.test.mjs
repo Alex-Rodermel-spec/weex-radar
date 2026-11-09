@@ -66,6 +66,11 @@ test('30/90-day rollups count only resolved TP/SL with explicit no-fee R estimat
  ];
  const sum=summarizeJournal(rows,NOW);
  assert.equal(sum.windows[30].total,3);
+ assert.deepEqual(sum.researchGoal,{
+  target:100,collected:4,remaining:96,reached:false,resolved:3,
+  basis:'Rolling 90-day archive of confirmed ntfy alerts; candle-only outcomes, not live trades',
+  note:'100 alerts is a study checkpoint, NOT proof of profitability or a safe win rate.'
+ });
  assert.equal(sum.windows[30].TP,1);
  assert.equal(sum.windows[30].SL,1);
  assert.equal(sum.windows[30].resolved,2);
@@ -116,6 +121,8 @@ test('new data-only writer cannot silently enable trading or publish plaintext',
  assert.match(main,/mode==='journal'/);
  assert.match(index,/href="\/history\.html"/);
  assert.match(site,/mode=journal/);
+ assert.match(site,/goal-progress/);
+ assert.match(site,/100 подтверждённых сигналов/);
  assert.doesNotMatch(dispatch,/journal-export/);
  assert.doesNotMatch(early,/journal-export/);
  assert.doesNotMatch(route,/trade-confirm|\/capi\/v3\/order/);
