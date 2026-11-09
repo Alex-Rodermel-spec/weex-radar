@@ -57,11 +57,12 @@ test('phone notification explicitly says FORECAST, direction, confirm, invalidat
  const s={symbol:'BTCUSDT',exchange:'WEEX',direction:'LONG',level:'EARLY_WATCH',
   watchType:'PRE_BREAK',forecast,livePrice:one.at(-1).close};
  const msg=formatPhoneAlert(s,{early:true,deadline:'20:41'});
- assert.match(msg.title,/🔮 ПРОГНОЗ.*LONG/);
- assert.match(msg.message,/Возможный РОСТ/);
- assert.match(msg.message,/Подтверждение: выше/);
- assert.match(msg.message,/Отмена сценария: ниже/);
- assert.match(msg.message,/НЕ ВХОДИТЬ/);
+ assert.match(msg.title,/🔮 ПРОГНОЗ РОСТА · BTCUSDT/);
+ assert.match(msg.message,/Возможное повышение цены/);
+ assert.match(msg.message,/Ориентир продолжения/);
+ assert.match(msg.message,/Сценарий отменяется около/);
+ assert.match(msg.message,/Только прогноз, не разрешение на сделку/);
+ assert.match(msg.message,/⏱ 10М:/);
  assert.doesNotMatch(msg.message,/Прибыль \(TP\)|Стоп \(SL\)|R\/R|✅ Прибыль/);
 });
 test('repeat forecast dedupes by symbol + direction in ten-minute buckets',()=>{
