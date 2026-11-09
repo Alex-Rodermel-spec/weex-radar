@@ -52,6 +52,10 @@ button:disabled{opacity:.6;cursor:wait}
   <div class="eyebrow">⚡ 1м EARLY WATCH</div><h2 id="early-state">Проверяем…</h2>
   <p class="detail" id="early-detail">Последняя служебная отметка.</p>
  </section>
+ <section class="card" id="filter-card">
+  <div class="eyebrow">🔍 Почему молчит 5м?</div><h2 id="filter-state">Проверяем…</h2>
+  <p class="detail" id="filter-detail">Один текущий скан 16 рынков, а не история пропущенных сделок.</p>
+ </section>
 </div>
 <div class="info">✅ <b>Без новых регистраций и оплаты.</b> Cron оставляет служебную отметку примерно раз в 15 минут. Если он перестанет отвечать более 35 минут, независимая проверка GitHub попробует отправить предупреждение через ntfy. Оно зависит от работы GitHub и самого ntfy, поэтому не гарантировано.</div>
 <p class="caution">Важно: отсутствие торговых сигналов не означает поломку. Доступность ntfy подтверждает только связь с сервером уведомлений, но не факт появления баннера на Android. Если ntfy полностью недоступен, предупреждение через него также не придёт. Для проверки фактической доставки смотри приложение ntfy.</p>
@@ -101,6 +105,19 @@ function render(data){
    'Последняя отметка: '+clock(cron.lastSeenAt)+'. Проверено: '+e.checked+
    '; ошибок WEEX: '+e.failedMarkets+'. Отсутствие сигнала не считается ошибкой.');
  }else setCard('early','warn','● Ожидаем данные','Данные о минутной проверке появятся с очередной служебной отметкой.');
+ const diag=data.filterDiagnostics;
+ if(diag?.counts){
+  const c=diag.counts;
+  const detail='Нет условий: '+diag.noSetup+
+   ' (тренд '+c.trend_mismatch+', пробой/RSI '+c.no_breakout+'). '+
+   'Отсечены: '+diag.candidatesBlocked+
+   ' (свеча '+c.candle_quality+', свежая цена '+c.live_price+
+   ', риск/уровни '+c.risk_reward+', боковик '+c.sideways+
+   ', истекли '+c.expired+', нет котировки '+c.quote_unavailable+'). '+
+   'Нет данных: '+diag.unavailable+'. Это снимок 16 рынков, не подсчёт уникальных или прибыльных сделок.';
+  setCard('filter',diag.unavailable?'warn':'ok',
+   '● '+diag.ready+' прошли · '+diag.candidatesBlocked+' отсечены',detail);
+ }else setCard('filter','warn','● Нет диагностики','Повтори проверку. Данные сигналов не менялись.');
  $('stamp').textContent='Проверено '+clock(data.generatedAt)+' · обновляется только по запросу';
 }
 async function refresh(){

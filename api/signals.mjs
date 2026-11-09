@@ -6,6 +6,7 @@ import {checkSidewaysEntry} from '../lib/sideways-gate.mjs';
 import {evaluateRetestBoth} from '../lib/retest-check.mjs';
 import {shadowIndicators} from '../lib/shadow-indicators.mjs';
 import {evaluateTrapRisk} from '../lib/trap-risk.mjs';
+import {classifyFilterStage} from '../lib/filter-diagnostics.mjs';
 const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 const DUR={'5m':300000,'15m':900000};
 function numeric(x){const n=Number(x);return Number.isFinite(n)?n:NaN;}
@@ -109,8 +110,13 @@ function getAnalysis(five,fifteen,livePrice=null,referenceNow=Date.now()){
  const expiresAt=tentative?last.closeTime+180000:null;
  const active=Boolean(tentative&&referenceNow<expiresAt);
  const direction=active?tentative:null;
+ // Diagnostic-only. Reads existing gate results; never affects direction or expiry.
+ const filterDiagnostic={stage:classifyFilterStage({
+  candidate,hasAlignedTrend:longTrend||shortTrend,quality,
+  priceQuality,entryQuality,sidewaysGate,active
+ })};
  const score=direction?Math.round(Math.min(95,65+(volumeRatio>=1.3?12:0)+(volumeRatio>=1.8?6:0)+((direction==='LONG'?r>=60:r<=40)?4:0)+(Math.abs(e20-e50)/last.close>.003?5:0)+(Math.abs(t20-t50)/last.close>.004?5:0))):null;
- return {direction,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
+ return {direction,filterDiagnostic,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
  stop:direction?(direction==='LONG'?last.close-1.2*volatility:last.close+1.2*volatility):null,
  take:direction?(direction==='LONG'?last.close+2.4*volatility:last.close-2.4*volatility):null,
  entryQuality,shadowFilter,sidewaysGate,retest,shadowIndicators:contextOnly,trapReview,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
@@ -181,11 +187,13 @@ async function scanSymbol(symbol){
     return {symbol,exchange,status:'ok',...final,costReview};
    }catch(e){
     return {symbol,exchange,status:'ok',...getAnalysis(five,fifteen,null),
+      filterDiagnostic:{stage:'quote_unavailable'},
       reason:'Текущая котировка недоступна — вход не подтверждён'};
    }
   }catch(e){errors.push(exchange+': '+String(e.message||e).slice(0,85));}
  }
- return {symbol,exchange:null,status:'error',direction:null,level:'UNAVAILABLE',reason:errors.join(' / ')};
+ return {symbol,exchange:null,status:'error',direction:null,level:'UNAVAILABLE',
+  filterDiagnostic:{stage:'data_unavailable'},reason:errors.join(' / ')};
 }
 async function scanAll(){
  const results=[];
