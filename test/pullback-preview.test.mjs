@@ -12,7 +12,7 @@ const signal={
 };
 const quote={bidPrice:'100',askPrice:'100.02',time:NOW-2000};
 const recent=()=>Array.from({length:4},(_,i)=>{
- const time=lastClose-(3-i)*60_000;
+ const time=lastClose-(4-i)*60_000;
  return {time,closeTime:time+60_000,open:100.01,high:100.25,low:99.85,close:100.03,volume:100};
 });
 function plan(extra={}){return planPullbackPreview({signal,quote,candles:recent(),pricePrecision:4,now:NOW,...extra});}
