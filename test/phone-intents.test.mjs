@@ -40,7 +40,7 @@ test('1m early watches are predictions, never executable orders',()=>{
  assert.equal(eligiblePhoneSignal(watch,'early'),true);
  const forecast=formatPhoneAlert(watch,{early:true});
  assert.match(forecast.title,/^🔮 ПРОГНОЗ РОСТА · XRPUSDT$/u);
- for(const tf of ['1М','5М','15М'])assert.ok(forecast.message.includes(tf));
+ for(const tf of ['1М','5М','10М'])assert.ok(forecast.message.includes(tf));
  assert.doesNotMatch(forecast.message,/НЕ ВХОДИТЬ|ЖДАТЬ|ПРОБОЙ/);
  assert.doesNotMatch(forecast.message,/SL |TP /);
  assert.equal(classifyMarketNtfyTitle(forecast.title),'early');
