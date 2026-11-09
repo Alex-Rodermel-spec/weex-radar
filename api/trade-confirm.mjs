@@ -2,6 +2,7 @@
 // Fail-closed on any network ambiguity. One global persistent atomic lock.
 import {get,put,del} from '@vercel/blob';
 import {_test} from './signals.mjs';
+import {verifyActiveProtection} from '../lib/trade-protection.mjs';
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
   verifyAccount,checkAvailableMargin,checkPositions,checkOrders,checkSymbolSettings,marketPlan,
   orderPayload,isAccepted,fingerprint} from '../lib/weex-order.mjs';
@@ -122,13 +123,28 @@ export default async function handler(req,res){
       await sleep(400);
     }
     if(!p)throw Error('Order accepted but position not yet visible. CHECK WEEX.');
-    // Attached TP/SL was included in the initial order; the API does not
-    // expose guaranteed confirmation in the order response, so never claim it was verified.
-    // Fail closed and ask the owner to check protection before unlocking.
+    // Post-order server-side check is READ-ONLY. The exchange may register
+    // attached conditional orders asynchronously; do not infer protection
+    // from the order acceptance response. Keep the global lock until the
+    // owner's separate manual release rechecks both orders from WEEX.
+    let protection={verified:false,stop:false,take:false};
+    for(let i=0;i<3;i++){
+      try {
+        const algo=await weex.openAlgoOrders(plan.symbol);
+        protection=verifyActiveProtection(algo,finalPlan,p);
+        if(protection.verified)break;
+      }catch {
+        protection={verified:false,stop:false,take:false};
+      }
+      if(i<2)await sleep(450);
+    }
     return res.status(202).json({ok:true,status:'PLACED_CHECK_PROTECTION',symbol:plan.symbol,
       direction:plan.direction,orderId:id,clientOrderId:tradeClientId,
       stopLoss:plan.stopLoss,takeProfit:plan.takeProfit,
-      message:'Order accepted. Immediately verify TP and SL in WEEX. New orders blocked until safety release.'});
+      protectionVerified:protection.verified,
+      message:protection.verified?
+        'WEEX reported BOTH active closing TP/SL orders. Check them personally in WEEX; other orders remain locked until manual safety release.':
+        'URGENT: WEEX did NOT verify BOTH active closing TP/SL orders. Check WEEX now and protect/close this position manually if needed. Other trades remain locked.'});
   }catch(e){
     const message=String(e?.message||'Unknown trading error').slice(0,180);
     // If any order was transmitted, DO NOT RELEASE LOCK on ambiguous outcome.
