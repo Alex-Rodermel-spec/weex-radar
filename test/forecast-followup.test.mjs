@@ -93,13 +93,14 @@ test('a broken outcome cannot be green; review requires actual same-market 5m ap
  const s=sample(),r={status:'BREAKOUT',at:base+3*M};
  assert.match(forecastFollowupMessage(s,r,null,now).title,/ЖДАТЬ 5М/);
  const matching={symbol:'XRPUSDT',status:'ok',exchange:'WEEX',
-  direction:'SHORT',expiresAt:now+120_000,livePrice:99.1,stop:101,take:95,
+  direction:'SHORT',candleCloseTime:base+3*M,expiresAt:now+120_000,livePrice:99.1,stop:101,take:95,
   advisor:{status:'REVIEW',netRR:1.7}};
  const green=forecastFollowupMessage(s,r,matching,now);
  assert.equal(green.decision,'REVIEW');
  assert.match(green.title,/ПРОВЕРИТЬ ВХОД/);
  assert.match(green.message,/Перепроверь цену/);
  assert.equal(forecastFollowupMessage(s,r,{...matching,direction:'LONG'},now).decision,'WAIT');
+ assert.equal(forecastFollowupMessage(s,r,{...matching,candleCloseTime:base-5*M},now).decision,'WAIT');
  assert.equal(forecastFollowupMessage(s,r,{...matching,expiresAt:now+5_000},now).decision,'WAIT');
  assert.equal(forecastFollowupMessage(s,r,{...matching,advisor:{status:'SKIP',netRR:1.1}},now).decision,'WAIT');
  for(const status of ['INVALIDATED','AMBIGUOUS','EXPIRED']){
