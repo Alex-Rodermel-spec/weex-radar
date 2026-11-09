@@ -33,15 +33,15 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <section class="box">
 <h2>1. Подключение и вход</h2>
 <div id="login-fields">
-<label for="password">Пароль подтверждения RADAR (раз в 30 минут)</label>
+<label for="password">Пароль подтверждения RADAR (раз в 24 часа)</label>
 <input id="password" type="password" autocomplete="current-password" spellcheck="false" placeholder="Пароль RADAR — НЕ пароль WEEX">
-<p class="field-note">Пароль из <code>WEEX_TRADE_APPROVAL_PASSWORD</code>. Не присылай его в чат. Пароль не хранится на сайте: браузер получает защищённую сессию на 30 минут.</p>
-<button id="login">🔐 Войти на 30 минут</button>
+<p class="field-note">Пароль из <code>WEEX_TRADE_APPROVAL_PASSWORD</code>. Не присылай его в чат. Пароль не хранится на сайте: браузер получает защищённую сессию на 24 часа.</p>
+<button id="login">🔐 Войти на 24 часа</button>
 </div>
 <button class="secondary" id="finger-login">👆 Войти по отпечатку / Passkey</button>
 <button class="secondary" id="finger-register" hidden>👆 Подключить отпечаток для входа и подтверждения сделок</button>
 <p class="field-note" id="finger-status">Отпечаток хранится только в телефоне. Android также может предложить PIN или блокировку экрана. Чтобы подключить впервые, войди по паролю RADAR.</p>
-<p class="muted" id="session-status" role="status">🔒 Вход требуется один раз на 30 минут.</p>
+<p class="muted" id="session-status" role="status">🔒 Вход действует 24 часа. Каждую реальную сделку подтверждаешь отдельно.</p>
 <button class="secondary" id="logout" hidden>🚪 Выйти из RADAR</button>
 <button class="secondary" id="status" disabled>Проверить подключение WEEX</button>
 <div id="account" class="muted" role="status">Реальные ордера недоступны, пока не подтвердится подключение и не будет включён защищённый режим торговли.</div>

@@ -19,13 +19,14 @@ const req=(action,password,headers={})=>({
  method:'POST',headers:{...baseHeaders,...headers},body:{action,password}
 });
 
-test('signed session expires at exactly 30 minutes and never contains password',()=>{
+test('signed session expires at exactly 24 hours and never contains password',()=>{
  const {token,expiresAt}=issueTradeSession(now,env);
- assert.equal(SESSION_SECONDS,1800);
- assert.equal(expiresAt,now+1800000);
+ assert.equal(SESSION_SECONDS,86400);
+ assert.equal(expiresAt,now+86400000);
  assert.ok(!token.includes(env.WEEX_TRADE_APPROVAL_PASSWORD));
  assert.deepEqual(verifyTradeSession(token,now,env),{expiresAt});
  assert.deepEqual(verifyTradeSession(token,expiresAt-1,env),{expiresAt});
+ assert.deepEqual(verifyTradeSession(token,now+30*60*1000,env),{expiresAt});
  assert.equal(verifyTradeSession(token,expiresAt,env),null);
  assert.equal(verifyTradeSession(token,now-6000,env),null);
  assert.equal(verifyTradeSession(token,now,{WEEX_TRADE_APPROVAL_PASSWORD:'wrong-password-xxxxxxxxxxx'}),null);
@@ -39,7 +40,7 @@ test('browser cookie is host-only, HttpOnly, Secure and SameSite Strict',()=>{
  const session=issueTradeSession(now,env);
  const cookie=cookieForSession(session.token);
  assert.match(cookie,new RegExp('^'+SESSION_COOKIE+'='));
- for(const flag of ['HttpOnly','Secure','SameSite=Strict','Path=/','Max-Age=1800'])
+ for(const flag of ['HttpOnly','Secure','SameSite=Strict','Path=/','Max-Age=86400'])
    assert.ok(cookie.includes(flag),flag);
  assert.doesNotMatch(cookie,/Domain=/);
  const token=cookie.split(';')[0];
@@ -64,6 +65,8 @@ test('login validates password; session status and logout never access WEEX or t
   res=resp();
   await handler(req('login',env.WEEX_TRADE_APPROVAL_PASSWORD),res);
   assert.equal(res.statusCode,200);assert.equal(res.body.authenticated,true);
+  assert.equal(res.body.minutes,1440);
+  assert.match(res.body.note,/24-hour/);
   assert.ok(res.headers['Set-Cookie'].includes('HttpOnly'));
   const cookie=res.headers['Set-Cookie'].split(';')[0];
   res=resp();await handler(req('status',undefined,{cookie}),res);
