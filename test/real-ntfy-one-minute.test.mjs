@@ -77,7 +77,7 @@ test('gap/marketable, ambiguous within-minute and pre-entry invalidation never c
 
 test('never count the minute containing ntfy send time or a candle after expiry',()=>{
  const before=c(early-MIN,100,100.1,98.9,99.2);
- const no=c(early,100,100.2,99.98,100.01);
+ const no=c(early,100,100.2,100,100.01);
  const after=c(later,100,100.2,99.5,99.8);
  const report=study(before,no,after);
  assert.equal(report.status,'NO_TOUCH');
