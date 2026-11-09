@@ -68,6 +68,8 @@ test('owner ntfy topic sends once per candle, with exact Berlin time, without Bl
   assert.equal(checks.configuredTopic(),topic);
   const signal={symbol:'ALGOUSDT',exchange:'WEEX',direction:'LONG',level:'STRONG',
    price:1.0,livePrice:1.01,stop:0.98,take:1.04,
+   advisor:{status:'REVIEW'},entryQuality:{ok:true},
+   costReview:{status:'PASS_ESTIMATE',netRR:1.5},
    candleCloseTime:Date.now()-10000,expiresAt:Date.now()+90000};
   const first=await ntfySend('confirmed',[signal]);
   const again=await ntfySend('confirmed',[{...signal,livePrice:1.02}]);
@@ -78,7 +80,7 @@ test('owner ntfy topic sends once per candle, with exact Berlin time, without Bl
   assert.equal(again.duplicates,1);
   assert.equal(posts.length,1);
   assert.equal(posts[0].topic,topic);
-  assert.equal(posts[0].title,'🟡 ЖДАТЬ · ALGOUSDT LONG · 🟣 СИЛЬНЫЙ');
+  assert.equal(posts[0].title,'🟢 ВХОД LONG · ALGOUSDT');
   assert.match(posts[0].sequence_id,/^[a-f0-9]{32}$/);
   assert.match(posts[0].message,/Свеча \d\d:\d\d:\d\d · отправка \d\d:\d\d:\d\d · задержка \d+с/);
   assert.match(posts[0].message,/До \d\d:\d\d:\d\d/);
@@ -109,12 +111,14 @@ test('if ntfy cache is unavailable, retain emergency delivery using stable seque
  try{
   const signal={symbol:'BTCUSDT',exchange:'WEEX',direction:'LONG',level:'NORMAL',
    price:70000,stop:69000,take:71500,
+   advisor:{status:'REVIEW'},entryQuality:{ok:true},
+   costReview:{status:'PASS_ESTIMATE',netRR:1.5},
    candleCloseTime:Date.now()-30000,expiresAt:Date.now()+60000};
   const result=await ntfySend('confirmed',[signal]);
   assert.equal(result.delivered,1);
   assert.equal(result.failed,0);
   assert.equal(sends.length,1);
-  assert.equal(sends[0].title,'🟡 ЖДАТЬ · BTCUSDT LONG · 🔔 ОБЫЧНЫЙ');
+  assert.equal(sends[0].title,'🟢 ВХОД LONG · BTCUSDT');
   assert.match(sends[0].message,/Свеча/);
  }finally{
   globalThis.fetch=oldFetch;
