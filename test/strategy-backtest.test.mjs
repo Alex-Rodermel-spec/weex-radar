@@ -95,6 +95,10 @@ test('closed 15m candles must not be borrowed from the future when replaying 5m'
  assert.equal(typeof v.baseline.tpNetLoss,'number');
  assert.equal(typeof v.filtered.tpNetPositive,'number');
  assert.ok(v.rawCandidates>=v.filtered.setups);
+ assert.equal(v.historicalEconomicStudy.total,v.filtered.setups);
+ assert.equal(v.historicalPullbackStudy.total,v.filtered.setups);
+ assert.equal(v.historicalPullbackStudy.fillRate,null);
+ assert.match(v.historicalEconomicStudy.disclaimer,/ZERO spread/);
  assert.equal(v.baseline.setups,v.directions.LONG.baseline.setups+v.directions.SHORT.baseline.setups);
  assert.match(v.assumptions.entry,/OPEN/);
 });
