@@ -1,5 +1,6 @@
 // Protected read-only status. Returns no secrets, identifiers or balances.
-import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled} from '../lib/weex-order.mjs';
+import {weex,configured,requireSameOrigin,liveEnabled} from '../lib/weex-order.mjs';
+import {authenticatedTradeSession} from '../lib/trade-session.mjs';
 import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
 import {readOwnedPortfolio} from '../lib/trade-ownership.mjs';
 // Translate numeric WEEX codes into safe guidance. Never forward raw response text.
@@ -34,7 +35,7 @@ export default async function handler(req,res){
   res.setHeader('X-Content-Type-Options','nosniff');
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
   if(!requireSameOrigin(req))return res.status(403).json({error:'Open official WEEX RADAR'});
-  if(!validateHumanPassword(req.body?.password))return res.status(401).json({error:'Approval password not configured or incorrect'});
+  if(!authenticatedTradeSession(req))return res.status(401).json({error:'Сессия RADAR истекла. Войди ещё раз.'});
   if(!configured())return res.status(503).json({error:'WEEX keys missing'});
   // Separate the account and positions check so users see where the
   // read-only connection failed; never return secret details or balances.
