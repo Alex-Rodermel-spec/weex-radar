@@ -30,21 +30,23 @@ test('unknown costs cannot imply green; cost-negative target must be red',()=>{
  assert.equal(alertPresentation({...base,retest,costReview:{mode:'SHADOW_COSTS',status:'LOW_NET_RR'}}).status,'SKIP');
  assert.equal(alertPresentation({...base,exchange:'Bybit',retest}).status,'WAIT');
 });
-test('early watch is always amber and has no trade levels',()=>{
+test('early watch delivers directional forecast, not a trading instruction',()=>{
  const s={...base,level:'EARLY_WATCH',retest,costReview:cost};
  const x=formatPhoneAlert(s,{early:true,deadline:'17:58'});
- assert.equal(x.status,'WAIT');
- assert.match(x.title,/EARLY WATCH/);
- assert.match(x.message,/ЖДАТЬ подтверждения 5м/);
- assert.doesNotMatch(x.message,/Прибыль|Стоп|R\/R|SL |TP /);
+ assert.equal(x.status,'FORECAST');
+ assert.match(x.title,/ПРОГНОЗ ПАДЕНИЯ/);
+ assert.match(x.message,/1М:/);
+ assert.match(x.message,/5М:/);
+ assert.match(x.message,/15М:/);
+ assert.doesNotMatch(x.message,/ЖДАТЬ|ПРОБОЙ|НЕ ВХОДИТЬ|SL |TP /);
 });
 test('phone format has clear entry, profit, stop, and raw exact levels',()=>{
- const x=formatPhoneAlert({...base,retest,costReview:cost},{deadline:'17:58'});
- assert.match(x.message,/📍 Вход/);
- assert.match(x.message,/Прибыль \(TP\)/);
- assert.match(x.message,/Стоп \(SL\)/);
+ const x=formatPhoneAlert({...base,retest,costReview:cost,
+  advisor:{status:'REVIEW'},entryQuality:{ok:true}},{deadline:'17:58'});
+ assert.match(x.title,/🟢 ВХОД SHORT/);
+ assert.match(x.message,/Цена для проверки входа/);
  assert.match(x.message,/SL 4050.0042 · TP 4047.1116/);
- assert.match(x.message,/Чистый R\/R/);
+ assert.match(x.message,/Расчётный R\/R после расходов/);
  assert.match(x.message,/17:58/);
  assert.equal(priceText(0.000012345678),'0,00001235');
 });
