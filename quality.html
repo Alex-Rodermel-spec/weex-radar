@@ -70,14 +70,30 @@ tbody tr:last-child td{border-bottom:none}
 </div>
 <p class="fine" id="eco-explain">Неизвестные исторические комиссии не считаются прошедшими проверку.</p>
 </section>
+<section id="minute-study">
+<h2>🧱 Реальные уведомления: откат на свечах 1М</h2>
+<div class="info">
+ <p><strong>Только наблюдение, ни одной заявки.</strong> Для каждого отправленного сигнала берём исходную цену входа, Stop-Loss и Take-Profit и рассчитываем условную цену на 0,02–0,6% выгоднее (порог R/R для гипотетического maker-only входа).</p>
+ <p>Считаем только полностью закрытые свечи 1М <strong>после фактической отправки</strong> и строго <strong>до указанного в уведомлении срока</strong>. Уровень был задет — не значит, что пост-онли LIMIT был бы исполнен. После касания смотрим TP/SL только начиная со следующей минуты, чтобы не угадывать порядок внутри свечи.</p>
+ <p>Если срок не удалось восстановить, свечей недостаточно, цена перескочила уровень или был достигнут TP/SL раньше отката — такой сигнал <strong>не записывается как успешный вход</strong>.</p>
+</div>
+<div class="cards">
+ <div class="card"><div class="label">Сигналов в исследовании</div><div class="number" id="one-total">—</div></div>
+ <div class="card good"><div class="label">Возможных касаний отката</div><div class="number" id="one-touch">—</div></div>
+ <div class="card"><div class="label">Цена не дошла до уровня</div><div class="number" id="one-no-touch">—</div></div>
+ <div class="card"><div class="label">Неоднозначных или неприменимых</div><div class="number" id="one-other">—</div></div>
+</div>
+<p class="fine" id="one-explain">Уровни, результат и расходы оцениваются на свечах, а не на исполненных ордерах.</p>
+</section>
 <h2>История проверенных уведомлений</h2>
 <div id="empty" class="empty" hidden></div>
 <div class="table-wrap" id="table-wrap" hidden>
  <table>
-  <thead><tr><th>Время</th><th>Монета</th><th>Сигнал</th><th>Цена сигнала</th><th>Риск / награда</th><th>Тест фильтра</th><th>Исход</th><th>Решение при отправке</th><th>Чистый R/R сообщения</th><th>Теор. откат для maker</th></tr></thead>
+  <thead><tr><th>Время</th><th>Монета</th><th>Сигнал</th><th>Цена сигнала</th><th>Риск / награда</th><th>Тест фильтра</th><th>Исход</th><th>Решение при отправке</th><th>Чистый R/R сообщения</th><th>Теор. откат для maker</th><th>Проверка отката 1М</th><th>После касания 1М*</th></tr></thead>
   <tbody id="rows"></tbody>
  </table>
 </div>
+<p class="fine">* «После касания»: касание уровней TP/SL <strong>позже</strong> условной цены входа, начиная со следующей закрытой минутной свечи. Это не подтверждает исполнение LIMIT и не учитывает реальные комиссии. Отменённые, неоднозначные и неисполненные варианты не превращаются в выигрыш.</p>
 <p class="fine">⚠️ «Нужный откат» — математическое сравнение с гипотетическим maker-only исполнением по нулевому спреду, а НЕ повтор реального 1-минутного алгоритма и НЕ рекомендация входить. Метод осторожный: если TP/SL могли быть задеты в минуту отправки или оба уровня за одну свечу, результат помечается неопределённым. Мы не знаем реальную цену исполнения, комиссии и проскальзывание. Маленькая выборка не доказывает прибыльность.</p>
 </main>
 <script>
@@ -112,6 +128,20 @@ function show(data){
   ', неизвестно: '+(eco.missingCost??0)+'. '+
   'Сравнение MARKET и maker ограничено оптимистичным нулевым спредом. '+
   'Оценка не подтверждает исполнение лимитного ордера или возможность реальной сделки.';
+ const ones=data.oneMinuteStudy||{};
+ const oneCounts=ones.counts||{},onePost=ones.postTouch||{};
+ $('one-total').textContent=String(ones.total??0);
+ $('one-touch').textContent=String(oneCounts.TOUCH_POSSIBLE??0);
+ $('one-no-touch').textContent=String(oneCounts.NO_TOUCH??0);
+ $('one-other').textContent=String(Math.max(0,(ones.total??0)-
+  (oneCounts.TOUCH_POSSIBLE??0)-(oneCounts.NO_TOUCH??0)));
+ $('one-explain').textContent='Условные касания уровня: '+(oneCounts.TOUCH_POSSIBLE??0)+
+  '. После этих минут цена коснулась TP: '+(onePost.TP_TOUCHED??0)+
+  ', SL: '+(onePost.SL_TOUCHED??0)+', неоднозначно: '+(onePost.AMBIGUOUS??0)+
+  ', ещё неизвестно: '+((onePost.PENDING??0)+(onePost.NO_DATA??0)+
+   (onePost.NEITHER_TOUCHED??0)+(onePost.INSUFFICIENT_AFTER_TOUCH??0))+
+  '. Это только порядок касаний на свечах, НЕ сделки и НЕ прибыль. '+
+  'Отказ без данных или из-за старого сигнала не считается проигрышем.';
  const rows=data.signals||[];
  $('rows').replaceChildren();
  $('table-wrap').hidden=!rows.length;
@@ -126,11 +156,29 @@ function show(data){
   const pullback=e.passiveRequiredImprovementBps===null||e.passiveRequiredImprovementBps===undefined?
    'не найден ≤0,6%':e.passiveRequiredImprovementBps===0?'0 б.п. (только гипотеза)':
    e.passiveRequiredImprovementBps+' б.п. · касание не проверено';
+  const one=item.oneMinuteResearch||{};
+  const oneStatus={
+   TOUCH_POSSIBLE:'🟡 Свеча коснулась',
+   NO_TOUCH:'⚪ Отката не было',
+   PENDING:'⏳ Ждём закрытия 1М',
+   NO_DATA:'⚠️ Пробел в 1М',
+   NO_VIABLE_PRICE:'⛔ R/R не удалось улучшить',
+   UNKNOWN_DEADLINE:'⚠️ Неизвестен срок',
+   INSUFFICIENT_1M_RESOLUTION:'⚠️ Меньше полной минуты',
+   INVALID_LEVEL:'⛔ Цена за SL/TP',
+   GAP_OR_MARKETABLE:'⚠️ Уровень уже пройден',
+   AMBIGUOUS_1M:'⚠️ TP/SL в той же минуте',
+   INVALIDATED_BEFORE_TOUCH:'⚠️ TP/SL до отката'
+  };
+  const postStatus={TP_TOUCHED:'Уровень TP позже',SL_TOUCHED:'Уровень SL позже',
+   AMBIGUOUS:'Оба уровня в минуте',NEITHER_TOUCHED:'Не задеты',
+   PENDING:'Пока неизвестно',NO_DATA:'Недостаточно данных',
+   INSUFFICIENT_AFTER_TOUCH:'Слишком мало времени'};
   const fields=[clock(item.sentAt),item.symbol,item.direction,num(item.entry),
    item.rr+' : 1',shadow,statuses[item.status]||item.status,
    label[item.decisionAtAlert]||'—',
    item.netRRAtAlert===null||item.netRRAtAlert===undefined?'—':item.netRRAtAlert+':1',
-   pullback];
+   pullback,oneStatus[one.status]||'—',postStatus[one.postTouchStatus]||'—'];
   fields.forEach((value,index)=>{
    const td=document.createElement('td');
    td.textContent=value;
