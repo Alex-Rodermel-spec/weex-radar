@@ -1,6 +1,7 @@
 // WEEX RADAR — market data only, no exchange keys and no trading.
 import {checkConfirmedEntry} from '../lib/entry-quality.mjs';
 import {assessNetCosts} from '../lib/net-costs.mjs';
+import {adviseSymbol,summarizeAdvisor} from '../lib/advisor.mjs';
 import {evaluateStructure} from '../lib/market-structure.mjs';
 import {checkSidewaysEntry} from '../lib/sideways-gate.mjs';
 import {evaluateRetestBoth} from '../lib/retest-check.mjs';
@@ -231,10 +232,14 @@ export default async function handler(req,res){
   return handleLiquidity(req,res,SYMBOLS);
  }
  try{
-  const symbols=await scanAll();
+  const scanned=await scanAll();
+  const now=Date.now();
+  // Display-only advice. Existing scan/cron/push eligibility is unchanged.
+  const symbols=scanned.map(s=>({...s,advisor:adviseSymbol(s,now)}));
+  const advisorOverview=summarizeAdvisor(scanned,now);
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
-  return res.status(200).json({generatedAt:Date.now(),interval:'5m',confirmationInterval:'15m',signalLifetimeMinutes:3,sourcePolicy:'WEEX first; Bybit if WEEX fails; never mix exchanges',notes:'Read-only indicative analysis. Not verified profitable.',symbols});
+  return res.status(200).json({generatedAt:now,interval:'5m',confirmationInterval:'15m',signalLifetimeMinutes:3,sourcePolicy:'WEEX first; Bybit if WEEX fails; never mix exchanges',notes:'Read-only indicative analysis. Not verified profitable.',advisorOverview,symbols});
  }catch(e){return res.status(502).json({error:'Market data unavailable',detail:String(e.message||e).slice(0,140)})}
 }
 export const _test={SYMBOLS,normalizeRows,ema,rsi,atr,getAnalysis,breakoutQuality,currentPriceQuality,fetchCurrentQuote,scanSymbol};
