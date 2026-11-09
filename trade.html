@@ -29,7 +29,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <header><a class="back" href="/">← Назад к сигналам WEEX RADAR</a>
 <h1>WEEX RADAR · Торговля</h1>
 <span class="pill" id="mode">🔒 Статус: не проверен</span>
-<p class="muted">Реальные фьючерсы WEEX · маржа 50 USDT · плечо 10× · пробный режим: только 1 открытая позиция одновременно, но несколько подтверждённых сделок в день разрешены. Новые сделки допускаются только при расчётном чистом R/R ≥1,5 и риске по стопу с модельными расходами ≤10 USDT. Каждую сделку подтверждаешь лично ты.</p>
+<p class="muted">Реальные фьючерсы WEEX · маржа 50 USDT · плечо 10× · до 2 одновременно открытых позиций RADAR; ручные позиции WEEX учитываются отдельно. Несколько подтверждённых сделок в день разрешены. Новые сделки допускаются только при расчётном чистом R/R ≥1,5 и риске по стопу с модельными расходами ≤10 USDT. Каждую сделку подтверждаешь лично ты.</p>
 <section class="box">
 <h2>1. Подключение и вход</h2>
 <label for="password">Личный пароль подтверждения RADAR</label>
@@ -67,7 +67,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 </section>
 <section class="box">
 <h2>Защита</h2>
-<p class="muted">Несколько сделок в день возможны последовательно, после проверки защиты и разблокировки предыдущего ордера. Ограничение дневного убытка аккаунта WEEX не реализовано. Вывод средств через API не используется. Бот не открывает позиции без подтверждения. При смене сигнала, цены, расчётном риске свыше 10 USDT с комиссиями/спредом/проскальзыванием, чистом R/R ниже 1,5, отсутствии защиты, открытых ордерах или ошибках WEEX — отклоняет вход.</p>
+<p class="muted">До 2 позиций RADAR одновременно на разных монетах. Ручные позиции не расходуют лимит RADAR, но влияют на общую маржу и запрещают новую позицию бота на той же монете. После каждого ордера нужна проверка TP/SL и снятие блокировки. Ограничение дневного убытка аккаунта WEEX не реализовано. Вывод средств через API не используется. Бот не открывает позиции без подтверждения. При смене сигнала, цены, расчётном риске свыше 10 USDT с комиссиями/спредом/проскальзыванием, чистом R/R ниже 1,5, отсутствии защиты, открытых ордерах или ошибках WEEX — отклоняет вход.</p>
 <p class="alert">Если ордер уже был отправлен, но связь прервалась, сначала проверь приложение WEEX. Повторно нажимать вход нельзя.</p>
 </section>
 </main>
@@ -88,7 +88,7 @@ const number=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:8});
 function message(s){$('messages').textContent=s;}
 function reset(){approvalToken=null;expiresAt=0;$('approval').hidden=true;$('accept').checked=false;$('confirm').disabled=true;$('plan').hidden=true;}
 function render(p){
- const pairs=[['Направление',p.direction],['Маржа',p.marginUsdt+' USDT'],['Плечо',p.leverage+'×'],['Цена входа (оценка)',number(p.entryEstimate)],['Объём',number(p.notionalEstimate)+' USDT'],['Количество',p.quantity],['Stop-Loss',number(p.stopLoss)],['Take-Profit',number(p.takeProfit)],['Убыток до расходов','−'+number(p.estimatedLossUsdt)+' USDT'],['Прибыль до расходов','+'+number(p.estimatedProfitUsdt)+' USDT'],['Риск по SL с расходами (модель)','−'+number(p.estimatedNetLossUsdt)+' USDT'],['Прибыль по TP с расходами (модель)','+'+number(p.estimatedNetProfitUsdt)+' USDT'],['Чистый R/R (модель)',number(p.estimatedNetRR)+':1'],['Комиссия за сторону (модель)',number(p.costAssumptions?.feeBpsEachSide/100)+'%'],['Проскальзывание за сторону (модель)',number(p.costAssumptions?.slippageBpsEachSide/100)+'%'],['Текущий спред (б.п.)',number(p.costAssumptions?.observedSpreadBps)],['Максимум позиций',p.maxConcurrent],['Сигнал действителен до',new Date(p.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})]];
+ const pairs=[['Позиции RADAR',p.opened+'/'+p.maxConcurrent],['Ручных WEEX',p.manualOpenPositions??'—'],['Направление',p.direction],['Маржа',p.marginUsdt+' USDT'],['Плечо',p.leverage+'×'],['Цена входа (оценка)',number(p.entryEstimate)],['Объём',number(p.notionalEstimate)+' USDT'],['Количество',p.quantity],['Stop-Loss',number(p.stopLoss)],['Take-Profit',number(p.takeProfit)],['Убыток до расходов','−'+number(p.estimatedLossUsdt)+' USDT'],['Прибыль до расходов','+'+number(p.estimatedProfitUsdt)+' USDT'],['Риск по SL с расходами (модель)','−'+number(p.estimatedNetLossUsdt)+' USDT'],['Прибыль по TP с расходами (модель)','+'+number(p.estimatedNetProfitUsdt)+' USDT'],['Чистый R/R (модель)',number(p.estimatedNetRR)+':1'],['Комиссия за сторону (модель)',number(p.costAssumptions?.feeBpsEachSide/100)+'%'],['Проскальзывание за сторону (модель)',number(p.costAssumptions?.slippageBpsEachSide/100)+'%'],['Текущий спред (б.п.)',number(p.costAssumptions?.observedSpreadBps)],['Максимум позиций',p.maxConcurrent],['Сигнал действителен до',new Date(p.expiresAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin'})]];
  $('plan').innerHTML='<h2>'+safe(p.symbol)+' · '+safe(p.direction)+'</h2><div class="grid">'+pairs.map(([k,v])=>'<div class="metric"><small>'+safe(k)+'</small><strong>'+safe(v)+'</strong></div>').join('')+'</div>';
  $('plan').hidden=false;
  $('plan').insertAdjacentHTML('beforeend','<p class="alert">⚠️ МОДЕЛЬНЫЕ расходы: реальный тариф WEEX, funding, изменение спреда и исполнение могут отличаться. Стоп не гарантирует убыток ≤10 USDT.</p>');
@@ -116,7 +116,7 @@ $('status').onclick=()=>run($('status'),async()=>{
  mode.textContent='⏳ Идёт проверка';
  try{
    const d=await post('/api/trade-status',{password:$('password').value});
-   account.textContent='✅ WEEX API подключён · Двусторонний режим: '+(d.hedgeMode?'да':'нет')+' · Открыто позиций: '+d.openPositions+'/'+d.maxConcurrent+' · Реальные ордера: '+(d.liveEnabled?'разрешены':'ВЫКЛЮЧЕНЫ')+'.';
+   account.textContent='✅ WEEX API подключён · Двусторонний режим: '+(d.hedgeMode?'да':'нет')+' · Позиции RADAR: '+d.botOpenPositions+'/'+d.maxConcurrent+' · Ручных WEEX: '+d.manualOpenPositions+' · Реальные ордера: '+(d.liveEnabled?'разрешены':'ВЫКЛЮЧЕНЫ')+'.';
    mode.textContent=d.liveEnabled?'🟢 Реальный режим разрешён':'✅ WEEX подключён · торговля выключена';
  }catch(e){
    const detail=String(e?.message||'Не удалось связаться с сервером');
@@ -139,11 +139,12 @@ $('preflight').onclick=()=>run($('preflight'),async()=>{
  try {
   const d=await post('/api/trade-preflight',{symbol:$('symbol').value,password:$('password').value});
   const captions={accountTradeFlag:'Аккаунт разрешает торговлю',hedgeMode:'Двусторонний режим',
-   collateral55Usdt:'Доступно ≥55 USDT',positionCapacity:'Нет других открытых позиций (пробный режим: максимум 1)',
+   collateral55Usdt:'Доступно ≥55 USDT',positionCapacity:'Меньше 2 активных позиций RADAR (ручные не входят)',
    noSameCoinPosition:'Нет позиции на этой монете',noPendingEntryOrders:'Нет открытых ордеров на вход',
    apiListed:'Фьючерс доступен через API',supportedMarket:'Фьючерс поддерживается',
    freshOrderBook:'Цены актуальные',compatiblePositionSettings:'Режим позиции поддерживается'};
   const messages=Object.entries(d.checks).map(([k,v])=>(v?'✅ ':'❌ ')+(captions[k]||k));
+  messages.push('📊 RADAR: '+d.botOpenPositions+'/2 · Ручные позиции WEEX: '+d.manualOpenPositions+'.');
   messages.push(d.requiresLeverageSetup?'⚠️ Перед входом понадобится установить изолированную маржу 10×.':'✅ Изолированная маржа 10×');
   messages.push('🔒 Право API на открытие реального ордера пока не проверено.');
   messages.push(d.liveEnabled?'⚠️ Реальные ордера включены в Vercel.':'🔒 Реальные ордера в Vercel выключены.');

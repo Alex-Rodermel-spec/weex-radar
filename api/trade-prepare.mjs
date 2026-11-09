@@ -3,6 +3,7 @@ import {randomBytes} from 'node:crypto';
 import {put} from '@vercel/blob';
 import {_test} from './signals.mjs';
 import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
+import {readOwnedPortfolio,verifyOtherBotProtection} from '../lib/trade-ownership.mjs';
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
   verifyAccount,checkAvailableMargin,checkPositions,checkOrders,marketPlan,fingerprint} from '../lib/weex-order.mjs';
 async function createProposal(symbol) {
@@ -14,10 +15,15 @@ async function createProposal(symbol) {
   if(!Array.isArray(apiTradingSymbols)||!apiTradingSymbols.includes(symbol))
     throw Error('WEEX API Futures trading is not available for this symbol');
   verifyAccount(account);checkAvailableMargin(balance);
-  const opened=checkPositions(positions,symbol);
+  const portfolio=await readOwnedPortfolio(positions);
+  const opened=checkPositions(positions,symbol,portfolio);
   checkOrders(orders);
+  // Both previously opened RADAR positions must retain their protective
+  // closing orders before proposing another one.
+  await verifyOtherBotProtection(portfolio,sym=>weex.openAlgoOrders(sym));
   const plan=marketPlan(s,info,book);
-  return {...plan,opened,allowedConcurrent:TRADE_LIMITS.maxConcurrent,requiresConfirmation:true};
+  return {...plan,opened,manualOpenPositions:portfolio.manualOpenPositions,
+    allowedConcurrent:TRADE_LIMITS.maxConcurrent,requiresConfirmation:true};
 }
 export default async function handler(req,res){
   res.setHeader('Cache-Control','private, no-store');

@@ -44,15 +44,18 @@ test('rejects missing authentication, cross-site requests and disabled live flag
   process.env.WEEX_MAX_OPEN_POSITIONS='4';assert.equal(liveEnabled(),false);
   Object.assign(process.env,backup);
 });
-test('trial permits only one concurrent position with pending orders blocked',()=>{
+test('two bot-owned slots; manual positions on other coins excluded, same coin blocked',()=>{
   const p=(symbol)=>({symbol,size:'0.5'});
-  assert.equal(checkPositions([],'XRPUSDT'),0);
-  assert.throws(()=>checkPositions([p('BTCUSDT')],'XRPUSDT'),/maximum 1/i);
-  assert.throws(()=>checkPositions([p('BTCUSDT'),p('ETHUSDT')],'XRPUSDT'),/maximum 1/i);
-  assert.throws(()=>checkPositions([p('XRPUSDT')],'XRPUSDT'),/already/);
+  const owned=(active,botCount)=>({active,bot:active.slice(0,botCount),manual:active.slice(botCount)});
+  assert.equal(checkPositions([],'XRPUSDT',owned([],0)),0);
+  const manual=[p('BTCUSDT'),p('ETHUSDT')];
+  assert.equal(checkPositions(manual,'XRPUSDT',owned(manual,0)),0);
+  assert.equal(checkPositions(manual,'XRPUSDT',owned(manual,1)),1);
+  assert.throws(()=>checkPositions(manual,'XRPUSDT',owned(manual,2)),/maximum 2/i);
+  assert.throws(()=>checkPositions([p('XRPUSDT')],'XRPUSDT',owned([p('XRPUSDT')],0)),/already/);
+  assert.throws(()=>checkPositions(manual,'XRPUSDT'),/ownership/);
   assert.throws(()=>checkOrders([{symbol:'BTCUSDT',reduceOnly:false}]),/Pending/);
   assert.doesNotThrow(()=>checkOrders([{symbol:'BTCUSDT',reduceOnly:true}]));
-  assert.throws(()=>checkPositions([{symbol:'BTCUSDT',size:'not numeric'}],'XRPUSDT'),/Unknown/);
 });
 test('requires 55 USDT available futures collateral, isolated 10x config and hedge mode',()=>{
   assert.throws(()=>checkAvailableMargin([{asset:'USDT',availableBalance:'50.00'}]),/55/);
@@ -103,6 +106,13 @@ test('server execution starts with OFF switch and checks live flag before readin
   Object.assign(process.env,prev);
 });
 
+test('preserves exact WEEX 64-bit position IDs for ownership receipts',()=>{
+ const raw='[{"id":689987235755328123,"symbol":"BTCUSDT","side":"LONG","size":"0.02","createdTime":1764505776347}]';
+ const parsed=parseExchangeResponse(raw,'/capi/v3/account/position/allPosition');
+ assert.equal(parsed[0].id,'689987235755328123');
+ assert.equal(parseExchangeResponse('[{"id":"689987235755328123"}]',
+  '/capi/v3/account/position/allPosition')[0].id,'689987235755328123');
+});
 test('preserves WEEX 64-bit order IDs exactly from exchange JSON',()=>{
   const id='702345678901234567';
   const parsed=parseExchangeResponse('{"orderId":'+id+',"success":true,"clientOrderId":"radar-abc"}','/capi/v3/order');

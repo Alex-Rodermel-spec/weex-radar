@@ -1,6 +1,7 @@
 // Protected read-only status. Returns no secrets, identifiers or balances.
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled} from '../lib/weex-order.mjs';
 import {TRADE_LIMITS} from '../lib/trade-plan.mjs';
+import {readOwnedPortfolio} from '../lib/trade-ownership.mjs';
 // Translate numeric WEEX codes into safe guidance. Never forward raw response text.
 export function describeConnectionFailure(err){
  const code=String(err?.message||'').match(/^WEEX_CODE_(-?\d{1,6})$/)?.[1];
@@ -50,9 +51,12 @@ export default async function handler(req,res){
     return res.status(502).json({ok:false,stage:'positions',code:diagnostic.code,error:diagnostic.message});}
   if(!Array.isArray(positions))return res.status(502).json({ok:false,stage:'positionsFormat',
     error:'WEEX вернул неожиданный список позиций. Реальная торговля заблокирована.'});
-  const active=positions.filter(x=>Number(x?.size)>0);
+  let portfolio;
+  try{portfolio=await readOwnedPortfolio(positions);}
+  catch{return res.status(503).json({error:'RADAR position ownership cannot be verified; no new trading permitted'});}
   return res.status(200).json({ok:true,connected:true,canTrade:account.canTrade,
-    hedgeMode:account.dualSidePosition,openPositions:active.length,
+    hedgeMode:account.dualSidePosition,openPositions:portfolio.totalOpenPositions,
+    botOpenPositions:portfolio.botOpenPositions,manualOpenPositions:portfolio.manualOpenPositions,
     liveEnabled:liveEnabled(),marginUsdt:50,leverage:10,maxConcurrent:TRADE_LIMITS.maxConcurrent,
-    note:'canTrade is not a proof of API Futures order permission. No order placed.'});
+    note:'Only verified RADAR-owned positions count toward the two-position cap. Manual WEEX positions still affect free margin and same-symbol checks. No order placed.'});
 }

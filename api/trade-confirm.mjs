@@ -3,6 +3,8 @@
 import {get,put,del} from '@vercel/blob';
 import {_test} from './signals.mjs';
 import {verifyActiveProtection} from '../lib/trade-protection.mjs';
+import {readOwnedPortfolio,verifyOtherBotProtection,
+  ownershipReceipt,ownershipPath} from '../lib/trade-ownership.mjs';
 import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
   verifyAccount,checkAvailableMargin,checkPositions,checkOrders,checkSymbolSettings,marketPlan,
   orderPayload,isAccepted,fingerprint} from '../lib/weex-order.mjs';
@@ -12,8 +14,13 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function inspectPosition(symbol,direction){
   const all=await weex.positions();
   if(!Array.isArray(all))throw Error('Cannot confirm exchange position');
-  const p=all.find(x=>x?.symbol===symbol&&x?.side===direction&&Number(x.size)>0);
-  return p||null;
+  const same=all.filter(x=>x?.symbol===symbol&&Number(x.size)>0);
+  // A simultaneous manual hedge or competing same-symbol entry makes the
+  // source of exposure ambiguous. Never label the result bot-owned.
+  if(same.length>1)throw Error('Concurrent manual position on same symbol; inspect WEEX');
+  const p=same[0]||null;
+  if(p&&p.side!==direction)throw Error('Unexpected manual position on same symbol; inspect WEEX');
+  return p;
 }
 async function closeUnprotected(symbol,position){
   if(!position?.id)throw Error('Safety stop: position id unavailable. Manual WEEX intervention required.');
@@ -75,7 +82,10 @@ export default async function handler(req,res){
     ]);
     if(!Array.isArray(apiTradingSymbols)||!apiTradingSymbols.includes(plan.symbol))
       throw Error('WEEX Futures API trading unavailable for this symbol');
-    verifyAccount(account);checkAvailableMargin(balance);checkPositions(positions,plan.symbol);checkOrders(orders);
+    verifyAccount(account);checkAvailableMargin(balance);
+    const portfolio=await readOwnedPortfolio(positions);
+    checkPositions(positions,plan.symbol,portfolio);checkOrders(orders);
+    await verifyOtherBotProtection(portfolio,sym=>weex.openAlgoOrders(sym));
     const fresh=marketPlan(signal,info,book);
     if(fresh.quantity!==plan.quantity||fresh.stopLoss!==plan.stopLoss||
        fresh.takeProfit!==plan.takeProfit||
@@ -100,6 +110,12 @@ export default async function handler(req,res){
       finalPlan.takeProfit!==plan.takeProfit||
       Math.abs(finalPlan.entryEstimate/plan.entryEstimate-1)>0.002)
       throw Error('Price moved while configuring leverage. Prepare a new trade.');
+    // Re-check ownership against CURRENT positions before the irreversible
+    // write; no other bot execution can run in parallel due to global lock.
+    const latestPositions=await weex.positions();
+    const latestPortfolio=await readOwnedPortfolio(latestPositions);
+    checkPositions(latestPositions,plan.symbol,latestPortfolio);
+    await verifyOtherBotProtection(latestPortfolio,sym=>weex.openAlgoOrders(sym));
     const order=orderPayload(finalPlan);
     tradeClientId=order.newClientOrderId;
     // Idempotency is by signal candle + direction; never open the same signal twice.
@@ -108,6 +124,7 @@ export default async function handler(req,res){
       await put('trading/signals/'+signalHash+'.json','1',
         {access:'private',allowOverwrite:false,addRandomSuffix:false});
     }catch(e){if(isBlobConflict(e))throw Error('This market signal was already traded');throw e;}
+    const sentAt=Date.now();
     orderAttempted=true; // Do not auto-unlock if the network outcome becomes ambiguous.
     const placed=await weex.placeOrder(order);
     if(!isAccepted(placed,tradeClientId))throw Error('WEEX did not confirm the order. Check account manually.');
@@ -123,6 +140,14 @@ export default async function handler(req,res){
       await sleep(400);
     }
     if(!p)throw Error('Order accepted but position not yet visible. CHECK WEEX.');
+    // A signed order ID/client ID alone does not identify an active position.
+    // Only a FILLED exchange order plus a fresh exact WEEX position identity
+    // can become a private RADAR ownership receipt.
+    const receipt=ownershipReceipt({position:p,order,detail,plan:finalPlan,sentAt});
+    await put(ownershipPath(plan.symbol),JSON.stringify(receipt),{
+      access:'private',allowOverwrite:true,addRandomSuffix:false,
+      contentType:'application/json'
+    });
     // Post-order server-side check is READ-ONLY. The exchange may register
     // attached conditional orders asynchronously; do not infer protection
     // from the order acceptance response. Keep the global lock until the
