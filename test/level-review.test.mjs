@@ -57,7 +57,7 @@ test('wick through level with close back in range is NOT a breakout',()=>{
 test('recent fakeouts are symmetric and never rely on future candles',()=>{
  const rows=candles();
  Object.assign(rows.at(-2),{open:101,high:104,low:99,close:100});
- Object.assign(rows.at(-1),{open:102,high:103.8,low:101,close:103.4,volume:170});
+ Object.assign(rows.at(-1),{open:102,high:104.7,low:101,close:104.4,volume:170});
  const result=evaluateLevelReview(rows,1);
  assert.equal(result.recentFakeouts.LONG.barsAgo,1);
  assert.equal(result.recentFakeouts.LONG.level,102);
