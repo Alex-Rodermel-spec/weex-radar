@@ -37,7 +37,7 @@ test('early watch delivers directional forecast, not a trading instruction',()=>
  assert.match(x.title,/ПРОГНОЗ ПАДЕНИЯ/);
  assert.match(x.message,/1М:/);
  assert.match(x.message,/5М:/);
- assert.match(x.message,/15М:/);
+ assert.match(x.message,/10М:/);
  assert.doesNotMatch(x.message,/ЖДАТЬ|ПРОБОЙ|НЕ ВХОДИТЬ|SL |TP /);
 });
 test('phone format has clear entry, profit, stop, and raw exact levels',()=>{
