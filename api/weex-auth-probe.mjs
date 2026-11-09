@@ -79,7 +79,7 @@ export default async function handler(req,res) {
       if(Number.isFinite(ask)&&ask>0){
         const synthetic={symbol:'XRPUSDT',status:'ok',exchange:'WEEX',
           level:'NORMAL',direction:'LONG',price:ask,
-          stop:ask*0.99,take:ask*1.02,
+          stop:ask*0.99,take:ask*1.03,
           candleCloseTime:now-15000,expiresAt:now+120000};
         const plan=marketPlan(synthetic,info.value,book.value,now);
         const prepared=orderPayload(plan); // local data object, NO HTTP call

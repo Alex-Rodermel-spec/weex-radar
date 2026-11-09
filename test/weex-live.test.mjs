@@ -10,7 +10,9 @@ import {
 } from '../lib/weex-order.mjs';
 const creds={key:'example_public',secret:'fake_test_secret',passphrase:'fake_test_passphrase'};
 const plan={symbol:'XRPUSDT',exchange:'WEEX',direction:'LONG',marginUsdt:50,leverage:10,
-  estimatedLossUsdt:5,stopLoss:1.98,takeProfit:2.04,entryEstimate:2,quantity:'250',candleCloseTime:1794027000000};
+  estimatedLossUsdt:5,estimatedNetLossUsdt:6.7,estimatedNetProfitUsdt:12.9,
+  estimatedNetRR:1.92,costGate:'PASS_ESTIMATE',
+  stopLoss:1.98,takeProfit:2.06,entryEstimate:2,quantity:'250',candleCloseTime:1794027000000};
 const backup={...process.env};
 test('WEEX V3 signature includes body and GET queries',()=>{
   const body=JSON.stringify({symbol:'XRPUSDT',type:'MARKET'});
@@ -63,15 +65,20 @@ test('single MARKET order includes mandatory TP SL and stable deterministic ID',
   const a=orderPayload(plan);const b=orderPayload(plan);
   assert.deepEqual(a,b);
   assert.equal(a.type,'MARKET');assert.equal(a.side,'BUY');assert.equal(a.positionSide,'LONG');
-  assert.equal(a.slTriggerPrice,'1.98');assert.equal(a.tpTriggerPrice,'2.04');
+  assert.equal(a.slTriggerPrice,'1.98');assert.equal(a.tpTriggerPrice,'2.06');
   assert.equal(a.SlWorkingType,'MARK_PRICE');assert.ok(a.newClientOrderId.length<=36);
   assert.equal(clientOrderId(plan),a.newClientOrderId);
   assert.equal(isAccepted({success:true,orderId:'123',clientOrderId:a.newClientOrderId},a.newClientOrderId),true);
   assert.equal(isAccepted({success:false,orderId:'123',clientOrderId:a.newClientOrderId},a.newClientOrderId),false);
   assert.equal(isAccepted({success:true,orderId:'0',clientOrderId:a.newClientOrderId},a.newClientOrderId),false);
   assert.throws(()=>orderPayload({...plan,estimatedLossUsdt:11}),/Unsafe/);
+  assert.throws(()=>orderPayload({...plan,costGate:null}),/Unsafe/);
+  assert.throws(()=>orderPayload({...plan,estimatedNetLossUsdt:10.01}),/Unsafe/);
+  assert.throws(()=>orderPayload({...plan,estimatedNetProfitUsdt:0}),/Unsafe/);
+  assert.throws(()=>orderPayload({...plan,estimatedNetRR:1.49}),/Unsafe/);
+  assert.throws(()=>orderPayload({...plan,estimatedNetLossUsdt:4.99}),/Unsafe/);
   assert.throws(()=>orderPayload({...plan,stopLoss:2.2}),/Wrong LONG/);
-  const short=orderPayload({...plan,direction:'SHORT',stopLoss:2.02,takeProfit:1.96});
+  const short=orderPayload({...plan,direction:'SHORT',stopLoss:2.02,takeProfit:1.94});
   assert.equal(short.side,'SELL');assert.equal(short.positionSide,'SHORT');
 });
 test('static trading page script parses with modern JavaScript without evaluating secrets',()=>{
