@@ -3,9 +3,10 @@
 import {get,put,del} from '@vercel/blob';
 import {_test} from './signals.mjs';
 import {verifyActiveProtection} from '../lib/trade-protection.mjs';
+import {authenticatedTradeSession} from '../lib/trade-session.mjs';
 import {readOwnedPortfolio,verifyOtherBotProtection,
   ownershipReceipt,ownershipPath} from '../lib/trade-ownership.mjs';
-import {weex,configured,validateHumanPassword,requireSameOrigin,liveEnabled,
+import {weex,configured,requireSameOrigin,liveEnabled,
   verifyAccount,checkAvailableMargin,checkPositions,checkOrders,checkSymbolSettings,marketPlan,
   orderPayload,isAccepted,fingerprint} from '../lib/weex-order.mjs';
 const LOCK='trading/execution-global.lock';
@@ -40,8 +41,8 @@ export default async function handler(req,res){
   res.setHeader('X-Content-Type-Options','nosniff');
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
   if(!requireSameOrigin(req))return res.status(403).json({error:'Use the official WEEX RADAR website'});
-  if(!validateHumanPassword(req.body?.password))return res.status(401).json({error:'Wrong approval password'});
   if(!liveEnabled())return res.status(403).json({error:'Real trading is OFF in Vercel'});
+  if(!authenticatedTradeSession(req))return res.status(401).json({error:'Сессия RADAR истекла. Войди ещё раз, затем подготовь новый план.'});
   if(!configured()||!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Trading credentials unavailable'});
   if(req.body?.confirmation!=='CONFIRM_REAL_WEEX_ORDER'||typeof req.body?.proposal!=='string'||
     !/^[a-f0-9]{64}$/.test(req.body.proposal))return res.status(400).json({error:'Invalid explicit confirmation'});
