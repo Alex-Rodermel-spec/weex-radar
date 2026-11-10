@@ -91,6 +91,10 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
  <div class="tile"><small>Возврат: 5М, б.п.</small><strong id="guard-re-net">—</strong></div>
 </div>
 <p class="split-note" id="bb-diagnostics">Сколько срабатываний отклонили защитные проверки — появится после расчёта.</p>
+<div class="info" role="status">
+ <strong>🧪 Готовность по статистике</strong>
+ <p id="bb-verdict">Проверим достаточность выборки, устойчивость результата и затраты.</p>
+</div>
 <h3>📡 Последняя закрытая свеча</h3>
 <div class="info" aria-live="polite">
  <strong id="minute-state">—</strong>
@@ -152,6 +156,13 @@ $('run').onclick=async()=>{
   show('guard-br-net',gb.total?.averageNetBps??'Недостаточно данных');
   show('guard-re-count',gr.total?.signals??0);
   show('guard-re-net',gr.total?.averageNetBps??'Недостаточно данных');
+  const gates=[gb.researchGate,gr.researchGate];
+  const textGate=g=>g?.state==='INSUFFICIENT_SAMPLE'?'мало данных':
+   g?.state==='NEGATIVE_AFTER_MODELED_COSTS'?'убыточно в модели':
+   g?.state==='UNVERIFIED_EDGE'?'только предварительная гипотеза':'нет данных';
+  $('bb-verdict').textContent='Осторожный пробой: '+textGate(gates[0])+
+   '. Осторожный возврат: '+textGate(gates[1])+
+   '. Даже положительный исторический результат не разрешает реальные сделки.';
   $('bb-diagnostics').textContent='Пробой: отклонено по качеству '+
    (gb.diagnostics?.rejectedQuality??0)+', повторы '+(gb.diagnostics?.rejectedCooldown??0)+
    '. Возврат: отклонено по качеству '+(gr.diagnostics?.rejectedQuality??0)+
