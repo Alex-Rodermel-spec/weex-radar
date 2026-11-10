@@ -60,6 +60,18 @@ test('read-only research route includes separate 5m/10m BB+volume studies',async
   assert.equal(res.result.currentMinute.notATrade,true);
   assert.equal(res.result.currentMinute.fresh,true);
   assert.equal(res.result.currentMinute.observation.breakout.notATrade,true);
+  const audit=res.result.recentFiveMinutes;
+  assert.equal(audit.kind,'LOOKBACK_CLOSED_1M');
+  assert.equal(audit.closedMinuteCount,5);
+  assert.equal(audit.notATrade,true);
+  assert.equal(audit.fresh,true);
+  assert.ok(audit.baseCandidates>=audit.guardedCandidates);
+  assert.equal(audit.events.length,audit.baseCandidates);
+  assert.ok(audit.events.every(e=>e.notATrade&&
+   ['LONG','SHORT'].includes(e.direction)&&
+   ['BAND_BREAKOUT','BAND_REENTRY'].includes(e.strategy)&&
+   e.closedAt<=res.result.currentMinute.closedAt));
+  assert.equal(audit.until,res.result.currentMinute.closedAt);
  }finally{
   globalThis.fetch=originalFetch;
  }
