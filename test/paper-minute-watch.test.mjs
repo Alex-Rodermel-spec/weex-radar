@@ -43,6 +43,15 @@ test('paper snapshot returns closed contiguous historical candles, never an orde
  assert.ok(snap.historical90m.lastSignals.length<=10);
  assert.ok(snap.historical90m.lastSignals.every(x=>x.notATrade&&
   x.closedAt<=snap.closedAt));
+ const fast=buildPaperMinuteSnapshot(fakeRows(now),now,{quick:true});
+ assert.equal(fast.mode,'PAPER_1M_WEEX_ONLY');
+ assert.equal(fast.historical90m,null);
+ assert.equal(fast.closedAt,snap.closedAt);
+ assert.equal(fast.notATrade,true);
+ assert.equal(fast.ordersSent,0);
+ assert.equal(fast.bars.length,snap.bars.length);
+ assert.deepEqual(fast.recent,snap.recent);
+ assert.deepEqual(fast.marketWatch,snap.marketWatch);
  assert.equal(snap.marketWatch.notATrade,true);
  assert.ok(['NEAR_BAND','VOLUME_ACTIVITY','MOMENTUM','SQUEEZE','QUIET']
   .includes(snap.marketWatch.kind));
@@ -122,6 +131,12 @@ test('paper page compiles and contains win/loss and five-minute future settlemen
  assert.match(page,/ИСТОРИЯ · НЕ PAPER-СДЕЛКИ/);
  assert.match(page,/id="skip-quote"/);
  assert.match(page,/id="paper-added"/);
+ assert.match(page,/id="history-refresh"/);
+ assert.match(page,/id="scan-duration"/);
+ assert.match(page,/id="scan-fail"/);
+ assert.match(page,/quick=1/);
+ assert.match(page,/scanCycle\+\+\*13/);
+ assert.match(page,/AbortController/);
  assert.match(page,/PAST_CANDLES_ONLY_NOT_PAPER/);
  assert.match(page,/\$\('once'\)\.onclick=\(\)=>\{if\(!running\)start\(\);else scan\(\)\}/);
  assert.doesNotMatch(page,/setInterval\(/);
