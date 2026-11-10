@@ -91,7 +91,7 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
 </head><body><main>
 <header class="topbar">
  <div class="brand"><span class="brandmark" aria-hidden="true">◈</span> WEEX <span style="color:#ad9aff">RADAR</span> <span style="color:#7282a9;font-size:11px">V2</span></div>
- <div class="topright"><span class="topchip accent">● WEEX PUBLIC DATA</span><span class="topchip" id="last-check-chip">ЕЩЁ НЕ ПРОВЕРЕНО</span><span class="topchip">PAPER · NO ORDERS</span></div>
+ <div class="topright"><span class="topchip accent">● WEEX PUBLIC DATA</span><span class="topchip" id="last-check-chip">ЕЩЁ НЕ ПРОВЕРЕНО</span><span class="topchip">×50 PAPER · ZERO ORDERS</span></div>
 </header>
 <section class="hero" aria-labelledby="page-title">
  <div>
@@ -193,7 +193,8 @@ function store(){
 function render(){
  // Do not mix earlier optimistic next-candle-OPEN samples with the new
  // public bid/ask-on-arrival cohort. Both remain visible in the export.
- const current=trades.filter(x=>x.entryAssumption==='WEEX_PUBLIC_BOOKTICKER');
+ const current=trades.filter(x=>x.entryAssumption==='WEEX_PUBLIC_BOOKTICKER'&&
+  x.paperRiskModel==='PAPER_50X_STRESS_V1');
  const wins=current.filter(x=>x.status==='win'),losses=current.filter(x=>x.status==='loss');
  const risky=current.filter(x=>x.status==='risk');
  const pending=current.filter(x=>x.status==='pending');
@@ -245,7 +246,7 @@ function render(){
    t.status==='risk'?'×50 РИСК 1,5% · условный выход '+fixed(t.netBps)+' б.п.':
    (t.status==='win'?'ПЛЮС ':'МИНУС ')+fixed(t.netBps)+' б.п.'+
    (t.entryAssumption==='WEEX_PUBLIC_BOOKTICKER'?' · BID/ASK':' · СТАРЫЙ OPEN'),
-   t.entryAssumption!=='WEEX_PUBLIC_BOOKTICKER'?'СТАРЫЙ ТЕСТ':
+   t.paperRiskModel!=='PAPER_50X_STRESS_V1'?'СТАРЫЙ ТЕСТ':
     t.status==='pending'?'ОЖИДАНИЕ':
     t.status==='unresolved'?'НЕТ ДАННЫХ':
     fixed(t.marginRoi50Pct)+'%'+(t.status==='risk'?' · стресс':'')];
@@ -385,7 +386,8 @@ function accept(symbol,snap){
    signalRsi14:Number.isFinite(event.signalRsi14)?event.signalRsi14:null,
    signalAtr14Bps:Number.isFinite(event.signalAtr14Bps)?event.signalAtr14Bps:null,
    status:'pending',entry:event.direction==='LONG'?quote.ask:quote.bid,
-   notATrade:true,entryAssumption:'WEEX_PUBLIC_BOOKTICKER'});
+   notATrade:true,entryAssumption:'WEEX_PUBLIC_BOOKTICKER',
+   paperRiskModel:'PAPER_50X_STRESS_V1',paperLeverage:50});
  }
 }
 async function fetchOne(symbol){
@@ -484,8 +486,8 @@ $('export').onclick=()=>{
  const cols=['symbol','strategy','direction','closedAt','seenAt','detectionLagMs',
   'signalClose','volumeRatio','signalTrend','trendAligned','signalRsi14',
   'signalAtr14Bps','entry','entryAssumption','quotedAt','entrySpreadBps',
-  'exit','horizonExit','grossBps','netBps','marginRoi50Pct',
-  'riskTouched50','maxAdverseBps','status'];
+  'exit','horizonExit','grossBps','netBps','paperRiskModel','paperLeverage',
+  'marginRoi50Pct','riskTouched50','maxAdverseBps','status'];
  const csv=cols.join(',')+'\n'+trades.map(t=>cols.map(k=>
   JSON.stringify(t[k]??'')).join(',')).join('\n');
  const file=new Blob([csv],{type:'text/csv;charset=utf-8'});
