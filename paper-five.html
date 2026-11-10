@@ -138,7 +138,7 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
 </section>
 <section class="panel" id="journal">
  <div class="section-head"><h2>Журнал PAPER-сделок</h2><span class="topchip">WIN · LOSS · PENDING</span></div>
- <p class="lead">Модель: кандидат на закрытой 1М свече, условный вход по OPEN следующей свечи, выход по CLOSE пятой следующей свечи. Изменение цены в направлении сделки минус 0,22% модельных расходов. <strong>Спред, реальное исполнение, SL/TP и funding не учтены.</strong> Пять побед — промежуточный этап: наблюдение продолжится, чтобы оценить общий итог, включая убытки.</p>
+ <p class="lead">Новая модель: кандидат на закрытой 1М свече → после своевременного получения публичной котировки WEEX условный вход <strong>LONG по ask / SHORT по bid</strong> → выход по CLOSE пятой следующей свечи. Вычитаем 0,22% модельных комиссий/проскальзывания плюс предполагаемую половину входного спреда для выхода. <strong>Не моделируются реальные исполнения, SL/TP, финансирование или будущий спред.</strong> Старые записи по OPEN следующей свечи видны в таблице и CSV, но <strong>не смешиваются</strong> с новой статистикой.</p>
  <div class="scroll"><table class="tab">
   <thead><tr><th>Монета</th><th>Сигнал (Берлин)</th><th>Направление</th><th>Условный вход</th><th>Исход через 5М</th></tr></thead>
   <tbody id="trades"><tr><td colspan="5">Пока нет записей</td></tr></tbody>
@@ -185,8 +185,11 @@ function store(){
  }
 }
 function render(){
- const wins=trades.filter(x=>x.status==='win'),losses=trades.filter(x=>x.status==='loss');
- const pending=trades.filter(x=>x.status==='pending');
+ // Do not mix earlier optimistic next-candle-OPEN samples with the new
+ // public bid/ask-on-arrival cohort. Both remain visible in the export.
+ const current=trades.filter(x=>x.entryAssumption==='WEEX_PUBLIC_BOOKTICKER');
+ const wins=current.filter(x=>x.status==='win'),losses=current.filter(x=>x.status==='loss');
+ const pending=current.filter(x=>x.status==='pending');
  const resolved=[...wins,...losses];
  $('wins').textContent=wins.length+' / 5';
  $('hero-wins').textContent=Math.min(5,wins.length);
@@ -229,7 +232,8 @@ function render(){
    Number.isFinite(t.entry)?String(t.entry):'ещё нет',
    t.status==='pending'?'ОЖИДАНИЕ':
    t.status==='unresolved'?'НЕТ ДАННЫХ':
-   (t.status==='win'?'ПЛЮС ':'МИНУС ')+fixed(t.netBps)+' б.п.'];
+   (t.status==='win'?'ПЛЮС ':'МИНУС ')+fixed(t.netBps)+' б.п.'+
+   (t.entryAssumption==='WEEX_PUBLIC_BOOKTICKER'?' · BID/ASK':' · СТАРЫЙ OPEN')];
   for(const v of cells){let td=document.createElement('td');td.textContent=v;tr.append(td)}
   tr.lastChild.className=t.status==='win'?'win':t.status==='loss'?'loss':'pending';
   rows.append(tr);
@@ -265,10 +269,13 @@ function settle(symbol,bars,closedAt){
    if(closedAt-t.closedAt>90*ONE)t.status='unresolved';
    continue;
   }
-  // Entry is the OPEN of minute immediately AFTER the signal closed.
+  // Legacy paper samples used a next-candle OPEN proxy that might already
+  // be inaccessible at the time of discovery. New samples use the actual
+  // public bid/ask snapshot observed after that signal candle closed.
   const entryBar=bars[first],lastIndex=first+4;
-  if(!Number.isFinite(t.entry)&&Number.isFinite(entryBar.open)&&entryBar.open>0)
-   t.entry=entryBar.open;
+  const quoteModel=t.entryAssumption==='WEEX_PUBLIC_BOOKTICKER';
+  if(!quoteModel&&!Number.isFinite(t.entry)&&
+   Number.isFinite(entryBar.open)&&entryBar.open>0)t.entry=entryBar.open;
   if(closedAt<t.closedAt+HORIZON)continue;
   if(lastIndex>=bars.length){
    if(closedAt-t.closedAt>90*ONE)t.status='unresolved';
@@ -278,16 +285,29 @@ function settle(symbol,bars,closedAt){
   if(five.length!==5||five.some((b,i)=>
    b.time!==t.closedAt+i*ONE||!Number.isFinite(b.close)||b.close<=0))
    {t.status='unresolved';continue}
-  const entry=entryBar.open,exit=five[4].close;
+  const entry=quoteModel?t.entry:entryBar.open,exit=five[4].close;
   if(!Number.isFinite(entry)||entry<=0){t.status='unresolved';continue}
   const grossBps=(t.direction==='LONG'?1:-1)*(exit-entry)/entry*10000;
+  // Public quote contains spread at entry. A *modeled* half-entry-spread
+  // is additionally deducted as an exit proxy; no claim of a real fill.
+  const exitSpreadBps=quoteModel?Number(t.entrySpreadBps)/2:0;
+  if(!Number.isFinite(exitSpreadBps)||exitSpreadBps<0){t.status='unresolved';continue}
   t.entry=entry;t.exit=exit;t.grossBps=Number(grossBps.toFixed(2));
-  t.netBps=Number((grossBps-COSTS_BPS).toFixed(2));
+  t.netBps=Number((grossBps-COSTS_BPS-exitSpreadBps).toFixed(2));
   t.status=t.netBps>0?'win':'loss';t.resolvedAt=t.closedAt+HORIZON;
  }
 }
 function accept(symbol,snap){
- const now=Date.now();
+ const now=Date.now(),quote=snap.paperEntryQuote;
+ // Only a fresh, explicit post-close WEEX bid/ask quote creates a NEW
+ // forward paper record; missing/late/wide-spread book = no paper entry.
+ if(!quote||quote.source!=='WEEX_PUBLIC_BOOKTICKER'||
+  quote.notATrade!==true||!Number.isFinite(quote.bid)||
+  !Number.isFinite(quote.ask)||quote.bid<=0||quote.ask<quote.bid||
+  !Number.isFinite(quote.spreadBps)||quote.spreadBps<0||
+  quote.spreadBps>40||!Number.isSafeInteger(quote.quotedAt)||
+  quote.quotedAt<snap.closedAt||now-quote.quotedAt<0||
+  now-quote.quotedAt>12000)return;
  // Real browser arrival time matters. A server response 90 seconds after
  // the candle is too late for a forward five-minute minute-entry claim.
  if(!Number.isSafeInteger(snap.generatedAt)||
@@ -309,12 +329,13 @@ function accept(symbol,snap){
    closedAt:event.closedAt,seenAt:now,detectionLagMs:now-event.closedAt,
    signalClose:event.observedClose,
    volumeRatio:event.volumeRatio,
+   quotedAt:quote.quotedAt,entrySpreadBps:quote.spreadBps,
    signalTrend:event.signalTrend??'UNKNOWN',
    trendAligned:event.trendAligned===true,
    signalRsi14:Number.isFinite(event.signalRsi14)?event.signalRsi14:null,
    signalAtr14Bps:Number.isFinite(event.signalAtr14Bps)?event.signalAtr14Bps:null,
-   status:'pending',entry:null,notATrade:true,
-   entryAssumption:'NEXT_1M_OPEN_PROXY_NOT_EXECUTABLE'});
+   status:'pending',entry:event.direction==='LONG'?quote.ask:quote.bid,
+   notATrade:true,entryAssumption:'WEEX_PUBLIC_BOOKTICKER'});
  }
 }
 async function fetchOne(symbol){
@@ -412,7 +433,8 @@ $('once').onclick=scan;
 $('export').onclick=()=>{
  const cols=['symbol','strategy','direction','closedAt','seenAt','detectionLagMs',
   'signalClose','volumeRatio','signalTrend','trendAligned','signalRsi14',
-  'signalAtr14Bps','entry','entryAssumption','exit','grossBps','netBps','status'];
+  'signalAtr14Bps','entry','entryAssumption','quotedAt','entrySpreadBps',
+  'exit','grossBps','netBps','status'];
  const csv=cols.join(',')+'\n'+trades.map(t=>cols.map(k=>
   JSON.stringify(t[k]??'')).join(',')).join('\n');
  const file=new Blob([csv],{type:'text/csv;charset=utf-8'});
