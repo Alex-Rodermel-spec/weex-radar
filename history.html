@@ -79,6 +79,18 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <div class="card"><small>30м · движение в сторону прогноза</small><strong id="early30">—</strong></div>
 </div>
 <p class="muted" id="earlyDetail">Нужны реальные ранние уведомления и закрытые свечи после них.</p>
+<h2>🔮 Новый прогнозист — точность через 1–30 минут</h2>
+<p class="muted">Только реально опубликованные отдельные ntfy-прогнозы (не старые EARLY WATCH и не подтверждённые входы). Сравнение с ценой из уведомления, по закрытым минутным свечам WEEX. Начинаем с появления этого исследования; предыдущие неполные данные не считаем успехом.</p>
+<div class="metrics">
+ <div class="card"><small>Прогнозов сохранено</small><strong id="forecastTotal">—</strong></div>
+ <div class="card"><small>Через 10 минут</small><strong id="forecast10">—</strong></div>
+ <div class="card"><small>Через 15 минут</small><strong id="forecast15">—</strong></div>
+ <div class="card"><small>Впервые +0,10% на 10–15-й минуте</small><strong id="forecastDelay">—</strong></div>
+</div>
+<div class="table-box"><table><thead><tr><th>Интервал после прогноза</th><th>Проверено</th><th>В сторону прогноза</th><th>Среднее движение</th></tr></thead><tbody id="forecastHorizons"></tbody></table></div>
+<h2>Сила прогноза — через 10 и 15 минут</h2>
+<div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>10 минут</th><th>15 минут</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
+<p class="muted" id="forecastDetail">Измеряем только завершённые горизонты. «Первое движение» — первая полностью закрытая минутная свеча с движением ≥0,10% в сторону прогноза. Это не доказательство того, когда движение началось.</p>
 <div class="note">⚠️ <b>Это исследование, не подтверждение прибыльности.</b> Статусы TP/SL считаются по последующим закрытым минутным свечам за 60 минут. Если оба уровня коснулись одной свечи, исход считается неопределённым. Не учитываются комиссия биржи, funding, проскальзывание, риск ликвидации и реальное исполнение. *R — условное изменение доходности в единицах первоначального риска, рассчитанное только для однозначных TP и SL и без издержек. Значения не гарантируют будущий заработок.</div>
 <p class="muted" style="font-size:13px">🔐 Полная история хранится в зашифрованном виде AES-GCM в отдельной ветке существующего публичного GitHub-репозитория. Страница показывает только агрегированные результаты. Период до установки журнала не восстанавливается автоматически, кроме ещё доступных уведомлений. Архив обновляет отдельная бесплатная задача GitHub Actions примерно каждые 20 минут; возможны задержки и пробелы при сбоях планировщика. WEEX RADAR и ntfy работают независимо.</p>
 </main>
@@ -145,6 +157,31 @@ function display(){
   ' · подтверждения 5м в течение 30 минут: '+early.pairs.confirmedWithin30m+
   ' · счёт идёт только по доступным закрытым свечам; комиссии и задержка исполнения не учтены.':
   'Архив ранних предупреждений ещё не создан.';
+ const forecast=report.forecastStudy?.windows?.[days];
+ $('forecastTotal').textContent=showN(forecast?.total);
+ $('forecast10').textContent=forecast?.at10m?.observed?pct(forecast.at10m.favorablePct)+' ('+forecast.at10m.observed+')':'—';
+ $('forecast15').textContent=forecast?.at15m?.observed?pct(forecast.at15m.favorablePct)+' ('+forecast.at15m.observed+')':'—';
+ $('forecastDelay').textContent=forecast?.firstFavorable10bps?.observed?
+  forecast.firstFavorable10bps.from10to15+' из '+forecast.firstFavorable10bps.observed:'—';
+ const horizons=$('forecastHorizons');horizons.replaceChildren();
+ for(const h of [1,5,10,15,30]){
+  const v=forecast?.['at'+h+'m'],tr=document.createElement('tr');
+  for(const value of [h+' мин',v?.observed??0,v?.observed?pct(v.favorablePct):'—',
+   v?.meanDirectionBps===null||v?.meanDirectionBps===undefined?'—':v.meanDirectionBps+' bps']){
+   const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
+  }horizons.appendChild(tr);
+ }
+ const strength=$('forecastStrength');strength.replaceChildren();
+ for(const [key,label] of [['STRONG','🟣 Сильный'],['STANDARD','🔵 Обычный'],['CAUTION','🟡 Риск']]){
+  const v=forecast?.byStrength?.[key],tr=document.createElement('tr');
+  for(const value of [label,v?.total??0,v?.at10m?.observed?pct(v.at10m.favorablePct):'—',
+   v?.at15m?.observed?pct(v.at15m.favorablePct):'—']){
+   const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
+  }strength.appendChild(tr);
+ }
+ $('forecastDetail').textContent=forecast?
+  'Проверяем 1/5/10/15/30 минут, в том числе задержку появления движения ≥0,10%. Отсутствие данных не считается поражением или успехом. Не учитываются реальные цены исполнения и комиссии.':
+  'Архив нового прогнозиста пока пуст.';
  $('state').textContent=report.state==='EMPTY'?
   'Архив ещё пуст. Первая запись появится после следующего нового сигнала.':
   'Архив: '+report.archivedSignals+' сигналов · последнее оповещение: '+

@@ -1,0 +1,119 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {Script} from 'node:vm';
+import {
+ parsePublishedForecast,normalizeForecastMinutes,evaluatePublishedForecast,
+ mergeForecastArchive,summarizeForecastArchive,FORECAST_HORIZONS,
+ recentForecastResearch
+} from '../lib/forecast-journal.mjs';
+import {encryptJournal,decryptJournalArchive,summarizeJournal} from '../lib/journal-core.mjs';
+import {forecastTopic} from '../lib/forecast-ntfy.mjs';
+
+const MIN=60000;
+const now=Date.UTC(2026,10,10,18,45,40);
+const env={NTFY_TOPIC:'p'.repeat(32),PUSH_CRON_KEY:'k'.repeat(40)};
+const topic=forecastTopic(env);
+const origin=now-45*MIN-40000;
+const sentAt=Math.floor(origin/1000)*1000;
+const notice={
+ event:'message',topic,time:sentAt/1000,
+ sequence_id:'a'.repeat(32),
+ title:'🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT SHORT',
+ message:'📉 СЦЕНАРИЙ SHORT · WEEX Futures\n1М / 5М / 10М: совпадение направления\nЦена 1М: 100.00 USDT · свеча 18:00\nRSI14: 41 / 40 / 40'
+};
+const emitted=parsePublishedForecast(notice,topic,now);
+const start=Math.ceil((sentAt+1)/MIN)*MIN;
+function futureRaw(){
+ return Array.from({length:40},(_,i)=>{
+  const close=i<8?100.01:i<9?99.99:i<10?99.8:i<14?99.78:99.7;
+  return [start+i*MIN,100,Math.max(close,100)+.02,Math.min(close,100)-.02,close,500];
+ });
+}
+test('parse only genuine sent private forecast notices (not trading alerts)',()=>{
+ assert.equal(emitted.symbol,'BTCUSDT');
+ assert.equal(emitted.direction,'SHORT');
+ assert.equal(emitted.strength,'STANDARD');
+ assert.equal(emitted.reference,100);
+ assert.equal(parsePublishedForecast({...notice,topic:'wrong'},topic,now),null);
+ assert.equal(parsePublishedForecast({...notice,title:'🟢 LONG BTCUSDT'},topic,now),null);
+ assert.equal(parsePublishedForecast({...notice,message:'Trade @ 100'},topic,now),null);
+ assert.equal(parsePublishedForecast({...notice,sequence_id:'wrong'},topic,now),null);
+ assert.equal(parsePublishedForecast({...notice,time:Math.floor((now-120*MIN)/1000)},topic,now),null);
+});
+test('later move begins on 10th closed 1m candle, not assumed immediately',()=>{
+ const bars=normalizeForecastMinutes(futureRaw(),now);
+ const outcome=evaluatePublishedForecast(emitted,bars,now);
+ assert.equal(outcome.windows[1].status,'OBSERVED');
+ assert.ok(outcome.windows[1].moveBps<0);
+ assert.equal(outcome.windows[5].moveBps<0,true);
+ assert.equal(outcome.windows[10].status,'OBSERVED');
+ assert.ok(outcome.windows[10].moveBps>0);
+ assert.equal(outcome.firstFavorable10bpsMinute,10);
+ assert.equal(outcome.windows[15].status,'OBSERVED');
+ assert.equal(outcome.windows[30].status,'OBSERVED');
+ const report=summarizeForecastArchive([outcome],now).windows[30];
+ assert.equal(report.at10m.favorablePct,100);
+ assert.equal(report.at5m.favorablePct,0);
+ assert.equal(report.firstFavorable10bps.from10to15,1);
+ assert.equal(report.byStrength.STANDARD.at10m.favorablePct,100);
+});
+test('future/unclosed or gapped candles never become wins',()=>{
+ const raw=futureRaw();
+ raw.splice(7,1);
+ const data=normalizeForecastMinutes(raw,now);
+ const missing=evaluatePublishedForecast(emitted,data,now);
+ assert.equal(missing.windows[5].status,'OBSERVED');
+ assert.equal(missing.windows[10].status,'NO_DATA');
+ assert.equal(missing.firstFavorable10bpsMinute,null);
+ const premature=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),start+7*MIN),start+7*MIN);
+ assert.equal(premature.windows[10].status,'PENDING');
+ assert.equal(premature.windows[30].status,'PENDING');
+});
+test('merge preserves first measurement, adds 15/30m and encrypts whole archive',()=>{
+ const first=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),start+12*MIN+1000),start+12*MIN+1000);
+ const complete=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),now),now);
+ const newArchive=mergeForecastArchive([], [first],now);
+ assert.equal(newArchive.added,1);
+ assert.equal(newArchive.rows[0].windows[30].status,'PENDING');
+ const updated=mergeForecastArchive(newArchive.rows,[complete],now);
+ assert.equal(updated.rows[0].windows[30].status,'OBSERVED');
+ assert.equal(updated.rows[0].windows[10].moveBps,first.windows[10].moveBps);
+ assert.equal(updated.updated,1);
+ const emptyOld=mergeForecastArchive(updated.rows, [first],now);
+ assert.equal(emptyOld.changed,false);
+ const sealed=encryptJournal([],env,[],updated.rows);
+ assert.ok(!JSON.stringify(sealed).includes('BTCUSDT'));
+ const opened=decryptJournalArchive(sealed,env);
+ assert.equal(opened.forecastRows[0].symbol,'BTCUSDT');
+ assert.equal(summarizeJournal([],now,[],opened.forecastRows).forecastStudy.archivedForecasts,1);
+ assert.deepEqual(decryptJournalArchive(encryptJournal([],env),env).forecastRows,[]);
+});
+test('collector reads separate private topic plus WEEX public klines only',async()=>{
+ const seen=[];
+ const fake=async url=>{
+  seen.push(String(url));
+  if(String(url).includes('ntfy.sh/'))return {ok:true,text:async()=>JSON.stringify(notice)};
+  return {ok:true,text:async()=>JSON.stringify(futureRaw())};
+ };
+ const v=await recentForecastResearch(now,{fetchImpl:fake,env});
+ assert.equal(v.seen,1);
+ assert.equal(v.rows.length,1);
+ assert.equal(v.rows[0].firstFavorable10bpsMinute,10);
+ assert.equal(seen.length,2);
+ assert.ok(seen.some(x=>x.includes('interval=1m&limit=125')));
+ assert.ok(seen.every(x=>!x.includes('/order')));
+});
+test('forecast audit is isolated from trading, cron and phone push',()=>{
+ const route=readFileSync(new URL('../lib/journal-route.mjs',import.meta.url),'utf8');
+ const script=readFileSync(new URL('../history.html',import.meta.url),'utf8').match(/<script>([\s\S]*?)<\/script>/);
+ const source=readFileSync(new URL('../lib/forecast-journal.mjs',import.meta.url),'utf8');
+ assert.deepEqual(FORECAST_HORIZONS,[1,5,10,15,30]);
+ assert.match(route,/recentForecastResearch/);
+ assert.match(route,/encryptJournal\(merged.rows,process.env,earlyMerged.rows,forecastMerged.rows\)/);
+ assert.ok(script);
+ assert.doesNotThrow(()=>new Script(script[1]));
+ for(const pattern of [/placeOrder/,/trade-confirm/,/trade-prepare/,/capi\/v3\/order/,/NTFY_TOPIC\s*=/]){
+  assert.doesNotMatch(source,pattern);
+ }
+});
