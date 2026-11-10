@@ -134,6 +134,7 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
   <button id="start" type="button" disabled>▶ Запустить наблюдение</button>
   <button id="stop" type="button" class="secondary" disabled>■ Остановить</button>
   <button id="once" type="button" class="secondary" disabled>Проверить и запустить PAPER</button>
+  <button id="history-refresh" type="button" class="secondary" disabled>↻ Обновить историю BB</button>
   <button id="export" type="button" class="secondary">Сохранить журнал CSV</button>
  </div>
  <p id="status" role="status">Проверяем официальный список WEEX. В тесте будет 16 основных и до 50 дополнительных рынков. PAPER-запись начнётся только после нажатия кнопки.</p>
@@ -144,8 +145,11 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
   <div class="tile"><small>Нет пригодной котировки WEEX</small><strong id="skip-quote">0</strong></div>
   <div class="tile"><small>Запоздалых / просроченных</small><strong id="skip-late">0</strong></div>
   <div class="tile"><small>Новое в PAPER-журнале</small><strong id="paper-added">0</strong></div>
+  <div class="tile"><small>Время сканирования</small><strong id="scan-duration">—</strong></div>
+  <div class="tile"><small>Не ответили в этом проходе</small><strong id="scan-fail">0</strong></div>
  </div>
  <p id="paper-explain" class="info-line" role="status">Ждём первую проверку. Даже исторические BB-сигналы нельзя задним числом записывать как новые PAPER-сделки.</p>
+ <p class="info-line" id="scan-health">Минутный скан лёгкий; историю последних 80 минут можно загрузить отдельно, чтобы не задерживать новые сигналы.</p>
  <p class="warn">⚠️ ×50 — чисто виртуальное моделирование, не изменение плеча твоего счёта WEEX. Только модельные комиссии и проскальзывание 0,22% движения цены соответствуют примерно 11% виртуальной начальной маржи при ×50, ещё до спреда. Реальная ликвидация зависит от mark price, MMR, типа маржи и исполнения; порог 1,5% — только наш учебный стресс-тест, а не точная цена ликвидации.</p>
  <p class="warn">⚠️ Когда вкладка закрыта или Android ограничивает Chrome, эта страница не может гарантировать минутные проверки. Журнал хранится только в этом браузере и на этом адресе. Нажатия не открывают WEEX сделки и не отправляют push.</p>
 </section>
@@ -191,6 +195,7 @@ const PAPER_LEVERAGE=50,PAPER_STRESS_BPS=150;
 const MAX_DETECTION_MS=25000,MAX_RESPONSE_AGE_MS=12000,AFTER_CLOSE_MS=4500;
 const $=id=>document.getElementById(id);
 let trades=[],running=false,checking=false,ticker=null,markets=new Map();
+let scanCycle=0,lastScanClosedAt=0,historyLastAt=0;
 const asBerlin=ms=>new Date(ms).toLocaleString('ru-RU',{timeZone:'Europe/Berlin',
  hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',hour12:false});
 const fixed=(n,d=2)=>Number.isFinite(n)?n.toFixed(d):'—';
@@ -444,11 +449,15 @@ function accept(symbol,snap){
  }
  return added>0?'RECORDED':'DUPLICATE_OR_COOLDOWN';
 }
-async function fetchOne(symbol){
+async function fetchOne(symbol,historyMode=false){
+ const controller=new AbortController();
+ const kill=setTimeout(()=>controller.abort(),11000);
  try{
+  // The lightweight mode skips expensive last-90m replays on all 66 coins.
+  // Historical diagnostics remain available by explicit user action only.
   const endpoint='/api/signals?mode=one-minute-research&symbol='+
-   encodeURIComponent(symbol)+'&paper=1';
-  const response=await fetch(endpoint,{cache:'no-store'});
+   encodeURIComponent(symbol)+'&paper=1'+(historyMode?'':'&quick=1');
+  const response=await fetch(endpoint,{cache:'no-store',signal:controller.signal});
   const d=await response.json();
   if(!response.ok||d.mode!=='PAPER_1M_WEEX_ONLY'||d.symbol!==symbol||
    d.exchange!=='WEEX'||d.notATrade!==true||d.ordersSent!==0||
@@ -458,10 +467,13 @@ async function fetchOne(symbol){
    d.marketWatch.regime?.notATrade!==true||
    d.generatedAt-d.closedAt<1000||d.generatedAt-d.closedAt>90000)
    throw Error('INVALID_OR_STALE_WEEX_PAPER_RESPONSE');
-  if(!d.historical90m||d.historical90m.kind!=='PAST_CANDLES_ONLY_NOT_PAPER'||
+  if(historyMode&&(!d.historical90m||
+   d.historical90m.kind!=='PAST_CANDLES_ONLY_NOT_PAPER'||
    d.historical90m.notATrade!==true||
-   !Number.isInteger(d.historical90m.guardedCandidates))
+   !Number.isInteger(d.historical90m.guardedCandidates)))
    throw Error('INVALID_HISTORY_DIAGNOSTICS');
+  if(!historyMode&&d.historical90m!==null)
+   throw Error('EXPECTED_FAST_MODE');
   // Check the whole included series has no missing minute or future candle.
   if(d.bars.length<35||d.bars.some((b,i)=>
    !Number.isSafeInteger(b.time)||b.time%ONE!==0||
@@ -469,23 +481,33 @@ async function fetchOne(symbol){
   settle(symbol,d.bars,d.closedAt);
   // Paper registration is only allowed for a recent completed minute.
   const currentEvents=d.recent.filter(e=>e.closedAt===d.closedAt).length;
-  const result=running&&document.visibilityState!=='hidden'?
-   accept(symbol,d):'NOT_RUNNING';
+  const result=!historyMode&&running&&document.visibilityState!=='hidden'?
+   accept(symbol,d):historyMode?'HISTORY_ONLY':'NOT_RUNNING';
   markets.set(symbol,{ok:true,closedAt:d.closedAt,watch:d.marketWatch,
-   hist:d.historical90m,currentEvents,registration:result});
- }catch(e){markets.set(symbol,{ok:false,reason:String(e.message||e)})}
+   hist:d.historical90m||markets.get(symbol)?.hist||null,
+   currentEvents,registration:result});
+ }catch(e){
+  const previous=markets.get(symbol);
+  markets.set(symbol,{ok:false,closedAt:previous?.closedAt||null,
+   hist:previous?.hist||null,reason:String(e.message||e)});
+ }finally{clearTimeout(kill)}
 }
-async function scan(){
+async function scan(historyMode=false){
  if(checking)return;
  checking=true;
+ const began=Date.now();
+ $('history-refresh').disabled=true;
  try{
-  $('status').textContent='Проверяю '+SYMBOLS.length+
-   ' рынков WEEX по 1М (16 основных + '+(SYMBOLS.length-16)+' дополнительных)...';
-  // Bounded concurrency keeps the 66-market scan closer to the closing
-  // minute; never issue all 66 requests as one unbounded burst.
+  $('status').textContent=(historyMode?'Обновляю отдельную историю':'Проверяю свежую 1М')+
+   ' по '+SYMBOLS.length+' рынкам WEEX...';
+  // Rotate first symbol each live cycle: no market is always at the end
+  // and at higher risk of failing the <=25s paper-signal latency budget.
+  const offset=historyMode?0:(scanCycle++*13)%SYMBOLS.length;
+  const queue=[...SYMBOLS.slice(offset),...SYMBOLS.slice(0,offset)];
   const CONCURRENCY=16;
-  for(let i=0;i<SYMBOLS.length;i+=CONCURRENCY)
-   await Promise.all(SYMBOLS.slice(i,i+CONCURRENCY).map(fetchOne));
+  for(let i=0;i<queue.length;i+=CONCURRENCY)
+   await Promise.all(queue.slice(i,i+CONCURRENCY).map(s=>fetchOne(s,historyMode)));
+  if(historyMode)historyLastAt=Date.now();
   store();render();
   const ok=[...markets.values()].filter(x=>x.ok).length;
   const watching=[...markets.values()].filter(x=>x.ok&&x.watch&&
@@ -498,7 +520,8 @@ async function scan(){
   const skippedLate=[...markets.values()].filter(x=>
    ['LATE_CANDLE','STALE_RESPONSE'].includes(x.registration)).length;
   const added=[...markets.values()].filter(x=>x.registration==='RECORDED').length;
-  $('hist-90').textContent=String(hist)+' / '+ok+' рынков';
+  $('hist-90').textContent=historyLastAt?String(hist)+' (последняя история)':
+   'По кнопке';
   const historyRows=[];
   for(const [symbol,data] of markets.entries()){
    if(!data.ok||!data.hist||!Array.isArray(data.hist.lastSignals))continue;
@@ -526,6 +549,19 @@ async function scan(){
   $('skip-quote').textContent=skippedQuote;
   $('skip-late').textContent=skippedLate;
   $('paper-added').textContent=added;
+  const elapsedMs=Date.now()-began,failed=SYMBOLS.length-ok;
+  $('scan-duration').textContent=(elapsedMs/1000).toFixed(1)+' сек';
+  $('scan-fail').textContent=failed;
+  const recentCompleted=Math.max(...[...markets.values()].filter(x=>x.ok)
+   .map(x=>x.closedAt||0),0);
+  const completeMinute=Math.floor(Date.now()/ONE)*ONE;
+  // A 1m close may not be published yet; only report staleness clearly.
+  $('scan-health').textContent=(historyMode?'История обновлена. ':'Минутный срез завершён. ')+
+   'Данные '+ok+'/'+SYMBOLS.length+' · длительность '+
+   (elapsedMs/1000).toFixed(1)+' сек. '+
+   (failed?'Есть сбои WEEX/API: '+failed+'. ': 'Ошибок рынка нет. ')+
+   (Date.now()-recentCompleted>ONE+30000?'Последняя 1М устарела. ': '')+
+   'При закрытой вкладке мониторинг приостанавливается.';
   $('paper-explain').textContent=!running?
    'PAPER выключен: нажми «Проверить и запустить PAPER», чтобы начать запись НОВЫХ сигналов.':
    !fresh?'В эту минуту строгих LONG/SHORT нет. WATCH и история 90 минут — не сделки.':
@@ -536,18 +572,22 @@ async function scan(){
   const newModel=trades.filter(t=>t.paperRiskModel==='PAPER_50X_STRESS_V1');
   const w=newModel.filter(t=>t.status==='win').length,
    l=newModel.filter(t=>['loss','risk'].includes(t.status)).length;
-  $('status').textContent='Последняя проверка '+asBerlin(Date.now())+
+  $('status').textContent=(historyMode?'История BB · ':'Скан PAPER · ')+
+   'последняя проверка '+asBerlin(Date.now())+
    ' · WEEX '+ok+'/'+SYMBOLS.length+' · WATCH '+watching+
    ' · прибыльных '+w+', убыточных/риск '+l+
    '. '+(running?'Следующий запрос примерно через минуту.':'Наблюдение остановлено.');
   // Five positive paper outcomes are a milestone, NOT an automatic stop:
   // continue observing losses and the overall net expectancy for manual review.
- }finally{checking=false}
+ }finally{
+  checking=false;
+  $('history-refresh').disabled=false;
+ }
 }
 function scheduleNext(){
  if(!running)return;
  if(ticker)clearTimeout(ticker);
- // Align the 16-market read-only scan to the first ~4.5s AFTER each completed
+ // Align the 66-market read-only scan to the first ~4.5s AFTER each completed
  // 1m candle instead of scanning at an arbitrary time 50s too late.
  const delay=ONE-(Date.now()%ONE)+AFTER_CLOSE_MS;
  ticker=setTimeout(()=>{
@@ -590,6 +630,7 @@ if(typeof document.addEventListener==='function'){
 }
 $('start').onclick=start;$('stop').onclick=stop;
 $('once').onclick=()=>{if(!running)start();else scan()};
+$('history-refresh').onclick=()=>scan(true);
 $('export').onclick=()=>{
  const cols=['symbol','strategy','direction','closedAt','seenAt','detectionLagMs',
   'signalClose','volumeRatio','signalTrend','trendAligned','signalRsi14',
@@ -609,6 +650,7 @@ async function initialize(){
  load();render();
  $('start').disabled=trades.length>=MAX_TRADES;
  $('once').disabled=false;
+ $('history-refresh').disabled=false;
  $('status').textContent=UNIVERSE_NOTE+
   '. Нажми «Проверить и запустить PAPER», чтобы начать запись новых сигналов.';
 }
