@@ -94,7 +94,7 @@ test('optional cost warnings are read-only and production scan/dispatch still ac
  assert.doesNotThrow(()=>new Script(script[1]));
 });
 
-test('Android ntfy confirmed signal embeds caution, 1m EARLY WATCH remains unchanged',async()=>{
+test('Android ntfy confirmed signal embeds caution, only PRE_BREAK forecast can send an early push',async()=>{
  const {ntfySend}=await import('../lib/ntfy-alerts.mjs');
  const oldTopic=process.env.NTFY_TOPIC,originalFetch=globalThis.fetch;
  const topic='WR_Private_'+('c'.repeat(24)),posts=[];
