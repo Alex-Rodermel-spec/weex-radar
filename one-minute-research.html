@@ -21,6 +21,10 @@ button:disabled{opacity:.55}.grid{display:grid;grid-template-columns:repeat(auto
 .tile small{display:block;color:#b1acc1}.tile strong{display:block;font-size:24px;margin-top:5px}
 .warn{color:#ffbb92}#status{min-height:24px}ul{padding-left:20px;color:#c3c2d0}
 footer{font-size:12px;color:#9296aa;margin-top:24px}
+.lab{border:1px solid #54426d;border-radius:17px;padding:18px;margin:22px 0;background:linear-gradient(140deg,#20182e,#131725)}
+.lab-kicker{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9b9ff}
+.lab h2{margin:8px 0}.lab .grid{margin:14px 0}.split-note{font-size:13px;color:#aeb4c7}
+@media(max-width:560px){.lab{padding:14px}.tile strong{font-size:21px}}
 </style>
 </head>
 <body><main>
@@ -60,16 +64,27 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
  <div class="tile"><small>TP / SL после отката</small><strong id="p-tpsl">—</strong></div>
  <div class="tile"><small>Средний R после расходов</small><strong id="p-netr">—</strong></div>
 </div>
-<h2>Третий вариант — Bollinger Bands 20/2 + объём (ТЕСТ)</h2>
-<p>Отдельная минутная скальпинг-гипотеза: закрытая свеча пробивает BB20/2 при объёме ≥1,15 от среднего. Вход условно по OPEN следующей 1М свечи; выход по CLOSE через 5 либо 10 минут. Комиссии 0,08% и проскальзывание 0,03% с каждой стороны в модели. <strong>Здесь нет 5М/15М-фильтра, SL/TP и порога риска из двух вариантов выше — напрямую сравнивать их проценты успеха нельзя.</strong></p>
+<section class="lab" aria-labelledby="bb-lab-title">
+<span class="lab-kicker">WEEX RADAR · MINUTE LAB / ТОЛЬКО ТЕСТ</span>
+<h2 id="bb-lab-title">📏 Bollinger Bands 20/2 + объём</h2>
+<p>Сравнение двух гипотез: <strong>пробой</strong> границы полосы и <strong>возврат внутрь</strong> после выхода за неё. В обоих случаях объём не ниже ×1,15 среднего за 20 минут. Не добавляем обязательные EMA и RSI.</p>
 <div class="grid">
- <div class="tile"><small>BB+объём: наблюдений на 5М</small><strong id="bb-count">—</strong></div>
- <div class="tile"><small>5М: после расходов в плюс</small><strong id="bb-five-positive">—</strong></div>
- <div class="tile"><small>5М: среднее после расходов (б.п.)</small><strong id="bb-five-net">—</strong></div>
- <div class="tile"><small>10М: после расходов в плюс</small><strong id="bb-ten-positive">—</strong></div>
- <div class="tile"><small>10М: среднее после расходов (б.п.)</small><strong id="bb-ten-net">—</strong></div>
+ <div class="tile"><small>Пробой · наблюдений</small><strong id="bb-count">—</strong></div>
+ <div class="tile"><small>Пробой · 5М в плюсе</small><strong id="bb-five-positive">—</strong></div>
+ <div class="tile"><small>Пробой · 5М среднее, б.п.</small><strong id="bb-five-net">—</strong></div>
+ <div class="tile"><small>Пробой · 10М в плюсе</small><strong id="bb-ten-positive">—</strong></div>
+ <div class="tile"><small>Пробой · 10М среднее, б.п.</small><strong id="bb-ten-net">—</strong></div>
 </div>
-<p class="warn">BB+объём — только модель движения на истории. Нет реального исполнения, спреда, funding, задержки или независимой проверки. Результат может быть убыточным и не даёт разрешения на вход.</p>
+<div class="grid">
+ <div class="tile"><small>Возврат · наблюдений</small><strong id="re-count">—</strong></div>
+ <div class="tile"><small>Возврат · 5М в плюсе</small><strong id="re-five-positive">—</strong></div>
+ <div class="tile"><small>Возврат · 5М среднее, б.п.</small><strong id="re-five-net">—</strong></div>
+ <div class="tile"><small>Возврат · 10М в плюсе</small><strong id="re-ten-positive">—</strong></div>
+ <div class="tile"><small>Возврат · 10М среднее, б.п.</small><strong id="re-ten-net">—</strong></div>
+</div>
+<p class="split-note" id="bb-periods">Сравнение первой и последней частей истории появится после расчёта.</p>
+<p class="warn">⚠️ Историческая модель без реального спреда и исполнения. Условный вход по открытию следующей 1М свечи, закрытие через 5 или 10 минут, суммарно 22 б.п. модельных расходов. Нет биржевых SL/TP, funding или независимого теста. Эти проценты нельзя напрямую сравнивать с 60-минутными TP/SL двух стратегий выше.</p>
+</section>
 <p class="warn">Сравнение вариантов на одной истории — не независимое подтверждение прибыльности.</p>
 <h2>Почему были отказы при пробое</h2>
 <ul id="reasons"></ul>
@@ -110,6 +125,19 @@ $('run').onclick=async()=>{
   show('bb-five-net',bb5.averageNetBps??'Нет выборки');
   show('bb-ten-positive',bb10.signals?bb10.netPositive+'/'+bb10.signals:'Нет выборки');
   show('bb-ten-net',bb10.averageNetBps??'Нет выборки');
+  const re5=d.shadowBBVolume?.reentry5m?.total||{};
+  const re10=d.shadowBBVolume?.reentry10m?.total||{};
+  show('re-count',re5.signals);
+  show('re-five-positive',re5.signals?re5.netPositive+'/'+re5.signals:'Нет выборки');
+  show('re-five-net',re5.averageNetBps??'Нет выборки');
+  show('re-ten-positive',re10.signals?re10.netPositive+'/'+re10.signals:'Нет выборки');
+  show('re-ten-net',re10.averageNetBps??'Нет выборки');
+  const older=d.shadowBBVolume?.reentry5m?.byPeriod?.older70;
+  const recent=d.shadowBBVolume?.reentry5m?.byPeriod?.recent30;
+  $('bb-periods').textContent='Возврат · ранняя часть истории: '+(older?.signals??0)+
+   ' наблюдений, среднее '+(older?.averageNetBps??'—')+' б.п.; последняя часть: '+
+   (recent?.signals??0)+' наблюдений, среднее '+(recent?.averageNetBps??'—')+
+   ' б.п. Это описательный разрез, не независимый тест.';
   const labels={
    TREND_MISMATCH:'Нет совпадения 5М и 15М',
    NO_BREAK:'Нет нового 1М пробоя',
