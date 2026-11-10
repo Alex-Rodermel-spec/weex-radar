@@ -9,6 +9,7 @@ const push=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf
 const early=readFileSync(new URL('../lib/early-push.mjs',import.meta.url),'utf8');
 const page=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const checks=(await import('../lib/ntfy-alerts.mjs'))._test;
+const {eligiblePhoneSignal}=await import('../lib/ntfy-alerts.mjs');
 const now=Date.now();
 test('ntfy topics are strong random private channel names',()=>{
  assert.equal(checks.topicOk('wr-'+'a'.repeat(32)),true);
@@ -31,14 +32,14 @@ test('phone only receives PRE_BREAK forecasts or confirmed manual REVIEW entries
   level:'EARLY_WATCH',candleCloseTime:now-10000,expiresAt:now+70000};
  const forecast={...common,watchType:'PRE_BREAK',
   forecast:{mode:'PRE_BREAK_SCENARIO'}};
- assert.equal(checks.eligiblePhoneSignal({...common,watchType:'BREAKOUT'},'early'),false);
- assert.equal(checks.eligiblePhoneSignal(common,'early'),false);
- assert.equal(checks.eligiblePhoneSignal(forecast,'early'),true);
- assert.equal(checks.eligiblePhoneSignal({...forecast,forecast:null},'early'),false);
+ assert.equal(eligiblePhoneSignal({...common,watchType:'BREAKOUT'},'early'),false);
+ assert.equal(eligiblePhoneSignal(common,'early'),false);
+ assert.equal(eligiblePhoneSignal(forecast,'early'),true);
+ assert.equal(eligiblePhoneSignal({...forecast,forecast:null},'early'),false);
  const confirmed={...common,level:'STRONG',advisor:{status:'REVIEW'},
   entryQuality:{ok:true},costReview:{status:'PASS_ESTIMATE'}};
- assert.equal(checks.eligiblePhoneSignal(confirmed,'confirmed'),true);
- assert.equal(checks.eligiblePhoneSignal({...confirmed,advisor:{status:'WAIT'}},'confirmed'),false);
+ assert.equal(eligiblePhoneSignal(confirmed,'confirmed'),true);
+ assert.equal(eligiblePhoneSignal({...confirmed,advisor:{status:'WAIT'}},'confirmed'),false);
 });
 
 test('ntfy never touches trading/order endpoints',()=>{
