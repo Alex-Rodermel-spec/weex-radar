@@ -39,6 +39,25 @@ test('BB band reentry identifies trend-turn hypotheses without issuing orders',(
  assert.equal(twoFilterCandidate(up,now,{bandPeriod:20,bandStd:2,
   volumePeriod:20,minVolumeRatio:1.15,strategy:'BAD'}).direction,null);
 });
+test('conservative 1m filter refuses a chased oversized candle despite BB+volume',()=>{
+ const cfg={...{
+  bandPeriod:20,bandStd:2,volumePeriod:20,minVolumeRatio:1.15
+ },strategy:'BAND_BREAKOUT',qualityProfile:'CAUTIOUS'};
+ const raw=twoFilterCandidate(sample(),base+21*M+1000);
+ const conservative=twoFilterCandidate(sample(),base+21*M+1000,cfg);
+ assert.equal(raw.direction,'LONG');
+ assert.equal(conservative.direction,null);
+ assert.equal(conservative.unfilteredDirection,'LONG');
+ assert.equal(conservative.reason,'QUALITY_EXHAUSTED_CANDLE');
+ assert.equal(conservative.notATrade,true);
+ const replay=replayTwoFilterCandles(sample(),{qualityProfile:'CAUTIOUS',
+  cooldownMinutes:5,horizonMinutes:5});
+ assert.equal(replay.tradeReady,false);
+ assert.equal(replay.changesLiveSignals,false);
+ assert.equal(replay.cooldownMinutes,5);
+ assert.equal(replay.qualityProfile,'CAUTIOUS');
+ assert.ok(replay.total.signals<=replay.diagnostics.rawCandidates);
+});
 test('unclosed, malformed or gapped 1m candles cannot be used',()=>{
  const a=sample();
  assert.equal(twoFilterCandidate(a,a.at(-1).closeTime).direction,null);
