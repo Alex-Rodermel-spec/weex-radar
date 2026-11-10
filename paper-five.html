@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0c0b17"><meta name="referrer" content="no-referrer">
+<title>WEEX RADAR · 5 прибыльных PAPER-тестов</title>
+<style>
+:root{
+ color-scheme:dark;--bg:#090c16;--surface:#111727;--surface-2:#171e31;
+ --text:#f4f5fc;--muted:#9da8c0;--line:#28334c;--purple:#8a6bff;
+ --aqua:#45dfbd;--danger:#ff8297;--amber:#ffc977;
+ font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+}
+*,*:before,*:after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+ margin:0;min-height:100vh;color:var(--text);
+ background:radial-gradient(ellipse 65% 42% at 85% -12%,#33255b80,transparent 75%),
+ radial-gradient(ellipse 50% 34% at 1% 15%,#0d4a5170,transparent 78%),var(--bg);
+ padding:14px 16px 72px;
+}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.24;
+ background-image:linear-gradient(#5a64800b 1px,transparent 1px),linear-gradient(90deg,#5a64800b 1px,transparent 1px);
+ background-size:42px 42px}
+main{max-width:1160px;margin:auto;position:relative}
+a{color:#c3b3ff;text-decoration:none}a:hover{text-decoration:underline}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0 20px;border-bottom:1px solid #48547355}
+.brand{display:flex;align-items:center;gap:11px;font-size:15px;font-weight:900;letter-spacing:.12em;color:#fff}
+.brandmark{width:37px;height:37px;border:1px solid #8b6dff80;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#332568,#172340);box-shadow:0 0 28px #8955fe33;font-size:20px}
+.topright{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.topchip{border:1px solid #59648055;color:#b6c2d9;padding:5px 10px;border-radius:100px;font-size:11px;font-weight:800;letter-spacing:.05em;background:#151b2bab}
+.topchip.accent{color:#b0f0dc;border-color:#278f754d;background:#13564626}
+.hero{padding:43px 0 26px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);gap:25px;align-items:center}
+.eyebrow{color:#b3a3ff;font-weight:900;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+h1{font-size:clamp(36px,5.8vw,65px);line-height:1.02;letter-spacing:-.055em;margin:13px 0 17px;font-weight:850}
+h1 span{background:linear-gradient(90deg,#fff,#a3ecf2 54%,#a99aff);background-clip:text;-webkit-background-clip:text;color:transparent}
+h2{font-size:19px;letter-spacing:-.025em;margin:0;font-weight:800}
+p{margin:12px 0}
+.lead{color:var(--muted);max-width:820px;font-size:14px;line-height:1.7}
+.lead strong{color:#e0e4f6}
+.hero-meta{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
+.hero-highlight{border:1px solid #7583b94a;background:linear-gradient(152deg,#33205b77,#121e36ee 80%);border-radius:23px;padding:22px;box-shadow:0 20px 70px #07091075;overflow:hidden;position:relative}
+.hero-highlight:after{content:"◌";font-size:140px;color:#806bff13;position:absolute;right:-5px;top:-58px}
+.hero-highlight small{color:#adb7cc;font-weight:700}
+.hero-highlight .big{font-size:54px;font-weight:900;line-height:1;letter-spacing:-.07em;margin:8px 0}
+.hero-highlight .big span{color:var(--aqua)}
+.hero-highlight .sub{color:#b9c6df;font-size:12px}
+.progress{height:7px;border-radius:8px;background:#354056;overflow:hidden;margin:18px 0 9px}
+.progress>span{display:block;height:100%;width:0%;border-radius:8px;background:linear-gradient(90deg,#8673ff,#4de4bc);transition:width .5s ease}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px;flex-wrap:wrap}
+.section-meta{font-size:12px;color:var(--muted)}
+.panel{border:1px solid var(--line);padding:24px;border-radius:23px;margin:18px 0;
+ background:linear-gradient(145deg,#171e30ed,#101626f5 75%);
+ box-shadow:0 16px 55px #0307103d}
+.panel.primary{border-color:#6657b35c;background:linear-gradient(128deg,#211e3aa8,#111b2ef2 75%)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tile{border:1px solid #38435b8f;background:linear-gradient(155deg,#1c263a,#151d2f);padding:18px;border-radius:17px;min-width:0}
+.tile small{color:#9dabca;display:block;font-size:12px;font-weight:650}
+.tile strong{font-size:clamp(20px,2.3vw,29px);font-weight:850;display:block;margin-top:6px;letter-spacing:-.035em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.tile:first-child{background:linear-gradient(145deg,#273d46,#132932);border-color:#2f82754b}
+.tile:first-child strong{color:#98f5d2}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+button{border:1px solid #9586ff60;border-radius:12px;background:linear-gradient(130deg,#8e73f8,#6952d0);
+ color:#fff;font:inherit;font-size:13px;font-weight:800;padding:12px 16px;cursor:pointer;transition:transform .13s ease,background .18s ease,box-shadow .15s ease}
+button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 22px #7351f538}
+button:active:not(:disabled){transform:translateY(0)}
+button:focus-visible,a:focus-visible{outline:2px solid #9de8dc;outline-offset:3px}
+button.secondary{background:#192237b3;border:1px solid #455272;color:#cbd5ed}
+button:disabled{opacity:.46;cursor:not-allowed}
+#status{color:#bdcce5;min-height:26px;padding:12px 14px;background:#0b1422;border:1px solid #3d52664a;border-radius:12px;font-size:13px}
+.warn{color:#e6bb8a;font-size:12px}
+.info-line{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.pulse-dot{width:8px;height:8px;border-radius:100%;background:#747e94;box-shadow:0 0 0 4px #747e9419;flex:none}
+.pulse-dot.live{background:#49ddb6;box-shadow:0 0 0 4px #49ddb626}
+.tab{width:100%;border-collapse:separate;border-spacing:0;margin-top:5px;font-size:12px;min-width:650px}
+.tab th,.tab td{border-bottom:1px solid #2d3953;padding:13px 10px;text-align:left;vertical-align:middle}
+.tab th{color:#97a8c6;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.045em;background:#141c2ced;position:sticky;top:0}
+.tab tbody tr:hover{background:#1e29434c}
+.tab td:first-child{font-weight:800;color:#e5ebfa}
+.scroll{overflow-x:auto;border:1px solid #293853;border-radius:14px}
+.pill{border:1px solid #68617f;border-radius:20px;padding:3px 9px;display:inline-block;white-space:nowrap}
+.pending{color:#ffd28f}.win{color:#79ebbe}.loss{color:#ff94a8}
+small{font-size:12px}
+footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1px solid #35405c55}
+.empty-kpi{color:#93a0b8}
+@media(max-width:850px){.hero{grid-template-columns:1fr}.hero-highlight{max-width:490px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:18px}}
+@media(max-width:550px){body{padding:8px 12px 50px}.topbar{padding:12px 0 14px}.brand{font-size:12px}.topchip{font-size:10px}
+.hero{padding:26px 0 12px;gap:12px}h1{font-size:40px}.panel{padding:15px;border-radius:18px}.grid{gap:9px}.tile{padding:12px;border-radius:13px}.tile strong{font-size:21px}
+.actions{display:grid;grid-template-columns:1fr 1fr}.actions button:first-child{grid-column:1/-1}.actions button{padding:12px 9px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
+</style>
+</head><body><main>
+<header class="topbar">
+ <div class="brand"><span class="brandmark" aria-hidden="true">◈</span> WEEX <span style="color:#ad9aff">RADAR</span> <span style="color:#7282a9;font-size:11px">V2</span></div>
+ <div class="topright"><span class="topchip accent" id="universe-status">● ПРОВЕРЯЕМ 50 НОВЫХ</span><span class="topchip" id="last-check-chip">ЕЩЁ НЕ ПРОВЕРЕНО</span><span class="topchip">×50 PAPER · ZERO ORDERS</span></div>
+</header>
+<section class="hero" aria-labelledby="page-title">
+ <div>
+  <div class="eyebrow">MINUTE INTELLIGENCE / ИССЛЕДОВАТЕЛЬСКИЙ ТЕРМИНАЛ</div>
+  <h1 id="page-title">Меньше шума.<br><span>Больше ясности.</span></h1>
+  <p class="lead">16 основных + 50 дополнительных рынков WEEX · ранние WATCH-наблюдения · строгие PAPER LONG/SHORT. Мы тестируем цель <strong>5 положительных исходов</strong>, фиксируем также каждый убыток и не выдаём историческую модель за прибыль.</p>
+  <div class="hero-meta">
+   <span class="topchip" id="universe-chip">16 + 50 · ПРОВЕРКА WEEX</span><span class="topchip">1M DATA</span><span class="topchip">BB 20/2 + VOLUME</span><span class="topchip">5M EVALUATION</span><span class="topchip">0 REAL ORDERS</span>
+  </div>
+ </div>
+ <aside class="hero-highlight" aria-label="Прогресс теста">
+  <small>Цель PAPER-тестирования</small>
+  <div class="big"><span id="hero-wins">0</span><span style="font-size:29px;color:#7e8aa9"> / 5</span></div>
+  <div class="progress" role="progressbar" aria-label="Положительные PAPER-исходы" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" id="wins-progress"><span id="progress-fill"></span></div>
+  <div class="sub">После расходов 0,22% на круг · не реальные сделки</div>
+ </aside>
+</section>
+<section class="panel primary" id="terminal">
+ <div class="section-head"><h2>Торговый монитор <span style="color:#8f9cb7;font-size:12px;font-weight:600">· READ ONLY</span></h2>
+  <span class="info-line"><span class="pulse-dot" id="monitor-dot"></span><span id="monitor-state">Остановлен</span></span>
+ </div>
+ <div class="grid">
+  <div class="tile"><small>Прибыльных тестов</small><strong id="wins">0 / 5</strong></div>
+  <div class="tile"><small>Убыточных тестов</small><strong id="losses">0</strong></div>
+  <div class="tile"><small>Ожидают исхода</small><strong id="pending">0</strong></div>
+  <div class="tile"><small>Средний результат</small><strong id="average">—</strong></div>
+  <div class="tile"><small>×50 · средний итог от маржи</small><strong id="margin-roi-50">—</strong></div>
+  <div class="tile"><small>×50 · риск-касания 1,5%</small><strong id="risk-touches-50">0</strong></div>
+  <div class="tile"><small>×50 · расходы от маржи (без спреда)</small><strong style="color:#ffbd96">≈ −11%</strong></div>
+  <div class="tile"><small>Вывод по PAPER</small><strong id="paper-verdict" style="font-size:16px">Мало данных</strong></div>
+  <div class="tile"><small>Суммарный тестовый итог, б.п.</small><strong id="total-net">—</strong></div>
+  <div class="tile"><small>Доля выигрышей</small><strong id="win-rate">—</strong></div>
+  <div class="tile"><small>LONG · результат</small><strong id="long-stats" style="font-size:17px">—</strong></div>
+  <div class="tile"><small>SHORT · результат</small><strong id="short-stats" style="font-size:17px">—</strong></div>
+  <div class="tile"><small>Сигналы по тренду EMA</small><strong id="aligned-stats" style="font-size:17px">—</strong></div>
+  <div class="tile"><small>Ранних WATCH сейчас</small><strong id="watch-count">—</strong></div>
+  <div class="tile"><small>Свежих рынков</small><strong id="markets">— / 66</strong></div>
+ </div>
+ <div class="actions">
+  <button id="start" type="button" disabled>▶ Запустить наблюдение</button>
+  <button id="stop" type="button" class="secondary" disabled>■ Остановить</button>
+  <button id="once" type="button" class="secondary" disabled>Проверить и запустить PAPER</button>
+  <button id="history-refresh" type="button" class="secondary" disabled>↻ Обновить историю BB</button>
+  <button id="export" type="button" class="secondary">Сохранить журнал CSV</button>
+ </div>
+ <p id="status" role="status">Проверяем официальный список WEEX. В тесте будет 16 основных и до 50 дополнительных рынков. PAPER-запись начнётся только после нажатия кнопки.</p>
+ <p class="info-line" id="universe-description">Дополнительные 50 монет выбираются через официальный публичный WEEX API. Если проверка не пройдёт, сохраняем только 16 базовых рынков и показываем предупреждение.</p>
+ <div class="grid" aria-label="Почему нет PAPER-сделок">
+  <div class="tile"><small>Исторические BB-сигналы за ~80–90 минут · НЕ сделки</small><strong id="hist-90">—</strong></div>
+  <div class="tile"><small>Свежих кандидатов за этот проход</small><strong id="raw-now">0</strong></div>
+  <div class="tile"><small>Нет пригодной котировки WEEX</small><strong id="skip-quote">0</strong></div>
+  <div class="tile"><small>Запоздалых / просроченных</small><strong id="skip-late">0</strong></div>
+  <div class="tile"><small>Новое в PAPER-журнале</small><strong id="paper-added">0</strong></div>
+  <div class="tile"><small>Время сканирования</small><strong id="scan-duration">—</strong></div>
+  <div class="tile"><small>Не ответили в этом проходе</small><strong id="scan-fail">0</strong></div>
+ </div>
+ <p id="paper-explain" class="info-line" role="status">Ждём первую проверку. Даже исторические BB-сигналы нельзя задним числом записывать как новые PAPER-сделки.</p>
+ <p class="info-line" id="scan-health">Минутный скан лёгкий; историю последних 80 минут можно загрузить отдельно, чтобы не задерживать новые сигналы.</p>
+ <p class="warn">⚠️ ×50 — чисто виртуальное моделирование, не изменение плеча твоего счёта WEEX. Только модельные комиссии и проскальзывание 0,22% движения цены соответствуют примерно 11% виртуальной начальной маржи при ×50, ещё до спреда. Реальная ликвидация зависит от mark price, MMR, типа маржи и исполнения; порог 1,5% — только наш учебный стресс-тест, а не точная цена ликвидации.</p>
+ <p class="warn">⚠️ Когда вкладка закрыта или Android ограничивает Chrome, эта страница не может гарантировать минутные проверки. Журнал хранится только в этом браузере и на этом адресе. Нажатия не открывают WEEX сделки и не отправляют push.</p>
+</section>
+<section class="panel" id="history-events">
+ <div class="section-head"><h2>Последние сигналы на реальных свечах</h2><span class="topchip">ИСТОРИЯ · НЕ PAPER-СДЕЛКИ</span></div>
+ <p class="lead">Здесь только уже закрытые минутные свечи WEEX за последние ~90 минут. Сигналы могли возникнуть до запуска страницы: они <strong>не записываются задним числом в PAPER</strong>, и по ним не заявляется прибыль.</p>
+ <div class="scroll"><table class="tab">
+  <thead><tr><th>Монета</th><th>Время (Берлин)</th><th>Направление</th><th>Условие</th></tr></thead>
+  <tbody id="history-events-body"><tr><td colspan="4">Пока нет проверки истории</td></tr></tbody>
+ </table></div>
+</section>
+<section class="panel" id="journal">
+ <div class="section-head"><h2>Журнал PAPER-сделок</h2><span class="topchip">WIN · LOSS · PENDING</span></div>
+ <p class="lead">Режим <strong>×50 — только виртуально</strong>. Сигнал по закрытой 1М свече → публичный WEEX ask для LONG или bid для SHORT → исход на следующих пяти закрытых свечах. Из результата вычитаем 0,22% модельных расходов и допущение о выходном спреде. Если минутные high/low касаются <strong>1,5% против позиции</strong>, считаем тест <strong>рисковым, а не прибыльным</strong> и условно закрываем по этому порогу. Это <strong>не реальный уровень ликвидации</strong> и не гарантия выхода: ликвидация может наступить раньше, исполнение хуже, а порядок движения внутри минуты неизвестен. Старые записи без bid/ask остаются отдельно.</p>
+ <div class="scroll"><table class="tab">
+  <thead><tr><th>Монета</th><th>Сигнал (Берлин)</th><th>Направление</th><th>Условный вход</th><th>Исход через 5М</th><th>×50 от маржи</th></tr></thead>
+  <tbody id="trades"><tr><td colspan="6">Пока нет записей</td></tr></tbody>
+ </table></div>
+</section>
+<section class="panel" id="markets-section">
+ <div class="section-head"><h2>WEEX · обзор WATCH по всем активным рынкам</h2><span class="topchip">LIVE CANDLE SNAPSHOT</span></div>
+ <p class="lead">WATCH — только предварительное наблюдение. Сравнение типичного минутного диапазона с 22 б.п. расходов показывает волатильность, но не предсказывает доход.</p>
+ <div class="scroll"><table class="tab">
+  <thead><tr><th>Рынок</th><th>Последняя свеча</th><th>Ранний WATCH</th><th>BB за 90 мин (история)</th><th>Проверка</th></tr></thead>
+  <tbody id="markets-table"><tr><td colspan="5">Нет последней проверки</td></tr></tbody>
+ </table></div>
+</section>
+<footer>🔒 Исследование только на публичных данных WEEX Futures. Нет аккаунтного API, автосделок, реальных ордеров или платных изменений. Требуется независимая проверка стратегии на будущих днях.</footer>
+<script>
+'use strict';
+const BASE_SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT',
+ '1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT',
+ 'BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
+let SYMBOLS=[...BASE_SYMBOLS],UNIVERSE_OK=false,UNIVERSE_NOTE='Загрузка списка WEEX...';
+const KEY='weex-paper-five-forward-v1';
+const COSTS_BPS=22,ONE=60000,HORIZON=5*ONE,MAX_TRADES=500;
+// 50x is a SIMULATION DISPLAY, not an exchange leverage setting.
+// 150bps adverse threshold is a conservative stress benchmark, NOT
+// the actual WEEX liquidation or a guaranteed exchange stop-loss fill.
+const PAPER_LEVERAGE=50,PAPER_STRESS_BPS=150;
+// The paper record must be timely; an old signal is not a fresh entry.
+// Next-minute OPEN remains a research proxy, not a guaranteed executable price.
+const MAX_DETECTION_MS=25000,MAX_RESPONSE_AGE_MS=12000,AFTER_CLOSE_MS=4500;
+const $=id=>document.getElementById(id);
+let trades=[],running=false,checking=false,ticker=null,markets=new Map();
+let scanCycle=0,lastScanClosedAt=0,historyLastAt=0;
+const asBerlin=ms=>new Date(ms).toLocaleString('ru-RU',{timeZone:'Europe/Berlin',
+ hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',hour12:false});
+const fixed=(n,d=2)=>Number.isFinite(n)?n.toFixed(d):'—';
+const key=t=>[t.symbol,t.strategy,t.direction,t.closedAt].join('|');
+async function loadWeexUniverse(){
+ try{
+  const response=await fetch('/api/signals?mode=one-minute-research&universe=1',
+   {cache:'no-store'});
+  const d=await response.json();
+  if(!response.ok||d.mode!=='WEEX_PAPER_UNIVERSE'||
+   d.exchange!=='WEEX'||d.notATrade!==true||d.ordersSent!==0||
+   !Array.isArray(d.baseMarkets)||!Array.isArray(d.extraMarkets)||
+   !Array.isArray(d.markets)||d.baseMarkets.length!==16||
+   d.extraMarkets.length!==50||d.markets.length!==66||
+   d.baseMarkets.some((s,i)=>s!==BASE_SYMBOLS[i])||
+   new Set(d.markets).size!==66||
+   d.markets.some(s=>typeof s!=='string'||!/^[A-Z0-9]{2,25}USDT$/.test(s)))
+   throw Error('WEEX_66_MARKETS_NOT_VERIFIED');
+  SYMBOLS=[...d.markets];UNIVERSE_OK=true;
+  UNIVERSE_NOTE='16 базовых + 50 новых контрактов WEEX ('+d.selection+')';
+  $('universe-status').textContent='● WEEX 66 / 66 ПОДТВЕРЖДЕНЫ';
+  $('universe-chip').textContent='16 БАЗОВЫХ + 50 НОВЫХ';
+  $('universe-description').textContent=UNIVERSE_NOTE+
+   '. Тестируем только публичные свечи; дополнительные рынки не включены в реальную торговлю.';
+ }catch(e){
+  UNIVERSE_OK=false;SYMBOLS=[...BASE_SYMBOLS];
+  UNIVERSE_NOTE='Новые 50 не подтверждены WEEX API; безопасный режим 16 основных.';
+  $('universe-status').textContent='● ДОПОЛНИТЕЛЬНЫЕ НЕ ПРОВЕРЕНЫ';
+  $('universe-chip').textContent='16 БАЗОВЫХ · ОГРАНИЧЕННО';
+  $('universe-description').textContent=UNIVERSE_NOTE+
+   ' Обнови страницу, когда API восстановится. Ошибка: '+String(e.message||e);
+ }
+ $('markets').textContent='— / '+SYMBOLS.length;
+ return SYMBOLS;
+}
+
+function load(){
+ try{
+  const parsed=JSON.parse(localStorage.getItem(KEY)||'[]');
+  if(Array.isArray(parsed))trades=parsed.filter(t=>t&&
+   /^[A-Z0-9]{2,25}USDT$/.test(t.symbol)&&['LONG','SHORT'].includes(t.direction)&&
+   ['pending','win','loss','risk','unresolved'].includes(t.status)&&
+   Number.isSafeInteger(t.closedAt)).slice(-MAX_TRADES);
+ }catch{trades=[]}
+}
+function store(){
+ try{localStorage.setItem(KEY,JSON.stringify(trades))}catch{
+  $('status').textContent='⚠️ Браузер запретил сохранение! Экспортируй журнал CSV до закрытия страницы.';
+ }
+}
+function render(){
+ // Do not mix earlier optimistic next-candle-OPEN samples with the new
+ // public bid/ask-on-arrival cohort. Both remain visible in the export.
+ const current=trades.filter(x=>x.entryAssumption==='WEEX_PUBLIC_BOOKTICKER'&&
+  x.paperRiskModel==='PAPER_50X_STRESS_V1');
+ const wins=current.filter(x=>x.status==='win'),losses=current.filter(x=>x.status==='loss');
+ const risky=current.filter(x=>x.status==='risk');
+ const pending=current.filter(x=>x.status==='pending');
+ const resolved=[...wins,...losses,...risky];
+ $('wins').textContent=wins.length+' / 5';
+ $('hero-wins').textContent=Math.min(5,wins.length);
+ const fill=Math.min(100,wins.length*20);
+ $('progress-fill').style.width=fill+'%';
+ $('wins-progress').setAttribute('aria-valuenow',String(Math.min(5,wins.length)));
+ $('monitor-dot').className=running?'pulse-dot live':'pulse-dot';
+ $('monitor-state').textContent=running?'Наблюдение включено':'Наблюдение остановлено';
+ $('losses').textContent=losses.length;
+ $('pending').textContent=pending.length;
+ $('risk-touches-50').textContent=risky.length;
+ $('margin-roi-50').textContent=resolved.length?
+  fixed(resolved.reduce((sum,t)=>sum+t.marginRoi50Pct,0)/resolved.length)+'%':'—';
+ $('average').textContent=resolved.length?
+  fixed(resolved.reduce((s,x)=>s+x.netBps,0)/resolved.length)+' б.п.':'—';
+ const meanNet=resolved.length?resolved.reduce((s,x)=>s+x.netBps,0)/resolved.length:null;
+ $('paper-verdict').textContent=resolved.length<50?'Мало данных ('+resolved.length+'/50)':
+  meanNet>0?'PAPER-плюс, ещё не доказан':'PAPER-минус после расходов';
+ const netSum=resolved.reduce((s,x)=>s+x.netBps,0);
+ $('total-net').textContent=resolved.length?fixed(netSum)+' б.п.':'—';
+ $('win-rate').textContent=resolved.length?fixed(100*wins.length/resolved.length,1)+'%':'—';
+ const groupText=rows=>{
+  if(!rows.length)return 'Нет завершённых';
+  const positive=rows.filter(t=>t.status==='win').length;
+  const mean=rows.reduce((s,t)=>s+t.netBps,0)/rows.length;
+  return positive+'/'+rows.length+' · '+fixed(mean)+' б.п.';
+ };
+ $('long-stats').textContent=groupText(resolved.filter(t=>t.direction==='LONG'));
+ $('short-stats').textContent=groupText(resolved.filter(t=>t.direction==='SHORT'));
+ $('aligned-stats').textContent=groupText(resolved.filter(t=>t.trendAligned===true));
+ $('watch-count').textContent=[...markets.values()].filter(x=>x.ok&&
+  x.watch&&x.watch.kind!=='QUIET').length+'/'+[...markets.values()].filter(x=>x.ok).length;
+ $('start').disabled=running||trades.length>=MAX_TRADES;
+ $('stop').disabled=!running;
+ const rows=$('trades');rows.replaceChildren();
+ if(!trades.length){let tr=document.createElement('tr'),td=document.createElement('td');
+  td.colSpan=6;td.textContent='Нет тестовых сделок. Настройка не создаёт фиктивных побед.';
+  tr.append(td);rows.append(tr);
+ }
+ for(const t of trades.slice().reverse().slice(0,70)){
+  const tr=document.createElement('tr');
+  const cells=[t.symbol,asBerlin(t.closedAt),t.direction,
+   Number.isFinite(t.entry)?String(t.entry):'ещё нет',
+   t.status==='pending'?'ОЖИДАНИЕ':
+   t.status==='unresolved'?'НЕТ ДАННЫХ':
+   t.status==='risk'?'×50 РИСК 1,5% · условный выход '+fixed(t.netBps)+' б.п.':
+   (t.status==='win'?'ПЛЮС ':'МИНУС ')+fixed(t.netBps)+' б.п.'+
+   (t.entryAssumption==='WEEX_PUBLIC_BOOKTICKER'?' · BID/ASK':' · СТАРЫЙ OPEN'),
+   t.paperRiskModel!=='PAPER_50X_STRESS_V1'?'СТАРЫЙ ТЕСТ':
+    t.status==='pending'?'ОЖИДАНИЕ':
+    t.status==='unresolved'?'НЕТ ДАННЫХ':
+    fixed(t.marginRoi50Pct)+'%'+(t.status==='risk'?' · стресс':'')];
+  for(const v of cells){let td=document.createElement('td');td.textContent=v;tr.append(td)}
+  tr.lastChild.className=t.status==='win'?'win':
+   ['loss','risk'].includes(t.status)?'loss':'pending';
+  rows.append(tr);
+ }
+ const mbody=$('markets-table');mbody.replaceChildren();
+ for(const symbol of SYMBOLS){
+  const x=markets.get(symbol),tr=document.createElement('tr');
+  const watch=x?.watch;
+  const watchText=!x?.ok?'—':!watch||watch.kind==='QUIET'?
+   'ТИХО · объём ×'+fixed(watch?.relativeVolume,2):
+   watch.kind==='NEAR_BAND'?'👁 У ГРАНИЦЫ BB · '+watch.direction:
+   watch.kind==='VOLUME_ACTIVITY'?'👁 АКТИВНЫЙ ОБЪЁМ ×'+fixed(watch.relativeVolume,2):
+   watch.kind==='MOMENTUM'?'👁 ИМПУЛЬС 5М · наблюдение':
+   '👁 СЖАТИЕ BB · наблюдение';
+  const diagnostics=watch?.regime;
+  const regimeText=diagnostics?.available?
+   ' · EMA '+diagnostics.trend+' · RSI '+fixed(diagnostics.rsi14,1)+
+   ' · ATR '+fixed(diagnostics.atr14Bps,1)+' б.п.':'';
+  const rangeText=x?.ok&&watch?' · диапазон 1М '+fixed(watch.oneMinuteRangeBps,1)+
+   ' б.п. vs расходы 22 б.п.'+regimeText:'';
+  for(const v of [symbol,x?.closedAt?asBerlin(x.closedAt):'—',
+   watchText,x?.hist?String(x.hist.guardedCandidates)+' (фильтровано)':'—',
+   !x?'Не проверено':x.ok?'Свежая WEEX 1М'+rangeText:'Нет свежих данных']){
+   let td=document.createElement('td');td.textContent=v;tr.append(td);
+  }
+  mbody.append(tr);
+ }
+}
+// Hypothetical ×50 isolated-margin stress study. Uses 1m OHLC wicks, which
+// cannot establish intraminute order, mark-price liquidation or stop fills.
+function stress50Paper(five,entry,direction,exitSpreadBps=0){
+ if(five.length!==5||!Number.isFinite(entry)||entry<=0||
+  !['LONG','SHORT'].includes(direction)||!Number.isFinite(exitSpreadBps)||
+  exitSpreadBps<0||five.some(b=>!Number.isFinite(b.high)||
+  !Number.isFinite(b.low)||!Number.isFinite(b.close)||b.low<=0||
+  b.high<b.low||b.high<b.close||b.low>b.close))return null;
+ const worst=direction==='LONG'?
+  Math.min(...five.map(b=>b.low)):Math.max(...five.map(b=>b.high));
+ const adverseBps=Math.max(0,(direction==='LONG'?
+  (entry-worst)/entry:(worst-entry)/entry)*10000);
+ const touched=adverseBps>=PAPER_STRESS_BPS;
+ const horizonExit=five[4].close;
+ const stressExit=entry*(1+(direction==='LONG'?-1:1)*
+  PAPER_STRESS_BPS/10000);
+ const usedExit=touched?stressExit:horizonExit;
+ const grossBps=(direction==='LONG'?1:-1)*(usedExit-entry)/entry*10000;
+ const netBps=Number((grossBps-COSTS_BPS-exitSpreadBps).toFixed(2));
+ return {exit:usedExit,horizonExit,riskTouched:touched,
+  adverseBps:Number(adverseBps.toFixed(2)),netBps,
+  // % of fixed INITIAL test margin, NOT actual wallet PnL or liquidation.
+  marginRoi50Pct:Number((netBps*PAPER_LEVERAGE/100).toFixed(2))};
+}
+function settle(symbol,bars,closedAt){
+ for(const t of trades){
+  if(t.symbol!==symbol||t.status!=='pending')continue;
+  const first=bars.findIndex(b=>b.time===t.closedAt);
+  if(first<0){
+   if(closedAt-t.closedAt>90*ONE)t.status='unresolved';
+   continue;
+  }
+  // Legacy paper samples used a next-candle OPEN proxy that might already
+  // be inaccessible at the time of discovery. New samples use the actual
+  // public bid/ask snapshot observed after that signal candle closed.
+  const entryBar=bars[first],lastIndex=first+4;
+  const quoteModel=t.entryAssumption==='WEEX_PUBLIC_BOOKTICKER';
+  if(!quoteModel&&!Number.isFinite(t.entry)&&
+   Number.isFinite(entryBar.open)&&entryBar.open>0)t.entry=entryBar.open;
+  if(closedAt<t.closedAt+HORIZON)continue;
+  if(lastIndex>=bars.length){
+   if(closedAt-t.closedAt>90*ONE)t.status='unresolved';
+   continue;
+  }
+  const five=bars.slice(first,lastIndex+1);
+  if(five.length!==5||five.some((b,i)=>
+   b.time!==t.closedAt+i*ONE||!Number.isFinite(b.close)||b.close<=0))
+   {t.status='unresolved';continue}
+  const entry=quoteModel?t.entry:entryBar.open,exit=five[4].close;
+  if(!Number.isFinite(entry)||entry<=0){t.status='unresolved';continue}
+  const exitSpreadBps=quoteModel?Number(t.entrySpreadBps)/2:0;
+  if(!Number.isFinite(exitSpreadBps)||exitSpreadBps<0){t.status='unresolved';continue}
+  if(quoteModel){
+   const stressed=stress50Paper(five,entry,t.direction,exitSpreadBps);
+   if(!stressed){t.status='unresolved';continue}
+   t.entry=entry;t.exit=stressed.exit;t.horizonExit=stressed.horizonExit;
+   t.riskTouched50=stressed.riskTouched;
+   t.maxAdverseBps=stressed.adverseBps;
+   t.netBps=stressed.netBps;t.marginRoi50Pct=stressed.marginRoi50Pct;
+   t.grossBps=Number((stressed.netBps+COSTS_BPS+exitSpreadBps).toFixed(2));
+   t.status=stressed.riskTouched?'risk':t.netBps>0?'win':'loss';
+  }else{
+   const grossBps=(t.direction==='LONG'?1:-1)*(exit-entry)/entry*10000;
+   t.entry=entry;t.exit=exit;t.grossBps=Number(grossBps.toFixed(2));
+   t.netBps=Number((grossBps-COSTS_BPS).toFixed(2));
+   t.status=t.netBps>0?'win':'loss';
+  }
+  t.resolvedAt=t.closedAt+HORIZON;
+ }
+}
+function accept(symbol,snap){
+ const now=Date.now();
+ const rawCurrent=Array.isArray(snap.recent)?
+  snap.recent.filter(e=>e?.notATrade&&
+   e.closedAt===snap.closedAt&&['LONG','SHORT'].includes(e.direction)&&
+   ['BAND_BREAKOUT','BAND_REENTRY'].includes(e.strategy)):[];
+ if(!rawCurrent.length)return 'NO_CURRENT_CANDIDATE';
+ const remaining=rawCurrent.filter(e=>
+  now-e.closedAt>=1000&&now-e.closedAt<=MAX_DETECTION_MS);
+ if(!remaining.length)return 'LATE_CANDLE';
+ if(!Number.isSafeInteger(snap.generatedAt)||
+  now-snap.generatedAt<0||now-snap.generatedAt>MAX_RESPONSE_AGE_MS)
+  return 'STALE_RESPONSE';
+ const quote=snap.paperEntryQuote;
+ if(!quote||quote.source!=='WEEX_PUBLIC_BOOKTICKER'||
+  quote.notATrade!==true||!Number.isFinite(quote.bid)||
+  !Number.isFinite(quote.ask)||quote.bid<=0||quote.ask<quote.bid||
+  !Number.isFinite(quote.spreadBps)||quote.spreadBps<0||
+  quote.spreadBps>40||!Number.isSafeInteger(quote.quotedAt)||
+  quote.quotedAt<snap.closedAt||now-quote.quotedAt<0||
+  now-quote.quotedAt>12000)return 'QUOTE_NOT_USABLE';
+ let added=0;
+ for(const event of remaining){
+  if(trades.some(t=>key(t)===[symbol,event.strategy,event.direction,event.closedAt].join('|')))
+   continue;
+  if(trades.some(t=>t.symbol===symbol&&
+   Math.abs(t.closedAt-event.closedAt)<5*ONE))continue;
+  if(trades.length>=MAX_TRADES)return 'JOURNAL_LIMIT';
+  // Registered before the later five-minute outcome exists.
+  trades.push({symbol,strategy:event.strategy,direction:event.direction,
+   closedAt:event.closedAt,seenAt:now,detectionLagMs:now-event.closedAt,
+   signalClose:event.observedClose,volumeRatio:event.volumeRatio,
+   quotedAt:quote.quotedAt,entrySpreadBps:quote.spreadBps,
+   signalTrend:event.signalTrend??'UNKNOWN',
+   trendAligned:event.trendAligned===true,
+   signalRsi14:Number.isFinite(event.signalRsi14)?event.signalRsi14:null,
+   signalAtr14Bps:Number.isFinite(event.signalAtr14Bps)?event.signalAtr14Bps:null,
+   status:'pending',entry:event.direction==='LONG'?quote.ask:quote.bid,
+   notATrade:true,entryAssumption:'WEEX_PUBLIC_BOOKTICKER',
+   paperRiskModel:'PAPER_50X_STRESS_V1',paperLeverage:50});
+  added++;
+ }
+ return added>0?'RECORDED':'DUPLICATE_OR_COOLDOWN';
+}
+function markUnavailable(symbol,reason){
+ const previous=markets.get(symbol);
+ markets.set(symbol,{ok:false,closedAt:previous?.closedAt||null,
+  hist:previous?.hist||null,registration:'API_UNAVAILABLE',
+  reason:String(reason||'WEEX/API недоступен').slice(0,130)});
+}
+function processPaperData(symbol,d,historyMode=false){
+ try{
+  if(d.mode!=='PAPER_1M_WEEX_ONLY'||d.symbol!==symbol||
+   d.exchange!=='WEEX'||d.notATrade!==true||d.ordersSent!==0||
+   !Array.isArray(d.bars)||!Array.isArray(d.recent)||
+   !d.marketWatch||d.marketWatch.notATrade!==true||
+   !['QUIET','NEAR_BAND','VOLUME_ACTIVITY','MOMENTUM','SQUEEZE'].includes(d.marketWatch.kind)||
+   d.marketWatch.regime?.notATrade!==true||
+   d.generatedAt-d.closedAt<1000||d.generatedAt-d.closedAt>90000)
+   throw Error('INVALID_OR_STALE_WEEX_PAPER_RESPONSE');
+  if(historyMode&&(!d.historical90m||
+   d.historical90m.kind!=='PAST_CANDLES_ONLY_NOT_PAPER'||
+   d.historical90m.notATrade!==true||
+   !Number.isInteger(d.historical90m.guardedCandidates)))
+   throw Error('INVALID_HISTORY_DIAGNOSTICS');
+  if(!historyMode&&d.historical90m!==null)
+   throw Error('EXPECTED_FAST_MODE');
+  // Check the whole included series has no missing minute or future candle.
+  if(d.bars.length<35||d.bars.some((b,i)=>
+   !Number.isSafeInteger(b.time)||b.time%ONE!==0||
+   (i>0&&b.time!==d.bars[i-1].time+ONE)))throw Error('GAPPED_DATA');
+  settle(symbol,d.bars,d.closedAt);
+  // Paper registration is only allowed for a recent completed minute.
+  const currentEvents=d.recent.filter(e=>e.closedAt===d.closedAt).length;
+  const result=!historyMode&&running&&document.visibilityState!=='hidden'?
+   accept(symbol,d):historyMode?'HISTORY_ONLY':'NOT_RUNNING';
+  markets.set(symbol,{ok:true,closedAt:d.closedAt,watch:d.marketWatch,
+   hist:d.historical90m||markets.get(symbol)?.hist||null,
+   currentEvents,registration:result});
+ }catch(e){
+  const previous=markets.get(symbol);
+  markets.set(symbol,{ok:false,closedAt:previous?.closedAt||null,
+   hist:previous?.hist||null,reason:String(e.message||e)});
+ } 
+}
+
+async function fetchBatch(group,historyMode=false){
+ if(!Array.isArray(group)||group.length<1||group.length>6)return;
+ const controller=new AbortController();
+ const killer=setTimeout(()=>controller.abort(),14000);
+ try{
+  const endpoint='/api/signals?mode=one-minute-research&paper=1&batch=1'+
+   (historyMode?'':'&quick=1')+'&symbols='+
+   encodeURIComponent(group.join(','));
+  const response=await fetch(endpoint,{cache:'no-store',signal:controller.signal});
+  const body=await response.json();
+  if(!response.ok||body.mode!=='PAPER_1M_WEEX_BATCH'||
+   body.exchange!=='WEEX'||body.ordersSent!==0||body.notATrade!==true||
+   !Array.isArray(body.results)||body.results.length!==group.length||
+   body.results.some((r,i)=>r?.symbol!==group[i]||
+    !['ok','unavailable'].includes(r.status)))
+   throw Error('INVALID_PAPER_BATCH');
+  for(const r of body.results){
+   if(r.status==='ok')processPaperData(r.symbol,r.data,historyMode);
+   else markUnavailable(r.symbol,'Public WEEX market temporarily unavailable');
+  }
+ }catch(e){
+  // Don't mislabel the failed batch as real signals or retry after the
+  // candle-acceptance deadline. The next minute gets a fresh attempt.
+  for(const symbol of group)markUnavailable(symbol,e.message||e);
+ }finally{clearTimeout(killer)}
+}
+async function scan(historyMode=false){
+ if(checking)return;
+ checking=true;
+ const began=Date.now();
+ $('history-refresh').disabled=true;
+ try{
+  $('status').textContent=(historyMode?'Обновляю отдельную историю':'Проверяю свежую 1М')+
+   ' по '+SYMBOLS.length+' рынкам WEEX...';
+  // Rotate first symbol each live cycle: no market is always at the end
+  // and at higher risk of failing the <=25s paper-signal latency budget.
+  const offset=historyMode?0:(scanCycle++*13)%SYMBOLS.length;
+  const queue=[...SYMBOLS.slice(offset),...SYMBOLS.slice(0,offset)];
+  // 6 symbols per Vercel invocation, 3 batches in parallel:
+  // up to 18 bounded public WEEX fetches at a time, 11 invocations
+  // instead of 66 per scan. No private API or automatic orders.
+  const BATCH_SIZE=6,CONCURRENCY=3;
+  const groups=[];
+  for(let i=0;i<queue.length;i+=BATCH_SIZE)
+   groups.push(queue.slice(i,i+BATCH_SIZE));
+  for(let i=0;i<groups.length;i+=CONCURRENCY)
+   await Promise.all(groups.slice(i,i+CONCURRENCY)
+    .map(group=>fetchBatch(group,historyMode)));
+  if(historyMode)historyLastAt=Date.now();
+  store();render();
+  const ok=[...markets.values()].filter(x=>x.ok).length;
+  const watching=[...markets.values()].filter(x=>x.ok&&x.watch&&
+   x.watch.kind!=='QUIET').length;
+  const hist=[...markets.values()].reduce((s,x)=>s+
+   (x.ok?x.hist?.guardedCandidates||0:0),0);
+  const fresh=[...markets.values()].reduce((s,x)=>s+
+   (x.ok?x.currentEvents||0:0),0);
+  const skippedQuote=[...markets.values()].filter(x=>x.registration==='QUOTE_NOT_USABLE').length;
+  const skippedLate=[...markets.values()].filter(x=>
+   ['LATE_CANDLE','STALE_RESPONSE'].includes(x.registration)).length;
+  const added=[...markets.values()].filter(x=>x.registration==='RECORDED').length;
+  $('hist-90').textContent=historyLastAt?String(hist)+' (последняя история)':
+   'По кнопке';
+  const historyRows=[];
+  for(const [symbol,data] of markets.entries()){
+   if(!data.ok||!data.hist||!Array.isArray(data.hist.lastSignals))continue;
+   for(const e of data.hist.lastSignals){
+    if(!e.notATrade||!Number.isSafeInteger(e.closedAt)||
+     !['LONG','SHORT'].includes(e.direction))continue;
+    historyRows.push({...e,symbol});
+   }
+  }
+  historyRows.sort((a,b)=>b.closedAt-a.closedAt);
+  const historyBody=$('history-events-body');historyBody.replaceChildren();
+  for(const e of historyRows.slice(0,14)){
+   const row=document.createElement('tr');
+   const details=[e.symbol,asBerlin(e.closedAt),
+    e.direction,e.strategy==='BAND_REENTRY'?'Возврат BB':'Пробой BB'];
+   for(const item of details){const cell=document.createElement('td');
+    cell.textContent=item;row.appendChild(cell)}
+   historyBody.appendChild(row);
+  }
+  if(!historyRows.length){const row=document.createElement('tr'),cell=document.createElement('td');
+   cell.colSpan=4;cell.textContent='На проверенных свечах новых исторических совпадений не было.';
+   row.appendChild(cell);historyBody.appendChild(row)}
+
+  $('raw-now').textContent=fresh;
+  $('skip-quote').textContent=skippedQuote;
+  $('skip-late').textContent=skippedLate;
+  $('paper-added').textContent=added;
+  const elapsedMs=Date.now()-began,failed=SYMBOLS.length-ok;
+  $('scan-duration').textContent=(elapsedMs/1000).toFixed(1)+' сек';
+  $('scan-fail').textContent=failed;
+  const recentCompleted=Math.max(...[...markets.values()].filter(x=>x.ok)
+   .map(x=>x.closedAt||0),0);
+  const completeMinute=Math.floor(Date.now()/ONE)*ONE;
+  // A 1m close may not be published yet; only report staleness clearly.
+  $('scan-health').textContent=(historyMode?'История обновлена. ':'Минутный срез завершён. ')+
+   'Данные '+ok+'/'+SYMBOLS.length+' · длительность '+
+   (elapsedMs/1000).toFixed(1)+' сек. '+
+   (failed?'Есть сбои WEEX/API: '+failed+'. ': 'Ошибок рынка нет. ')+
+   (Date.now()-recentCompleted>ONE+30000?'Последняя 1М устарела. ': '')+
+   'При закрытой вкладке мониторинг приостанавливается.';
+  $('paper-explain').textContent=!running?
+   'PAPER выключен: нажми «Проверить и запустить PAPER», чтобы начать запись НОВЫХ сигналов.':
+   !fresh?'В эту минуту строгих LONG/SHORT нет. WATCH и история 90 минут — не сделки.':
+   added?'Записано '+added+' новых PAPER-тестов. Результат оценивается после будущих 5 минут.':
+   'Кандидаты были, но не записаны: нет пригодной котировки, пришли поздно либо повторились.';
+  $('markets').textContent=ok+' / '+SYMBOLS.length;
+  $('last-check-chip').textContent='WEEX '+ok+'/16 · '+asBerlin(Date.now());
+  const newModel=trades.filter(t=>t.paperRiskModel==='PAPER_50X_STRESS_V1');
+  const w=newModel.filter(t=>t.status==='win').length,
+   l=newModel.filter(t=>['loss','risk'].includes(t.status)).length;
+  $('status').textContent=(historyMode?'История BB · ':'Скан PAPER · ')+
+   'последняя проверка '+asBerlin(Date.now())+
+   ' · WEEX '+ok+'/'+SYMBOLS.length+' · WATCH '+watching+
+   ' · прибыльных '+w+', убыточных/риск '+l+
+   '. '+(running?'Следующий запрос примерно через минуту.':'Наблюдение остановлено.');
+  // Five positive paper outcomes are a milestone, NOT an automatic stop:
+  // continue observing losses and the overall net expectancy for manual review.
+ }finally{
+  checking=false;
+  $('history-refresh').disabled=false;
+ }
+}
+function scheduleNext(){
+ if(!running)return;
+ if(ticker)clearTimeout(ticker);
+ // Align the 66-market read-only scan to the first ~4.5s AFTER each completed
+ // 1m candle instead of scanning at an arbitrary time 50s too late.
+ const delay=ONE-(Date.now()%ONE)+AFTER_CLOSE_MS;
+ ticker=setTimeout(()=>{
+  ticker=null;
+  if(running)scan().finally(()=>{if(running&&document.visibilityState!=='hidden')scheduleNext()});
+ },delay);
+}
+function start(){
+ if(running||trades.length>=MAX_TRADES)return;
+ running=true;$('start').disabled=true;$('stop').disabled=false;
+ $('monitor-dot').className='pulse-dot live';
+ $('monitor-state').textContent='Наблюдение включено';
+ // No browser-side polling can survive closing the tab or Android throttling.
+ if(ticker)clearTimeout(ticker);
+ if(document.visibilityState!=='hidden')scheduleNext();
+ scan();
+}
+function stop(){
+ running=false;
+ $('monitor-dot').className='pulse-dot';
+ $('monitor-state').textContent='Наблюдение остановлено';
+ if(ticker){clearTimeout(ticker);ticker=null}
+ render();
+ if(!checking)$('status').textContent='Остановлено. Журнал сохранён в этом браузере.';
+}
+// A hidden Android browser can suspend minute timers. When the page becomes
+// visible again, recheck FRESH completed candles; do not backfill "live"
+// entries from outcomes that may have already happened while hidden.
+if(typeof document.addEventListener==='function'){
+ document.addEventListener('visibilitychange',()=>{
+  if(!running)return;
+  if(document.visibilityState==='hidden'){
+   if(ticker){clearTimeout(ticker);ticker=null}
+   $('status').textContent='Вкладка скрыта: наблюдение приостановлено. Новые PAPER-сигналы не записываются.';
+  }else if(document.visibilityState==='visible'){
+   $('status').textContent='Вкладка снова открыта — перепроверяю свежие закрытые свечи WEEX.';
+   scheduleNext();scan();
+  }
+ });
+}
+$('start').onclick=start;$('stop').onclick=stop;
+$('once').onclick=()=>{if(!running)start();else scan()};
+$('history-refresh').onclick=()=>scan(true);
+$('export').onclick=()=>{
+ const cols=['symbol','strategy','direction','closedAt','seenAt','detectionLagMs',
+  'signalClose','volumeRatio','signalTrend','trendAligned','signalRsi14',
+  'signalAtr14Bps','entry','entryAssumption','quotedAt','entrySpreadBps',
+  'exit','horizonExit','grossBps','netBps','paperRiskModel','paperLeverage',
+  'marginRoi50Pct','riskTouched50','maxAdverseBps','status'];
+ const csv=cols.join(',')+'\n'+trades.map(t=>cols.map(k=>
+  JSON.stringify(t[k]??'')).join(',')).join('\n');
+ const file=new Blob([csv],{type:'text/csv;charset=utf-8'});
+ const url=URL.createObjectURL(file),a=document.createElement('a');
+ a.href=url;a.download='weex-paper-five-journal.csv';a.click();
+ URL.revokeObjectURL(url);
+};
+async function initialize(){
+ $('start').disabled=true;$('once').disabled=true;
+ await loadWeexUniverse();
+ load();render();
+ $('start').disabled=trades.length>=MAX_TRADES;
+ $('once').disabled=false;
+ $('history-refresh').disabled=false;
+ $('status').textContent=UNIVERSE_NOTE+
+  '. Нажми «Проверить и запустить PAPER», чтобы начать запись новых сигналов.';
+}
+initialize();
+</script>
+</main></body></html>

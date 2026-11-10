@@ -21,11 +21,70 @@ button:disabled{opacity:.55}.grid{display:grid;grid-template-columns:repeat(auto
 .tile small{display:block;color:#b1acc1}.tile strong{display:block;font-size:24px;margin-top:5px}
 .warn{color:#ffbb92}#status{min-height:24px}ul{padding-left:20px;color:#c3c2d0}
 footer{font-size:12px;color:#9296aa;margin-top:24px}
+.lab{border:1px solid #54426d;border-radius:17px;padding:18px;margin:22px 0;background:linear-gradient(140deg,#20182e,#131725)}
+.lab-kicker{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9b9ff}
+.lab h2{margin:8px 0}.lab .grid{margin:14px 0}.split-note{font-size:13px;color:#aeb4c7}
+.marketlist{display:grid;gap:8px;margin:12px 0}
+.marketrow{padding:12px 14px;border:1px solid #3a3650;border-radius:12px;background:#151521;display:grid;grid-template-columns:minmax(105px,1fr) minmax(130px,1.2fr) minmax(94px,.8fr);align-items:center;gap:10px}
+.marketrow strong{display:block}.marketrow small{display:block;color:#aeb0c3;font-size:12px;word-break:break-word}
+.marketrow .marketresult{font-weight:700;text-align:right}.good{color:#a9ecc3}.caution{color:#ffd497}.muted{color:#a3aab9}
+.marketrow .marketresult small{text-align:right}
+@media(max-width:560px){.marketrow{grid-template-columns:1fr 1fr}.marketrow .marketresult{grid-column:1/-1;text-align:left}.marketrow .marketresult small{text-align:left}}
+@media(max-width:560px){.lab{padding:14px}.tile strong{font-size:21px}}
+
+:root{color-scheme:dark;font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;--text:#f4f5fc;--line:#293651;--muted:#9da9c3}
+body{color:var(--text);background:radial-gradient(ellipse 66% 30% at 85% -10%,#34256388,transparent 80%),radial-gradient(ellipse 50% 35% at 2% 15%,#0e4b5377,transparent 80%),#090c16;padding:14px 16px 60px}
+main{max-width:1140px;position:relative}
+.lab-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0 20px;border-bottom:1px solid #48547355}
+.lab-brand{display:flex;gap:11px;align-items:center;font-size:15px;font-weight:900;letter-spacing:.1em;color:#fff}
+.lab-brandmark{width:37px;height:37px;border:1px solid #8b6dff80;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#332568,#172340);font-size:20px}
+.lab-nav{display:flex;gap:14px;flex-wrap:wrap}
+.lab-nav a{color:#c1c9e3;text-decoration:none;font-size:12px;font-weight:750}
+.lab-nav a:hover{color:white}
+.lab-hero{padding:40px 0 22px}
+.lab-hero h1{font-size:clamp(33px,5vw,57px);letter-spacing:-.055em;line-height:1.05;margin:10px 0 18px}
+.lab-hero h1 span{background:linear-gradient(90deg,#fff,#a3edec,#ac9cff);color:transparent;-webkit-background-clip:text;background-clip:text}
+.lab-hero p{max-width:800px;color:#a8b7d0;line-height:1.65}
+.lab-kicker{color:#b5a3ff;font-weight:900}
+.lab{background:linear-gradient(145deg,#181f32,#10182ae8 83%);border:1px solid #3a4361a8;border-radius:22px;padding:22px;margin:20px 0;box-shadow:0 15px 60px #02061052}
+.lab:first-of-type{border-color:#7162c172}
+.info{border:1px solid #354662;background:#151d2f;border-radius:16px;padding:18px}
+.info p{color:#aab8ce}
+h2{letter-spacing:-.025em;font-size:20px}
+.row{margin:18px 0}
+select{background:#182138;color:#f3f4ff;border-color:#56638e;border-radius:13px}
+button{background:linear-gradient(130deg,#8e73f8,#6952d0);border:1px solid #9586ff60;border-radius:13px;padding:12px 20px;font-size:13px}
+button:focus-visible,select:focus-visible,.lab-nav a:focus-visible{outline:2px solid #94ead7;outline-offset:3px}
+button:hover:not(:disabled){filter:brightness(1.1)}
+.tile{border:1px solid #3b4969;background:linear-gradient(145deg,#1b2740,#141d31);border-radius:16px;padding:16px}
+.tile strong{font-size:27px;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.tile small{color:#a0b1ca}
+.marketrow{background:#151e32;border:1px solid #34445e;border-radius:14px}
+.marketrow:hover{background:#1d2942}
+.marketrow small{color:#aebcda}
+#scan-all-status,#status{background:#0c1727;border:1px solid #374861;border-radius:12px;padding:11px 14px;min-height:30px;color:#bdcee6}
+.lab-cta{display:inline-flex;align-items:center;gap:8px;padding:11px 17px;border-radius:12px;background:linear-gradient(115deg,#6d61d6,#6251b3);border:1px solid #9e93ff80;color:#fff!important;text-decoration:none;font-weight:850;box-shadow:0 9px 30px #6351db34}
+.lab-cta:hover{filter:brightness(1.1);text-decoration:none}
+footer{border-top:1px solid #39445c;padding-top:18px}
+@media(max-width:650px){body{padding:9px 12px 48px}.lab-topbar{padding:12px 0}.lab-brand{font-size:12px}.lab-nav{gap:8px}.lab-nav a{font-size:11px}
+.lab-hero{padding:25px 0 8px}.lab-hero h1{font-size:37px}.lab{padding:14px;border-radius:17px}.tile{padding:12px}.tile strong{font-size:22px}.marketrow{padding:11px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto;transition:none!important;animation:none!important}}
+
 </style>
 </head>
 <body><main>
-<a class="back" href="/">← Назад в WEEX RADAR</a>
-<h1>🔬 Вход раньше: 1М + 5М + 15М</h1>
+<header class="lab-topbar">
+ <div class="lab-brand"><span class="lab-brandmark" aria-hidden="true">◈</span> WEEX <span style="color:#a49bff">RADAR</span> <span style="color:#7e8aaf;font-size:11px">V2</span></div>
+ <nav class="lab-nav" aria-label="Навигация исследования">
+  <a href="/">Главная</a><a href="/paper-five.html">PAPER терминал</a>
+ </nav>
+</header>
+<div class="lab-hero">
+ <span class="lab-kicker">MINUTE LAB / РЫНОЧНАЯ АНАЛИТИКА · READ ONLY</span>
+ <h1>Рынок в фокусе.<br><span>Каждая минута важна.</span></h1>
+ <p>Тестируем входы на закрытых свечах 1М и проверяем их по 5М/15М. Исторические результаты, ранние WATCH и PAPER-сделки отделены от реальных торговых действий.</p>
+ <a class="lab-cta" href="/paper-five.html">◈ Открыть современный PAPER-терминал</a>
+</div>
 <div class="info">
  <strong>Исследование, не торговля.</strong>
  <p>Сравниваем свежий пробой и вход после отката EMA20 на закрытой 1М свече при совпадении тенденции по двум <em>уже закрытым</em> таймфреймам 5М/15М. Рассчитываем 1,2 ATR(5М) для SL и 3,0 ATR(5М) для TP. Учитываем условные taker-комиссии 0,08% и проскальзывание 0,03% с каждой стороны; до R/R 1,3 и риска ≤10 USDT при номинале 500 USDT.</p>
@@ -41,6 +100,21 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 <option>ADAUSDT</option><option>LINKUSDT</option><option>SUIUSDT</option><option>AVAXUSDT</option>
 </select></label><button id="run">Проверить на истории</button>
 </div>
+<section class="lab" aria-labelledby="all-market-title">
+ <span class="lab-kicker">WEEX RADAR V2 · LIVE MARKET WATCH · БЕЗ СДЕЛОК</span>
+ <h2 id="all-market-title">📡 Все 16 монет WEEX · последние 5 минут</h2>
+ <p><a class="lab-cta" href="/paper-five.html">▶ PAPER-тест · 5 прибыльных с учётом всех убытков</a></p>
+ <p>Одно нажатие анализирует последние пять уже закрытых минутных свечей каждого из 16 рынков: BB20/2 + объём и защиту от запоздания. Это проверка истории последних пяти минут, а не непрерывный мониторинг в реальном времени. Данные и результаты отображаются отдельно по монетам. Никаких ордеров, личных ключей или автоматических уведомлений.</p>
+ <button id="scan-all" type="button">Проверить все 16 сейчас</button>
+ <p id="scan-all-status" role="status">Ручная проверка только по нажатию кнопки. Исторические исходы — не прогноз прибыли.</p>
+ <div id="scan-all-summary" class="grid" hidden>
+  <div class="tile"><small>Свежих рынков</small><strong id="scan-ok">—</strong></div>
+  <div class="tile"><small>1М кандидатов за 5 закрытых минут (не входов)</small><strong id="scan-candidates">—</strong></div>
+  <div class="tile"><small>Ошибок / устаревших</small><strong id="scan-errors">—</strong></div>
+ </div>
+ <div class="marketlist" id="all-market-grid" aria-live="polite"></div>
+ <p class="warn">⚠️ 1М сценарий никогда не означает готовую сделку. Это свечи, а не live bid/ask. Нужна отдельная проверка цены, риска, SL/TP и ручное подтверждение через Passkey. Отсутствие сценария — нормальный результат.</p>
+</section>
 <p id="status" role="status">Выбери монету и нажми кнопку проверки.</p>
 <div id="data" hidden>
 <h2>Результат на истории <span id="symbol"></span></h2>
@@ -60,6 +134,69 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
  <div class="tile"><small>TP / SL после отката</small><strong id="p-tpsl">—</strong></div>
  <div class="tile"><small>Средний R после расходов</small><strong id="p-netr">—</strong></div>
 </div>
+<section class="lab" aria-labelledby="bb-lab-title">
+<span class="lab-kicker">WEEX RADAR · MINUTE LAB / ТОЛЬКО ТЕСТ</span>
+<h2 id="bb-lab-title">📏 Bollinger Bands 20/2 + объём</h2>
+<p>Сравнение двух гипотез: <strong>пробой</strong> границы полосы и <strong>возврат внутрь</strong> после выхода за неё. В обоих случаях объём не ниже ×1,15 среднего за 20 минут. Не добавляем обязательные EMA и RSI.</p>
+<div class="grid">
+ <div class="tile"><small>Пробой · наблюдений</small><strong id="bb-count">—</strong></div>
+ <div class="tile"><small>Пробой · 5М в плюсе</small><strong id="bb-five-positive">—</strong></div>
+ <div class="tile"><small>Пробой · 5М среднее, б.п.</small><strong id="bb-five-net">—</strong></div>
+ <div class="tile"><small>Пробой · 10М в плюсе</small><strong id="bb-ten-positive">—</strong></div>
+ <div class="tile"><small>Пробой · 10М среднее, б.п.</small><strong id="bb-ten-net">—</strong></div>
+</div>
+<div class="grid">
+ <div class="tile"><small>Возврат · наблюдений</small><strong id="re-count">—</strong></div>
+ <div class="tile"><small>Возврат · 5М в плюсе</small><strong id="re-five-positive">—</strong></div>
+ <div class="tile"><small>Возврат · 5М среднее, б.п.</small><strong id="re-five-net">—</strong></div>
+ <div class="tile"><small>Возврат · 10М в плюсе</small><strong id="re-ten-positive">—</strong></div>
+ <div class="tile"><small>Возврат · 10М среднее, б.п.</small><strong id="re-ten-net">—</strong></div>
+</div>
+<h3>🛡️ Минутный анти-погоня: только исследование</h3>
+<p>Проверяет качество свечи, чрезмерно растянутый импульс и повторные срабатывания. По одной монете допускает не больше одного тестового кандидата в 5 минут. <strong>Не заставляет рынок выдавать сделки.</strong></p>
+<div class="grid">
+ <div class="tile"><small>Осторожный пробой: кандидатов</small><strong id="guard-br-count">—</strong></div>
+ <div class="tile"><small>Осторожный пробой: 5М, б.п.</small><strong id="guard-br-net">—</strong></div>
+ <div class="tile"><small>Возврат: кандидатов</small><strong id="guard-re-count">—</strong></div>
+ <div class="tile"><small>Возврат: 5М, б.п.</small><strong id="guard-re-net">—</strong></div>
+</div>
+<h3>⏱️ Достаточно ли 5 минут, чтобы покрыть комиссии?</h3>
+<p>При прежних 22 б.п. модельных расходов сравниваем тот же осторожный минутный сигнал через <strong>5 и 15 минут</strong>. Это исследование чувствительности к длительности, а не рекомендация держать сделку 15 минут.</p>
+<div class="grid">
+ <div class="tile"><small>Пробой · 15М, б.п.</small><strong id="guard-br-15-net">—</strong></div>
+ <div class="tile"><small>Возврат · 15М, б.п.</small><strong id="guard-re-15-net">—</strong></div>
+</div>
+<p class="split-note" id="bb-diagnostics">Сколько срабатываний отклонили защитные проверки — появится после расчёта.</p>
+<div class="info" role="status">
+ <strong>🧪 Готовность по статистике</strong>
+ <p id="bb-verdict">Проверим достаточность выборки, устойчивость результата и затраты.</p>
+</div>
+<h3>📡 Последняя закрытая свеча</h3>
+<div class="info" aria-live="polite">
+ <strong id="minute-state">—</strong>
+ <p id="minute-note">Это наблюдение по свечам WEEX, не текущая котировка и не разрешение на сделку.</p>
+</div>
+<p class="split-note" id="bb-periods">Сравнение первой и последней частей истории появится после расчёта.</p>
+<p class="warn">⚠️ Историческая модель без реального спреда и исполнения. Условный вход по открытию следующей 1М свечи, закрытие через 5 или 10 минут, суммарно 22 б.п. модельных расходов. Нет биржевых SL/TP, funding или независимого теста. Эти проценты нельзя напрямую сравнивать с 60-минутными TP/SL двух стратегий выше.</p>
+</section>
+<section class="lab" aria-labelledby="history-title">
+<span class="lab-kicker">WEEX RADAR · СРАВНЕНИЕ РАЗНЫХ ДНЕЙ</span>
+<h2 id="history-title">🗓 XRP: более ранняя история 1М</h2>
+<p>Отдельная фиксированная выборка 8 ноября 2026 года, 00:00–10:00 UTC. Все результаты предварительные: одни и те же модельные расходы 22 б.п. на круг, без реального спреда и исполнения. Это не совет открыть сделку.</p>
+<button id="history-run" type="button">Проверить XRP за 8 ноября</button>
+<p id="history-status" role="status">Исторический тест запускается отдельно и не влияет на основное сканирование.</p>
+<div id="history-result" hidden>
+ <div class="grid">
+  <div class="tile"><small>Закрытых свечей</small><strong id="h-bars">—</strong></div>
+  <div class="tile"><small>Пропуски времени</small><strong id="h-gaps">—</strong></div>
+  <div class="tile"><small>Пробой BB · 5М, б.п.</small><strong id="h-break">—</strong></div>
+  <div class="tile"><small>Пробой с защитой · 5М, б.п.</small><strong id="h-guard">—</strong></div>
+  <div class="tile"><small>Возврат BB · 5М, б.п.</small><strong id="h-return">—</strong></div>
+  <div class="tile"><small>Возврат с защитой · 5М, б.п.</small><strong id="h-guard-return">—</strong></div>
+ </div>
+ <p class="warn" id="history-verdict">Нужна проверка.</p>
+</div>
+</section>
 <p class="warn">Сравнение вариантов на одной истории — не независимое подтверждение прибыльности.</p>
 <h2>Почему были отказы при пробое</h2>
 <ul id="reasons"></ul>
@@ -72,6 +209,128 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 <script>
 const $=id=>document.getElementById(id);
 const show=(id,value)=>{$(id).textContent=String(value??'—')};
+const ALL_WEEX_1M=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT',
+ '1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT',
+ 'BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
+const formatBps=value=>Number.isFinite(value)?value.toFixed(2)+' б.п.':'недостаточно данных';
+const berlinDate=value=>new Date(value).toLocaleTimeString('ru-RU',{
+ timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit'
+});
+function marketRow(symbol,record){
+ const node=document.createElement('div');node.className='marketrow';
+ const left=document.createElement('div'),middle=document.createElement('div'),
+  right=document.createElement('div');
+ right.className='marketresult';
+ const symbolEl=document.createElement('strong');symbolEl.textContent=symbol;
+ left.appendChild(symbolEl);
+ if(!record.ok){
+  const why=document.createElement('small');why.textContent='Данные недоступны / устарели';
+  left.appendChild(why);middle.textContent='—';right.textContent='НЕ ПРОВЕРЕНО';
+  right.classList.add('caution');
+ }else{
+  const observed=document.createElement('small');
+  observed.textContent='Закрытие: '+record.price+' · '+berlinDate(record.closedAt)+' (Берлин)';
+  left.appendChild(observed);
+  const ratio=record.volume;
+  const status=document.createElement('strong');
+  status.textContent=record.events.length?
+   '🧪 '+record.events.map(e=>
+    (e.acceptedByCautious?'ПРОШЁЛ ':'ОТКЛОНЁН ')+
+    (e.strategy==='BAND_REENTRY'?'ВОЗВРАТ ':'ПРОБОЙ ')+
+    e.direction+' · '+berlinDate(e.closedAt)).join(' | '):
+   'За последние 5 закрытых минут кандидатов нет';
+  middle.appendChild(status);
+  const volume=document.createElement('small');
+  volume.textContent=record.events.length?
+   record.events.map(e=>'Цена '+e.observedClose+' · объём ×'+
+    (Number.isFinite(e.volumeRatio)?e.volumeRatio.toFixed(2):'—')+
+    (e.acceptedByCautious?' · прошёл качество':' · отклонён качеством')).join(' | '):
+   'Последняя 1М: объём ×'+(Number.isFinite(ratio)?ratio.toFixed(2):'—')+
+   ' · '+record.reason;
+  middle.appendChild(volume);
+  right.textContent='5М: '+formatBps(record.avgNet);
+  right.classList.add(Number.isFinite(record.avgNet)&&record.avgNet>0?'good':'caution');
+  const samples=document.createElement('small');
+  samples.textContent=(record.n||0)+' модельных наблюдений';
+  right.appendChild(samples);
+ }
+ node.append(left,middle,right);return node;
+}
+$('scan-all').onclick=async()=>{
+ const button=$('scan-all');
+ button.disabled=true;
+ $('scan-all-summary').hidden=true;
+ $('all-market-grid').replaceChildren();
+ let checked=0,ok=0,issues=0,candidates=0;
+ const rows=new Map();
+ const fetchOne=async symbol=>{
+  try{
+   const response=await fetch('/api/signals?mode=one-minute-research&symbol='+encodeURIComponent(symbol),
+    {cache:'no-store'});
+   const d=await response.json();
+   if(!response.ok||d.symbol!==symbol||d.mode!=='RESEARCH_ONLY_ONE_MINUTE')
+    throw Error('BAD_RESEARCH_RESPONSE');
+   const minute=d.currentMinute||{},age=Date.now()-Number(minute.closedAt);
+   if(!minute.fresh||!Number.isFinite(age)||age<0||age>120000||
+    !Number.isFinite(Number(minute.observedClose)))throw Error('STALE_1M');
+   const obs=minute.observation||{};
+   const audit=d.recentFiveMinutes||{};
+   if(audit.kind!=='LOOKBACK_CLOSED_1M'||!audit.fresh||
+    audit.closedMinuteCount!==5||audit.until!==minute.closedAt||
+    !Array.isArray(audit.events))throw Error('STALE_5M_LOOKBACK');
+   const result=d.shadowBBVolume?.guardedBreakout5m?.total||{};
+   rows.set(symbol,{ok:true,price:minute.observedClose,closedAt:minute.closedAt,
+    events:audit.events,volume:obs.breakout?.volumeRatio??null,
+    reason:obs.breakout?.reason||'—',avgNet:result.averageNetBps,n:result.signals});
+   ok++;candidates+=(audit.guardedCandidates||0);
+  }catch{
+   rows.set(symbol,{ok:false});issues++;
+  }finally{
+   checked++;
+   $('scan-all-status').textContent='Проверено '+checked+'/'+ALL_WEEX_1M.length+
+    ' рынков WEEX. Свежих: '+ok+'; недоступных/устаревших: '+issues+'.';
+   $('all-market-grid').replaceChildren(...ALL_WEEX_1M.filter(x=>rows.has(x))
+    .map(x=>marketRow(x,rows.get(x))));
+  }
+ };
+ try{
+  // Small batches avoid creating unnecessary simultaneous WEEX API pressure.
+  for(let i=0;i<ALL_WEEX_1M.length;i+=4)
+   await Promise.all(ALL_WEEX_1M.slice(i,i+4).map(fetchOne));
+  show('scan-ok',ok+'/'+ALL_WEEX_1M.length);
+  show('scan-candidates',candidates);
+  show('scan-errors',issues);
+  $('scan-all-summary').hidden=false;
+  $('scan-all-status').textContent='Срез завершён '+berlinDate(Date.now())+
+   ' (Берлин). Он не обновляется сам и не является торговым сигналом.';
+ }finally{button.disabled=false}
+};
+$('history-run').onclick=async()=>{
+ $('history-run').disabled=true;
+ $('history-result').hidden=true;
+ $('history-status').textContent='Загружаем фиксированную историю XRP WEEX за 8 ноября...';
+ try{
+  const response=await fetch('/api/signals?mode=one-minute-research&symbol=XRPUSDT&history=1',
+   {cache:'no-store'});
+  const result=await response.json();
+  if(!response.ok||result.mode!=='HISTORICAL_XRP_SHADOW')
+   throw Error(result.error||'Ошибка исторического исследования');
+  show('h-bars',result.bars);show('h-gaps',result.gaps);
+  const keys=[
+   ['h-break','breakout5m'],['h-guard','breakoutCautious5m'],
+   ['h-return','reentry5m'],['h-guard-return','reentryCautious5m']];
+  for(const [id,key] of keys){
+   const s=result.strategies?.[key];
+   show(id,s?.total?.averageNetBps===null?'Нет данных':
+    (s?.total?.averageNetBps??'—')+' ('+(s?.total?.signals??0)+' сигналов)');
+  }
+  $('history-verdict').textContent='Только ретроспективная симуляция. Пока нет доказательства прибыльности, реальных ордеров, TP/SL или учёта всех торговых расходов.';
+  $('history-result').hidden=false;
+  $('history-status').textContent='Исторический тест готов. Основной бот не изменён.';
+ }catch(error){
+  $('history-status').textContent='Исторические свечи недоступны: '+String(error.message||error);
+ }finally{$('history-run').disabled=false}
+};
 $('run').onclick=async()=>{
  const coin=$('coin').value;
  $('run').disabled=true;
@@ -93,6 +352,60 @@ $('run').onclick=async()=>{
   show('p-setups',pr.results?.setups);
   show('p-tpsl',(pr.results?.TP??0)+' / '+(pr.results?.SL??0));
   show('p-netr',pr.results?.netMeanR===null?'Недостаточно данных':pr.results?.netMeanR);
+  const bb5=d.shadowBBVolume?.horizon5m?.total||{};
+  const bb10=d.shadowBBVolume?.horizon10m?.total||{};
+  show('bb-count',bb5.signals);
+  show('bb-five-positive',bb5.signals?bb5.netPositive+'/'+bb5.signals:'Нет выборки');
+  show('bb-five-net',bb5.averageNetBps??'Нет выборки');
+  show('bb-ten-positive',bb10.signals?bb10.netPositive+'/'+bb10.signals:'Нет выборки');
+  show('bb-ten-net',bb10.averageNetBps??'Нет выборки');
+  const re5=d.shadowBBVolume?.reentry5m?.total||{};
+  const re10=d.shadowBBVolume?.reentry10m?.total||{};
+  show('re-count',re5.signals);
+  show('re-five-positive',re5.signals?re5.netPositive+'/'+re5.signals:'Нет выборки');
+  show('re-five-net',re5.averageNetBps??'Нет выборки');
+  show('re-ten-positive',re10.signals?re10.netPositive+'/'+re10.signals:'Нет выборки');
+  show('re-ten-net',re10.averageNetBps??'Нет выборки');
+  const gb=d.shadowBBVolume?.guardedBreakout5m||{};
+  const gr=d.shadowBBVolume?.guardedReentry5m||{};
+  show('guard-br-count',gb.total?.signals??0);
+  show('guard-br-net',gb.total?.averageNetBps??'Недостаточно данных');
+  show('guard-re-count',gr.total?.signals??0);
+  show('guard-re-net',gr.total?.averageNetBps??'Недостаточно данных');
+  const gb15=d.shadowBBVolume?.guardedBreakout15m?.total||{};
+  const gr15=d.shadowBBVolume?.guardedReentry15m?.total||{};
+  show('guard-br-15-net',gb15.averageNetBps??'Недостаточно данных');
+  show('guard-re-15-net',gr15.averageNetBps??'Недостаточно данных');
+  const gates=[gb.researchGate,gr.researchGate];
+  const textGate=g=>g?.state==='INSUFFICIENT_SAMPLE'?'мало данных':
+   g?.state==='NEGATIVE_AFTER_MODELED_COSTS'?'убыточно в модели':
+   g?.state==='UNVERIFIED_EDGE'?'только предварительная гипотеза':'нет данных';
+  $('bb-verdict').textContent='Осторожный пробой: '+textGate(gates[0])+
+   '. Осторожный возврат: '+textGate(gates[1])+
+   '. Даже положительный исторический результат не разрешает реальные сделки.';
+  $('bb-diagnostics').textContent='Пробой: отклонено по качеству '+
+   (gb.diagnostics?.rejectedQuality??0)+', повторы '+(gb.diagnostics?.rejectedCooldown??0)+
+   '. Возврат: отклонено по качеству '+(gr.diagnostics?.rejectedQuality??0)+
+   ', повторы '+(gr.diagnostics?.rejectedCooldown??0)+'.';
+  const minute=d.currentMinute||{};
+  const states=minute.observation||{};
+  const found=[states.breakout,states.reentry]
+    .filter(x=>x&&['LONG','SHORT'].includes(x.direction));
+  const format=(x)=>x.strategy==='BAND_BREAKOUT'?'пробой':'возврат';
+  $('minute-state').textContent=!minute.fresh?'Нет свежей закрытой 1М свечи':
+   found.length?found.map(x=>format(x)+' · '+x.direction).join(' | '):
+   'Сейчас нет кандидата, прошедшего фильтры';
+  const at=Number.isFinite(minute.closedAt)?
+   new Date(minute.closedAt).toLocaleTimeString('ru-RU',{timeZone:'Europe/Berlin',
+    hour:'2-digit',minute:'2-digit'}):'—';
+  $('minute-note').textContent='Свеча закрылась в '+at+
+   ' (Берлин). Только наблюдение цены закрытия, не live bid/ask и не торговый ордер.';
+  const older=d.shadowBBVolume?.reentry5m?.byPeriod?.older70;
+  const recent=d.shadowBBVolume?.reentry5m?.byPeriod?.recent30;
+  $('bb-periods').textContent='Возврат · ранняя часть истории: '+(older?.signals??0)+
+   ' наблюдений, среднее '+(older?.averageNetBps??'—')+' б.п.; последняя часть: '+
+   (recent?.signals??0)+' наблюдений, среднее '+(recent?.averageNetBps??'—')+
+   ' б.п. Это описательный разрез, не независимый тест.';
   const labels={
    TREND_MISMATCH:'Нет совпадения 5М и 15М',
    NO_BREAK:'Нет нового 1М пробоя',
