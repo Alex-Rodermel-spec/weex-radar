@@ -449,17 +449,15 @@ function accept(symbol,snap){
  }
  return added>0?'RECORDED':'DUPLICATE_OR_COOLDOWN';
 }
-async function fetchOne(symbol,historyMode=false){
- const controller=new AbortController();
- const kill=setTimeout(()=>controller.abort(),11000);
+function markUnavailable(symbol,reason){
+ const previous=markets.get(symbol);
+ markets.set(symbol,{ok:false,closedAt:previous?.closedAt||null,
+  hist:previous?.hist||null,registration:'API_UNAVAILABLE',
+  reason:String(reason||'WEEX/API недоступен').slice(0,130)});
+}
+function processPaperData(symbol,d,historyMode=false){
  try{
-  // The lightweight mode skips expensive last-90m replays on all 66 coins.
-  // Historical diagnostics remain available by explicit user action only.
-  const endpoint='/api/signals?mode=one-minute-research&symbol='+
-   encodeURIComponent(symbol)+'&paper=1'+(historyMode?'':'&quick=1');
-  const response=await fetch(endpoint,{cache:'no-store',signal:controller.signal});
-  const d=await response.json();
-  if(!response.ok||d.mode!=='PAPER_1M_WEEX_ONLY'||d.symbol!==symbol||
+  if(d.mode!=='PAPER_1M_WEEX_ONLY'||d.symbol!==symbol||
    d.exchange!=='WEEX'||d.notATrade!==true||d.ordersSent!==0||
    !Array.isArray(d.bars)||!Array.isArray(d.recent)||
    !d.marketWatch||d.marketWatch.notATrade!==true||
@@ -490,7 +488,34 @@ async function fetchOne(symbol,historyMode=false){
   const previous=markets.get(symbol);
   markets.set(symbol,{ok:false,closedAt:previous?.closedAt||null,
    hist:previous?.hist||null,reason:String(e.message||e)});
- }finally{clearTimeout(kill)}
+ } 
+}
+
+async function fetchBatch(group,historyMode=false){
+ if(!Array.isArray(group)||group.length<1||group.length>6)return;
+ const controller=new AbortController();
+ const killer=setTimeout(()=>controller.abort(),14000);
+ try{
+  const endpoint='/api/signals?mode=one-minute-research&paper=1&batch=1'+
+   (historyMode?'':'&quick=1')+'&symbols='+
+   encodeURIComponent(group.join(','));
+  const response=await fetch(endpoint,{cache:'no-store',signal:controller.signal});
+  const body=await response.json();
+  if(!response.ok||body.mode!=='PAPER_1M_WEEX_BATCH'||
+   body.exchange!=='WEEX'||body.ordersSent!==0||body.notATrade!==true||
+   !Array.isArray(body.results)||body.results.length!==group.length||
+   body.results.some((r,i)=>r?.symbol!==group[i]||
+    !['ok','unavailable'].includes(r.status)))
+   throw Error('INVALID_PAPER_BATCH');
+  for(const r of body.results){
+   if(r.status==='ok')processPaperData(r.symbol,r.data,historyMode);
+   else markUnavailable(r.symbol,'Public WEEX market temporarily unavailable');
+  }
+ }catch(e){
+  // Don't mislabel the failed batch as real signals or retry after the
+  // candle-acceptance deadline. The next minute gets a fresh attempt.
+  for(const symbol of group)markUnavailable(symbol,e.message||e);
+ }finally{clearTimeout(killer)}
 }
 async function scan(historyMode=false){
  if(checking)return;
@@ -504,9 +529,16 @@ async function scan(historyMode=false){
   // and at higher risk of failing the <=25s paper-signal latency budget.
   const offset=historyMode?0:(scanCycle++*13)%SYMBOLS.length;
   const queue=[...SYMBOLS.slice(offset),...SYMBOLS.slice(0,offset)];
-  const CONCURRENCY=16;
-  for(let i=0;i<queue.length;i+=CONCURRENCY)
-   await Promise.all(queue.slice(i,i+CONCURRENCY).map(s=>fetchOne(s,historyMode)));
+  // 6 symbols per Vercel invocation, 3 batches in parallel:
+  // up to 18 bounded public WEEX fetches at a time, 11 invocations
+  // instead of 66 per scan. No private API or automatic orders.
+  const BATCH_SIZE=6,CONCURRENCY=3;
+  const groups=[];
+  for(let i=0;i<queue.length;i+=BATCH_SIZE)
+   groups.push(queue.slice(i,i+BATCH_SIZE));
+  for(let i=0;i<groups.length;i+=CONCURRENCY)
+   await Promise.all(groups.slice(i,i+CONCURRENCY)
+    .map(group=>fetchBatch(group,historyMode)));
   if(historyMode)historyLastAt=Date.now();
   store();render();
   const ok=[...markets.values()].filter(x=>x.ok).length;
