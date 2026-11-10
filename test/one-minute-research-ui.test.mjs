@@ -14,6 +14,6 @@ test('minute research UI has syntactically valid browser JavaScript and explicit
  assert.match(scripts[0][1],/ALL_WEEX_1M\.length/);
  assert.match(scripts[0][1],/LOOKBACK_CLOSED_1M/);
  assert.match(scripts[0][1],/acceptedByCautious/);
- assert.match(html,/история последних пяти минут/);
+ assert.match(html,/истории последних пяти минут/);
  assert.match(html,/Никаких ордеров/);
 });
