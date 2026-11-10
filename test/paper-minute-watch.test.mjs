@@ -102,7 +102,7 @@ test('paper page compiles and contains win/loss and five-minute future settlemen
  assert.match(page,/kind==='NEAR_BAND'/);
  assert.match(page,/kind==='MOMENTUM'/);
  assert.match(page,/kind==='VOLUME_ACTIVITY'/);
- assert.match(page,/regime\.trend/);
+ assert.match(page,/diagnostics\.trend/);
 });
 test('no live order, trade API, account or webhook references in paper data handler',()=>{
  const src=readFileSync(new URL('../lib/paper-minute-watch.mjs',import.meta.url),'utf8');
