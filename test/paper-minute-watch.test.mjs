@@ -31,6 +31,14 @@ test('paper snapshot returns closed contiguous historical candles, never an orde
  assert.equal(snap.bars.at(-1).time,snap.closedAt-MINUTE);
  assert.ok(snap.generatedAt>snap.closedAt);
  assert.equal(snap.assumedRoundTripCostsBps,22);
+ assert.equal(snap.marketWatch.notATrade,true);
+ assert.ok(['NEAR_BAND','VOLUME_ACTIVITY','QUIET'].includes(snap.marketWatch.kind));
+ assert.ok(Number.isFinite(snap.marketWatch.relativeVolume));
+ assert.ok(Number.isFinite(snap.marketWatch.oneMinuteRangeBps));
+ assert.ok(snap.marketWatch.oneMinuteRangeBps>=0);
+ assert.equal(snap.marketWatch.modeledCostBps,22);
+ assert.equal(snap.marketWatch.rangeToCostRatio,
+  Number((snap.marketWatch.oneMinuteRangeBps/22).toFixed(2)));
  assert.ok(snap.recent.every(e=>e.closedAt<=snap.closedAt&&e.notATrade));
 });
 test('paper snapshot fails closed on missing minute and stale data',()=>{
@@ -81,6 +89,11 @@ test('paper page compiles and contains win/loss and five-minute future settlemen
  assert.match(page,/localStorage/);
  assert.match(page,/setInterval/);
  assert.match(page,/notATrade/);
+ assert.match(page,/id="watch-count"/);
+ assert.match(page,/id="total-net"/);
+ assert.match(page,/id="win-rate"/);
+ assert.match(page,/marketWatch\.notATrade/);
+ assert.match(page,/kind==='NEAR_BAND'/);
 });
 test('no live order, trade API, account or webhook references in paper data handler',()=>{
  const src=readFileSync(new URL('../lib/paper-minute-watch.mjs',import.meta.url),'utf8');
