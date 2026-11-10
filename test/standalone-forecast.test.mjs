@@ -119,7 +119,7 @@ test('forecasts UI is separate, readable and does not mutate trading/push system
  assert.match(page,/id="short"/);
  assert.match(page,/id="mixed"/);
  assert.match(page,/mode=forecast&symbol=/);
- assert.match(page,/\[1,5,10\]/);
+ assert.match(page,/intervalMinutes\)\.join\(','\)!=='1,5,10'/);
  const script=page.match(/<script>([\s\S]*?)<\/script>/);
  assert.ok(script);
  assert.doesNotThrow(()=>new Script(script[1]));
