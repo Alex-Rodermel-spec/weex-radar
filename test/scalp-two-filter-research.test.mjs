@@ -56,6 +56,7 @@ test('conservative 1m filter refuses a chased oversized candle despite BB+volume
  assert.equal(replay.changesLiveSignals,false);
  assert.equal(replay.cooldownMinutes,5);
  assert.equal(replay.qualityProfile,'CAUTIOUS');
+ assert.equal(replay.researchGate.state,'INSUFFICIENT_SAMPLE');
  assert.ok(replay.total.signals<=replay.diagnostics.rawCandidates);
 });
 test('unclosed, malformed or gapped 1m candles cannot be used',()=>{
