@@ -124,7 +124,12 @@ test('Android ntfy confirmed signal embeds caution, only PRE_BREAK forecast can 
   assert.equal(result.delivered,1);
   assert.match(posts[0].message,/SL 102 · TP 95/);
   assert.match(posts[0].message,/Расчётный R\/R после расходов/);
-  const early=await ntfySend('early',[{...s,level:'EARLY_WATCH'}]);
+  const breakout=await ntfySend('early',[{...s,level:'EARLY_WATCH'}]);
+  assert.equal(breakout.delivered,0);
+  const early=await ntfySend('early',[{...s,level:'EARLY_WATCH',
+   watchType:'PRE_BREAK',forecast:{mode:'PRE_BREAK_SCENARIO',
+    rsi1:48,rsi5:42,volumeRatio:1.4,triggerPrice:99,
+    invalidationPrice:101,horizonMinutes:5}}]);
   assert.equal(early.delivered,1);
   assert.match(posts[1].message,/Только прогноз, не разрешение на сделку/);
   assert.doesNotMatch(posts[1].message,/РАСХОДЫ|NET R\/R/);
