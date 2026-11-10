@@ -103,6 +103,24 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 <p class="split-note" id="bb-periods">Сравнение первой и последней частей истории появится после расчёта.</p>
 <p class="warn">⚠️ Историческая модель без реального спреда и исполнения. Условный вход по открытию следующей 1М свечи, закрытие через 5 или 10 минут, суммарно 22 б.п. модельных расходов. Нет биржевых SL/TP, funding или независимого теста. Эти проценты нельзя напрямую сравнивать с 60-минутными TP/SL двух стратегий выше.</p>
 </section>
+<section class="lab" aria-labelledby="history-title">
+<span class="lab-kicker">WEEX RADAR · СРАВНЕНИЕ РАЗНЫХ ДНЕЙ</span>
+<h2 id="history-title">🗓 XRP: более ранняя история 1М</h2>
+<p>Отдельная фиксированная выборка 8 ноября 2026 года, 00:00–10:00 UTC. Все результаты предварительные: одни и те же модельные расходы 22 б.п. на круг, без реального спреда и исполнения. Это не совет открыть сделку.</p>
+<button id="history-run" type="button">Проверить XRP за 8 ноября</button>
+<p id="history-status" role="status">Исторический тест запускается отдельно и не влияет на основное сканирование.</p>
+<div id="history-result" hidden>
+ <div class="grid">
+  <div class="tile"><small>Закрытых свечей</small><strong id="h-bars">—</strong></div>
+  <div class="tile"><small>Пропуски времени</small><strong id="h-gaps">—</strong></div>
+  <div class="tile"><small>Пробой BB · 5М, б.п.</small><strong id="h-break">—</strong></div>
+  <div class="tile"><small>Пробой с защитой · 5М, б.п.</small><strong id="h-guard">—</strong></div>
+  <div class="tile"><small>Возврат BB · 5М, б.п.</small><strong id="h-return">—</strong></div>
+  <div class="tile"><small>Возврат с защитой · 5М, б.п.</small><strong id="h-guard-return">—</strong></div>
+ </div>
+ <p class="warn" id="history-verdict">Нужна проверка.</p>
+</div>
+</section>
 <p class="warn">Сравнение вариантов на одной истории — не независимое подтверждение прибыльности.</p>
 <h2>Почему были отказы при пробое</h2>
 <ul id="reasons"></ul>
@@ -115,6 +133,32 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 <script>
 const $=id=>document.getElementById(id);
 const show=(id,value)=>{$(id).textContent=String(value??'—')};
+$('history-run').onclick=async()=>{
+ $('history-run').disabled=true;
+ $('history-result').hidden=true;
+ $('history-status').textContent='Загружаем фиксированную историю XRP WEEX за 8 ноября...';
+ try{
+  const response=await fetch('/api/signals?mode=one-minute-research&symbol=XRPUSDT&history=1',
+   {cache:'no-store'});
+  const result=await response.json();
+  if(!response.ok||result.mode!=='HISTORICAL_XRP_SHADOW')
+   throw Error(result.error||'Ошибка исторического исследования');
+  show('h-bars',result.bars);show('h-gaps',result.gaps);
+  const keys=[
+   ['h-break','breakout5m'],['h-guard','breakoutCautious5m'],
+   ['h-return','reentry5m'],['h-guard-return','reentryCautious5m']];
+  for(const [id,key] of keys){
+   const s=result.strategies?.[key];
+   show(id,s?.total?.averageNetBps===null?'Нет данных':
+    (s?.total?.averageNetBps??'—')+' ('+(s?.total?.signals??0)+' сигналов)');
+  }
+  $('history-verdict').textContent='Только ретроспективная симуляция. Пока нет доказательства прибыльности, реальных ордеров, TP/SL или учёта всех торговых расходов.';
+  $('history-result').hidden=false;
+  $('history-status').textContent='Исторический тест готов. Основной бот не изменён.';
+ }catch(error){
+  $('history-status').textContent='Исторические свечи недоступны: '+String(error.message||error);
+ }finally{$('history-run').disabled=false}
+};
 $('run').onclick=async()=>{
  const coin=$('coin').value;
  $('run').disabled=true;
