@@ -6,15 +6,17 @@ import {Script,createContext} from 'node:vm';
 const page=readFileSync(new URL('../paper-five.html',import.meta.url),'utf8');
 const match=page.match(/<script>([\s\S]*?)<\/script>/);
 assert.ok(match,'Missing paper journal script');
-function makeHarness(){
+function makeHarness(now=Date.UTC(2026,10,10,2,0,2)){
  const elements=new Map();
+ const FakeDate=class extends Date{static now(){return now;}};
  const context=createContext({
+  Date:FakeDate,
   document:{getElementById(id){
    if(!elements.has(id))elements.set(id,{onclick:null,disabled:false});
    return elements.get(id);
   }},
   localStorage:{getItem(){return null},setItem(){}},
-  setInterval(){return 1},clearInterval(){},
+  setTimeout(){return 1},clearTimeout(){},
   fetch(){throw Error('Unexpected network in unit test')},
   console
  });
@@ -68,7 +70,7 @@ test('paper journal records only latest closed candle candidate, dedupes it and 
 });
 
 test('five paper wins are not permission or a stop: more hypothetical tests can be recorded',()=>{
- const unit=makeHarness(),closed=Date.UTC(2026,10,10,4,0);
+ const closed=Date.UTC(2026,10,10,4,0),unit=makeHarness(closed+2000);
  const prior=['BTCUSDT','ETHUSDT','SOLUSDT','DOGEUSDT','BNBUSDT']
   .map((symbol,i)=>({symbol,strategy:'BAND_BREAKOUT',
    direction:'LONG',closedAt:closed-i*10*M,status:'win',netBps:5}));
@@ -81,4 +83,21 @@ test('five paper wins are not permission or a stop: more hypothetical tests can 
  assert.equal(unit.get().length,6);
  assert.equal(unit.get()[5].status,'pending');
  assert.equal(unit.get().filter(x=>x.status==='win').length,5);
+});
+
+test('a candidate seen after 25 seconds or from a delayed response is NOT a forward paper entry',()=>{
+ const closed=Date.UTC(2026,10,10,2,0);
+ const event={strategy:'BAND_BREAKOUT',direction:'LONG',closedAt:closed,
+  observedClose:100,volumeRatio:2,notATrade:true};
+ const late=makeHarness(closed+30000);
+ late.accept('XRPUSDT',{closedAt:closed,generatedAt:closed+27000,recent:[event]});
+ assert.equal(late.get().length,0);
+ const delayed=makeHarness(closed+12000);
+ delayed.accept('XRPUSDT',{closedAt:closed,generatedAt:closed-1000,recent:[event]});
+ assert.equal(delayed.get().length,0);
+ const timely=makeHarness(closed+12000);
+ timely.accept('XRPUSDT',{closedAt:closed,generatedAt:closed+4000,recent:[event]});
+ assert.equal(timely.get().length,1);
+ assert.equal(timely.get()[0].detectionLagMs,12000);
+ assert.equal(timely.get()[0].entryAssumption,'NEXT_1M_OPEN_PROXY_NOT_EXECUTABLE');
 });
