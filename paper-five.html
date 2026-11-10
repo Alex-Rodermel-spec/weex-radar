@@ -157,6 +157,9 @@ const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT',
  'BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 const KEY='weex-paper-five-forward-v1';
 const COSTS_BPS=22,ONE=60000,HORIZON=5*ONE,MAX_TRADES=500;
+// The paper record must be timely; an old signal is not a fresh entry.
+// Next-minute OPEN remains a research proxy, not a guaranteed executable price.
+const MAX_DETECTION_MS=25000,MAX_RESPONSE_AGE_MS=12000,AFTER_CLOSE_MS=4500;
 const $=id=>document.getElementById(id);
 let trades=[],running=false,checking=false,ticker=null,markets=new Map();
 const asBerlin=ms=>new Date(ms).toLocaleString('ru-RU',{timeZone:'Europe/Berlin',
@@ -272,11 +275,16 @@ function settle(symbol,bars,closedAt){
  }
 }
 function accept(symbol,snap){
+ const now=Date.now();
+ // Real browser arrival time matters. A server response 90 seconds after
+ // the candle is too late for a forward five-minute minute-entry claim.
+ if(!Number.isSafeInteger(snap.generatedAt)||
+  now-snap.generatedAt<0||now-snap.generatedAt>MAX_RESPONSE_AGE_MS)return;
  const remaining=snap.recent.filter(e=>e&&e.notATrade&&
   ['LONG','SHORT'].includes(e.direction)&&
   ['BAND_BREAKOUT','BAND_REENTRY'].includes(e.strategy)&&
-  e.closedAt===snap.closedAt&&snap.generatedAt-e.closedAt>=1000&&
-  snap.generatedAt-e.closedAt<=90000);
+  e.closedAt===snap.closedAt&&now-e.closedAt>=1000&&
+  now-e.closedAt<=MAX_DETECTION_MS);
  for(const event of remaining){
   if(trades.some(t=>key(t)===[symbol,event.strategy,event.direction,event.closedAt].join('|')))
    continue;
@@ -286,8 +294,10 @@ function accept(symbol,snap){
   // A signal is registered when a fresh WEEX response arrives, BEFORE its
   // fifth-minute CLOSE is known. Results cannot be cherry-picked retroactively.
   trades.push({symbol,strategy:event.strategy,direction:event.direction,
-   closedAt:event.closedAt,seenAt:Date.now(),signalClose:event.observedClose,
-   volumeRatio:event.volumeRatio,status:'pending',entry:null,notATrade:true});
+   closedAt:event.closedAt,seenAt:now,detectionLagMs:now-event.closedAt,
+   signalClose:event.observedClose,
+   volumeRatio:event.volumeRatio,status:'pending',entry:null,notATrade:true,
+   entryAssumption:'NEXT_1M_OPEN_PROXY_NOT_EXECUTABLE'});
  }
 }
 async function fetchOne(symbol){
@@ -310,7 +320,7 @@ async function fetchOne(symbol){
    (i>0&&b.time!==d.bars[i-1].time+ONE)))throw Error('GAPPED_DATA');
   settle(symbol,d.bars,d.closedAt);
   // Paper registration is only allowed for a recent completed minute.
-  if(running)accept(symbol,d);
+  if(running&&document.visibilityState!=='hidden')accept(symbol,d);
   markets.set(symbol,{ok:true,closedAt:d.closedAt,watch:d.marketWatch});
  }catch(e){markets.set(symbol,{ok:false,reason:String(e.message||e)})}
 }
@@ -336,21 +346,32 @@ async function scan(){
   // continue observing losses and the overall net expectancy for manual review.
  }finally{checking=false}
 }
+function scheduleNext(){
+ if(!running)return;
+ if(ticker)clearTimeout(ticker);
+ // Align the 16-market read-only scan to the first ~4.5s AFTER each completed
+ // 1m candle instead of scanning at an arbitrary time 50s too late.
+ const delay=ONE-(Date.now()%ONE)+AFTER_CLOSE_MS;
+ ticker=setTimeout(()=>{
+  ticker=null;
+  if(running)scan().finally(()=>{if(running&&document.visibilityState!=='hidden')scheduleNext()});
+ },delay);
+}
 function start(){
  if(running||trades.length>=MAX_TRADES)return;
  running=true;$('start').disabled=true;$('stop').disabled=false;
  $('monitor-dot').className='pulse-dot live';
  $('monitor-state').textContent='Наблюдение включено';
  // No browser-side polling can survive closing the tab or Android throttling.
- if(ticker)clearInterval(ticker);
- ticker=setInterval(()=>{if(running)scan()},60000);
+ if(ticker)clearTimeout(ticker);
+ if(document.visibilityState!=='hidden')scheduleNext();
  scan();
 }
 function stop(){
  running=false;
  $('monitor-dot').className='pulse-dot';
  $('monitor-state').textContent='Наблюдение остановлено';
- if(ticker){clearInterval(ticker);ticker=null}
+ if(ticker){clearTimeout(ticker);ticker=null}
  render();
  if(!checking)$('status').textContent='Остановлено. Журнал сохранён в этом браузере.';
 }
@@ -361,18 +382,19 @@ if(typeof document.addEventListener==='function'){
  document.addEventListener('visibilitychange',()=>{
   if(!running)return;
   if(document.visibilityState==='hidden'){
-   $('status').textContent='Вкладка скрыта: Android может остановить минутные запросы. Новые PAPER-сделки пока не подтверждаем.';
+   if(ticker){clearTimeout(ticker);ticker=null}
+   $('status').textContent='Вкладка скрыта: наблюдение приостановлено. Новые PAPER-сигналы не записываются.';
   }else if(document.visibilityState==='visible'){
    $('status').textContent='Вкладка снова открыта — перепроверяю свежие закрытые свечи WEEX.';
-   scan();
+   scheduleNext();scan();
   }
  });
 }
 $('start').onclick=start;$('stop').onclick=stop;
 $('once').onclick=scan;
 $('export').onclick=()=>{
- const cols=['symbol','strategy','direction','closedAt','seenAt',
-  'signalClose','volumeRatio','entry','exit','grossBps','netBps','status'];
+ const cols=['symbol','strategy','direction','closedAt','seenAt','detectionLagMs',
+  'signalClose','volumeRatio','entry','entryAssumption','exit','grossBps','netBps','status'];
  const csv=cols.join(',')+'\n'+trades.map(t=>cols.map(k=>
   JSON.stringify(t[k]??'')).join(',')).join('\n');
  const file=new Blob([csv],{type:'text/csv;charset=utf-8'});
