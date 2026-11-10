@@ -207,6 +207,11 @@ async function scanAll(){
 }
 export default async function handler(req,res){
  if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
+ if(req.query?.mode==='forecast'){
+  // Observational 1/5/10m FORECAST is separate from actionable LONG/SHORT.
+  const {handleStandaloneForecast}=await import('../lib/standalone-forecast.mjs');
+  return handleStandaloneForecast(req,res,SYMBOLS);
+ }
  if(req.query?.mode==='early'){
   const {handleEarlyWatch}=await import('../lib/early-watch.mjs');
   return handleEarlyWatch(req,res);
