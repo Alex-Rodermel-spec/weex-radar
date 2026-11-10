@@ -225,7 +225,10 @@ export default async function handler(req,res){
  }
  if(req.query?.mode==='one-minute-research'){
   const {handleOneMinuteResearch}=await import('../lib/one-minute-entry-research-route.mjs');
-  return handleOneMinuteResearch(req,res,SYMBOLS);
+  // PAPER-only sandbox expands to verified candidate markets; the original
+  // 16-symbol live scanner, cron, ntfy, health and order gates are unchanged.
+  const {PAPER_ALLOWED}=await import('../lib/weex-paper-universe.mjs');
+  return handleOneMinuteResearch(req,res,PAPER_ALLOWED);
  }
  if(req.query?.mode==='journal'||req.query?.mode==='journal-export'){
   const {handleJournal}=await import('../lib/journal-route.mjs');
