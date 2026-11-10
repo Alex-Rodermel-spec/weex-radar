@@ -72,14 +72,15 @@ test('zero fee, zero spread and no slippage reproduce gross R/R exactly',()=>{
  assert.equal(c.minGrossMoveBpsForBreakeven,0);
 });
 
-test('optional cost warnings are read-only and production scan/dispatch still accept signals on existing gates',()=>{
+test('modelled costs stay read-only in scanner but filter low-quality phone notifications',()=>{
  const signalSource=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');
  const push=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
  const ntfy=readFileSync(new URL('../lib/ntfy-alerts.mjs',import.meta.url),'utf8');
  const ui=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(signalSource,/const costReview=final.direction\?assessNetCosts/);
  assert.match(push,/const costReview=assessNetCosts/);
- assert.match(push,/\{\.\.\.signal,livePrice:quote.price,entryQuality:entry,costReview\}:null/);
+ assert.match(push,/const refreshed=\{\.\.\.signal,livePrice:quote.price,entryQuality:entry,costReview\}/);
+ assert.match(push,/filterPhoneCandidates\(withFreshQuote,Date\.now\(\)\)/);
  assert.match(ntfy,/const costText=/);
  assert.match(ntfy,/isEarly\|\|cost\?\.mode!=='SHADOW_COSTS'/);
  assert.match(ui,/function costHint\(s\)/);
