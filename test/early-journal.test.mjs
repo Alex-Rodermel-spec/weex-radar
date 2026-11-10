@@ -105,7 +105,7 @@ test('ciphertext from previous journal version WITHOUT earlyRows remains readabl
  const archive={version:1,algorithm:'aes-256-gcm',iv:iv.toString('base64url'),
   tag:cipher.getAuthTag().toString('base64url'),
   ciphertext:bytes.toString('base64url')};
- assert.deepEqual(decryptJournalArchive(archive,env),{rows:confirmed,earlyRows:[],forecastRows:[]});
+ assert.deepEqual(decryptJournalArchive(archive,env),{rows:confirmed,earlyRows:[],forecastRows:[],confirmedAuditRows:[]});
 });
 test('no trading, no new scheduling, no public individual early history',()=>{
  const journal=readFileSync(new URL('../lib/journal-route.mjs',import.meta.url),'utf8');

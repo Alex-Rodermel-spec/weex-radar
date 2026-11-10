@@ -79,6 +79,18 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <div class="card"><small>30м · движение в сторону прогноза</small><strong id="early30">—</strong></div>
 </div>
 <p class="muted" id="earlyDetail">Нужны реальные ранние уведомления и закрытые свечи после них.</p>
+<h2>🎯 Подтверждённые LONG / SHORT — для ручной торговли на 5М</h2>
+<p class="muted">Независимая проверка направления только у реально отправленных подтверждённых торговых уведомлений. Это не статистика отдельного прогнозиста и не реальные сделки. Исторические TP/SL показаны выше.</p>
+<div class="metrics">
+ <div class="card"><small>LONG/SHORT изучено</small><strong id="confirmedAuditTotal">—</strong></div>
+ <div class="card"><small>Первое закрытие 5М</small><strong id="confirmedAudit5m">—</strong></div>
+ <div class="card"><small>Через 10 минут</small><strong id="confirmedAudit10m">—</strong></div>
+ <div class="card"><small>Через 15 минут</small><strong id="confirmedAudit15m">—</strong></div>
+</div>
+<div class="table-box"><table><thead><tr><th>Направление</th><th>Изучено</th><th>Цена прошла за 15м до сигнала</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="confirmedAuditDirection"></tbody></table></div>
+<h2>🎯 Сильные и обычные LONG/SHORT</h2>
+<div class="table-box"><table><thead><tr><th>Тип сигнала</th><th>Изучено</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="confirmedAuditStrength"></tbody></table></div>
+<p class="muted" id="confirmedAuditDetail">Измеряем только закрытые свечи WEEX, начиная с времени отправки. Исторические сигналы без нужных цен не добавляем задним числом.</p>
 <h2>🔮 Новый прогнозист — точность через 1–30 минут</h2>
 <p class="muted">Только реально опубликованные отдельные ntfy-прогнозы (не старые EARLY WATCH и не подтверждённые входы). Сравнение с ценой из уведомления, по закрытым минутным свечам WEEX. Начинаем с появления этого исследования; предыдущие неполные данные не считаем успехом.</p>
 <div class="metrics">
@@ -158,6 +170,36 @@ function display(){
   ' · подтверждения 5м в течение 30 минут: '+early.pairs.confirmedWithin30m+
   ' · счёт идёт только по доступным закрытым свечам; комиссии и задержка исполнения не учтены.':
   'Архив ранних предупреждений ещё не создан.';
+ const confirmed=report.confirmedDirectionStudy?.windows?.[days];
+ $('confirmedAuditTotal').textContent=showN(confirmed?.total);
+ for(const [id,key] of [['confirmedAudit5m','first5mClose'],
+  ['confirmedAudit10m','at10m'],['confirmedAudit15m','at15m']]){
+   const metric=confirmed?.[key];
+   $(id).textContent=metric?.observed?pct(metric.favorablePct)+' ('+metric.observed+')':'—';
+ }
+ const fmtAccuracy=v=>v?.observed?pct(v.favorablePct)+' ('+v.observed+')':'—';
+ const tableConfirmed=$('confirmedAuditDirection');tableConfirmed.replaceChildren();
+ for(const [key,label] of [['LONG','📈 LONG'],['SHORT','📉 SHORT']]){
+   const v=confirmed?.byDirection?.[key],tr=document.createElement('tr');
+   const pre=v?.before15m;
+   for(const value of [label,v?.total??0,
+    pre?.observed?pre.meanDirectionBps+' bps ('+pre.observed+')':'—',
+    fmtAccuracy(v?.first5mClose),fmtAccuracy(v?.at10m),fmtAccuracy(v?.at15m)]){
+    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
+   }tableConfirmed.appendChild(tr);
+ }
+ const tableConfirmedStrength=$('confirmedAuditStrength');tableConfirmedStrength.replaceChildren();
+ for(const [key,label] of [['STANDARD','🔔 Обычный'],['STRONG','🟣 Сильный']]){
+   const v=confirmed?.byLevel?.[key],tr=document.createElement('tr');
+   for(const value of [label,v?.total??0,
+    v?.before15m?.observed?pct(v.before15m.already10bpsPct)+' ('+v.before15m.observed+')':'—',
+    fmtAccuracy(v?.first5mClose),fmtAccuracy(v?.at10m),fmtAccuracy(v?.at15m)]){
+    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
+   }tableConfirmedStrength.appendChild(tr);
+ }
+ $('confirmedAuditDetail').textContent=confirmed?
+  'Только реально отправленные LONG/SHORT. Изменение цены до уведомления показывает запоздание, а движение после — наблюдаемое направление, не прибыльность после комиссий.':
+  'История новой проверки LONG/SHORT пока пуста.';
  const forecast=report.forecastStudy?.windows?.[days];
  $('forecastTotal').textContent=showN(forecast?.total);
  $('forecast10').textContent=forecast?.at10m?.observed?pct(forecast.at10m.favorablePct)+' ('+forecast.at10m.observed+')':'—';
