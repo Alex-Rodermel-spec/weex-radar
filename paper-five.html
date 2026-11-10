@@ -148,6 +148,14 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
  <p class="warn">⚠️ ×50 — чисто виртуальное моделирование, не изменение плеча твоего счёта WEEX. Только модельные комиссии и проскальзывание 0,22% движения цены соответствуют примерно 11% виртуальной начальной маржи при ×50, ещё до спреда. Реальная ликвидация зависит от mark price, MMR, типа маржи и исполнения; порог 1,5% — только наш учебный стресс-тест, а не точная цена ликвидации.</p>
  <p class="warn">⚠️ Когда вкладка закрыта или Android ограничивает Chrome, эта страница не может гарантировать минутные проверки. Журнал хранится только в этом браузере и на этом адресе. Нажатия не открывают WEEX сделки и не отправляют push.</p>
 </section>
+<section class="panel" id="history-events">
+ <div class="section-head"><h2>Последние сигналы на реальных свечах</h2><span class="topchip">ИСТОРИЯ · НЕ PAPER-СДЕЛКИ</span></div>
+ <p class="lead">Здесь только уже закрытые минутные свечи WEEX за последние ~90 минут. Сигналы могли возникнуть до запуска страницы: они <strong>не записываются задним числом в PAPER</strong>, и по ним не заявляется прибыль.</p>
+ <div class="scroll"><table class="tab">
+  <thead><tr><th>Монета</th><th>Время (Берлин)</th><th>Направление</th><th>Условие</th></tr></thead>
+  <tbody id="history-events-body"><tr><td colspan="4">Пока нет проверки истории</td></tr></tbody>
+ </table></div>
+</section>
 <section class="panel" id="journal">
  <div class="section-head"><h2>Журнал PAPER-сделок</h2><span class="topchip">WIN · LOSS · PENDING</span></div>
  <p class="lead">Режим <strong>×50 — только виртуально</strong>. Сигнал по закрытой 1М свече → публичный WEEX ask для LONG или bid для SHORT → исход на следующих пяти закрытых свечах. Из результата вычитаем 0,22% модельных расходов и допущение о выходном спреде. Если минутные high/low касаются <strong>1,5% против позиции</strong>, считаем тест <strong>рисковым, а не прибыльным</strong> и условно закрываем по этому порогу. Это <strong>не реальный уровень ликвидации</strong> и не гарантия выхода: ликвидация может наступить раньше, исполнение хуже, а порядок движения внутри минуты неизвестен. Старые записи без bid/ask остаются отдельно.</p>
@@ -454,6 +462,29 @@ async function scan(){
    ['LATE_CANDLE','STALE_RESPONSE'].includes(x.registration)).length;
   const added=[...markets.values()].filter(x=>x.registration==='RECORDED').length;
   $('hist-90').textContent=String(hist)+' / '+ok+' рынков';
+  const historyRows=[];
+  for(const [symbol,data] of markets.entries()){
+   if(!data.ok||!data.hist||!Array.isArray(data.hist.lastSignals))continue;
+   for(const e of data.hist.lastSignals){
+    if(!e.notATrade||!Number.isSafeInteger(e.closedAt)||
+     !['LONG','SHORT'].includes(e.direction))continue;
+    historyRows.push({...e,symbol});
+   }
+  }
+  historyRows.sort((a,b)=>b.closedAt-a.closedAt);
+  const historyBody=$('history-events-body');historyBody.replaceChildren();
+  for(const e of historyRows.slice(0,14)){
+   const row=document.createElement('tr');
+   const details=[e.symbol,asBerlin(e.closedAt),
+    e.direction,e.strategy==='BAND_REENTRY'?'Возврат BB':'Пробой BB'];
+   for(const item of details){const cell=document.createElement('td');
+    cell.textContent=item;row.appendChild(cell)}
+   historyBody.appendChild(row);
+  }
+  if(!historyRows.length){const row=document.createElement('tr'),cell=document.createElement('td');
+   cell.colSpan=4;cell.textContent='На проверенных свечах новых исторических совпадений не было.';
+   row.appendChild(cell);historyBody.appendChild(row)}
+
   $('raw-now').textContent=fresh;
   $('skip-quote').textContent=skippedQuote;
   $('skip-late').textContent=skippedLate;
