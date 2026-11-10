@@ -53,13 +53,13 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 </div>
 <section class="lab" aria-labelledby="all-market-title">
  <span class="lab-kicker">WEEX RADAR V2 · LIVE MARKET WATCH · БЕЗ СДЕЛОК</span>
- <h2 id="all-market-title">📡 Все 16 монет WEEX · 1М</h2>
- <p>Одно нажатие проверяет последнюю закрытую минутную свечу на каждом из 16 рынков: BB20/2 + объём и защиту от запоздания. Данные и результаты отображаются отдельно по монетам. Никаких ордеров, личных ключей или автоматических уведомлений.</p>
+ <h2 id="all-market-title">📡 Все 16 монет WEEX · последние 5 минут</h2>
+ <p>Одно нажатие анализирует последние пять уже закрытых минутных свечей каждого из 16 рынков: BB20/2 + объём и защиту от запоздания. Это проверка истории последних пяти минут, а не непрерывный мониторинг в реальном времени. Данные и результаты отображаются отдельно по монетам. Никаких ордеров, личных ключей или автоматических уведомлений.</p>
  <button id="scan-all" type="button">Проверить все 16 сейчас</button>
  <p id="scan-all-status" role="status">Ручная проверка только по нажатию кнопки. Исторические исходы — не прогноз прибыли.</p>
  <div id="scan-all-summary" class="grid" hidden>
   <div class="tile"><small>Свежих рынков</small><strong id="scan-ok">—</strong></div>
-  <div class="tile"><small>1М сценариев (не входов)</small><strong id="scan-candidates">—</strong></div>
+  <div class="tile"><small>1М кандидатов за 5 закрытых минут (не входов)</small><strong id="scan-candidates">—</strong></div>
   <div class="tile"><small>Ошибок / устаревших</small><strong id="scan-errors">—</strong></div>
  </div>
  <div class="marketlist" id="all-market-grid" aria-live="polite"></div>
@@ -177,12 +177,19 @@ function marketRow(symbol,record){
   left.appendChild(observed);
   const ratio=record.volume;
   const status=document.createElement('strong');
-  status.textContent=record.directions.length?
-   '🧪 '+record.directions.join(' / ')+' · только сценарий':
-   'Нет подтверждённого 1М сценария';
+  status.textContent=record.events.length?
+   '🧪 '+record.events.map(e=>
+    (e.acceptedByCautious?'ПРОШЁЛ ':'ОТКЛОНЁН ')+
+    (e.strategy==='BAND_REENTRY'?'ВОЗВРАТ ':'ПРОБОЙ ')+
+    e.direction+' · '+berlinDate(e.closedAt)).join(' | '):
+   'За последние 5 закрытых минут кандидатов нет';
   middle.appendChild(status);
   const volume=document.createElement('small');
-  volume.textContent='Объём ×'+(Number.isFinite(ratio)?ratio.toFixed(2):'—')+
+  volume.textContent=record.events.length?
+   record.events.map(e=>'Цена '+e.observedClose+' · объём ×'+
+    (Number.isFinite(e.volumeRatio)?e.volumeRatio.toFixed(2):'—')+
+    (e.acceptedByCautious?' · прошёл качество':' · отклонён качеством')).join(' | '):
+   'Последняя 1М: объём ×'+(Number.isFinite(ratio)?ratio.toFixed(2):'—')+
    ' · '+record.reason;
   middle.appendChild(volume);
   right.textContent='5М: '+formatBps(record.avgNet);
@@ -211,14 +218,15 @@ $('scan-all').onclick=async()=>{
    if(!minute.fresh||!Number.isFinite(age)||age<0||age>120000||
     !Number.isFinite(Number(minute.observedClose)))throw Error('STALE_1M');
    const obs=minute.observation||{};
-   const directions=[obs.breakout,obs.reentry]
-    .filter(x=>x&&['LONG','SHORT'].includes(x.direction))
-    .map(x=>(x.strategy==='BAND_REENTRY'?'ВОЗВРАТ ':'ПРОБОЙ ')+x.direction);
+   const audit=d.recentFiveMinutes||{};
+   if(audit.kind!=='LOOKBACK_CLOSED_1M'||!audit.fresh||
+    audit.closedMinuteCount!==5||audit.until!==minute.closedAt||
+    !Array.isArray(audit.events))throw Error('STALE_5M_LOOKBACK');
    const result=d.shadowBBVolume?.guardedBreakout5m?.total||{};
    rows.set(symbol,{ok:true,price:minute.observedClose,closedAt:minute.closedAt,
-    directions,volume:obs.breakout?.volumeRatio??null,
+    events:audit.events,volume:obs.breakout?.volumeRatio??null,
     reason:obs.breakout?.reason||'—',avgNet:result.averageNetBps,n:result.signals});
-   ok++;candidates+=directions.length;
+   ok++;candidates+=(audit.guardedCandidates||0);
   }catch{
    rows.set(symbol,{ok:false});issues++;
   }finally{
