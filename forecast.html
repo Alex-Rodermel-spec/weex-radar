@@ -76,10 +76,10 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
  </div>
  <div class="status" role="status" id="status">Запусти проверку. Прогнозы не отправляют торговые уведомления и не открывают ордера.</div>
  <div class="scroll"><table>
-  <thead><tr><th>Пара</th><th>1М</th><th>5М</th><th>10М</th><th>RSI · объём 1М</th><th>Bollinger</th><th>Структура 5М</th><th>Обновлено</th></tr></thead>
-  <tbody id="rows"><tr><td colspan="8">Нет проверки</td></tr></tbody>
+  <thead><tr><th>Пара</th><th>Оценка силы / риска</th><th>1М</th><th>5М</th><th>10М</th><th>RSI · объём 1М</th><th>Bollinger</th><th>Структура 5М</th><th>Обновлено</th></tr></thead>
+  <tbody id="rows"><tr><td colspan="9">Нет проверки</td></tr></tbody>
  </table></div>
- <p class="legend">«LONG-прогноз» и «SHORT-прогноз» описывают согласованность индикаторов, не вероятность успеха. Нет сигнала входа, TP/SL, маржи, плеча или автоторговли. Будущие свечи не используются.</p>
+ <p class="legend">🟣 «Сильный» означает согласованные RSI, EMA, Bollinger, структуру и объём без обнаруженных предупреждений. 🟡 «Повышенный риск» отмечает перепроданность/перекупленность, слабый объём или возможность позднего входа. Оценки эвристические, не вероятность прибыли. Нет сигнала входа, TP/SL, маржи, плеча или автоторговли. Будущие свечи не используются.</p>
 </section>
 <section class="panel">
  <div class="heading"><h2>Диагностика прогнозиста</h2><span class="pill">ОТДЕЛЬНО ОТ LONG / SHORT</span></div>
@@ -139,11 +139,37 @@ function label(x){
  return x==='LONG_BIAS'?'↗ LONG-прогноз':x==='SHORT_BIAS'?'↘ SHORT-прогноз':'— нейтрально';
 }
 function css(x){return x==='LONG_BIAS'?'long':x==='SHORT_BIAS'?'short':'mixed'}
+const RISK_REASON_LABELS={
+ OVERSOLD_1M:'RSI 1М перепродан',
+ OVERSOLD_5M:'RSI 5М перепродан — возможен отскок',
+ OVERSOLD_10M:'RSI 10М перепродан — возможен отскок',
+ OVERBOUGHT_1M:'RSI 1М перекуплен',
+ OVERBOUGHT_5M:'RSI 5М перекуплен — возможен откат',
+ OVERBOUGHT_10M:'RSI 10М перекуплен — возможен откат',
+ BELOW_LOWER_BOLLINGER:'ниже Bollinger',
+ ABOVE_UPPER_BOLLINGER:'выше Bollinger',
+ WEAK_1M_VOLUME:'слабый объём',
+ HIGH_1M_VOLATILITY:'высокая волатильность',
+ STRUCTURE_OPPOSING:'структура 5М против',
+ SUPPORT_NEAR_PRICE:'близкая поддержка',
+ RESISTANCE_NEAR_PRICE:'близкое сопротивление',
+ MIXED_OR_INCOMPLETE:'таймфреймы не согласованы',
+ INDICATOR_DATA_UNAVAILABLE:'недостаточно индикаторов'
+};
+function riskLabel(q){
+ if(!q||q.level==='UNAVAILABLE')return '⚪ Нет согласованного прогноза';
+ if(q.level==='STRONG')return '🟣 Сильный (эвристика, не гарантия)';
+ if(q.level==='STANDARD')return '🔵 Обычный';
+ if(q.level==='CAUTION')return '🟡 Повышенный риск: '+
+  (q.reasons||[]).slice(0,2).map(k=>RISK_REASON_LABELS[k]||k).join(', ');
+ return '⚪ Оценка недоступна';
+}
 function showDetail(){
  const d=data.get($('details-symbol').value);
  $('detail-json').textContent=d&&d.available?JSON.stringify({
   symbol:d.symbol,updatedAtBerlin:stamp(d.generatedAt),
   intervals:d.timeframes,marketStructure:d.primaryContext,
+  forecastStrengthAndRisk:d.strengthRisk,
   disclaimer:d.disclaimer
  },null,2):'Нет свежих данных выбранной монеты';
 }
@@ -161,21 +187,22 @@ function render(){
   if(filter!=='ALL'&&filter!==combined)continue;
   const frames=d?.available?d.timeframes:[];
   const m1=frames[0],ctx=d?.primaryContext;
-  const values=[symbol,...[0,1,2].map(i=>frames[i]?label(frames[i].direction):'Нет данных'),
+  const values=[symbol,riskLabel(d?.strengthRisk),
+   ...[0,1,2].map(i=>frames[i]?label(frames[i].direction):'Нет данных'),
    m1?'RSI '+m1.rsi14+' · Vol ×'+m1.relativeVolume:'—',
    m1?'BB '+m1.bollinger20.position+' · '+m1.bollinger20.widthPct+'%':'—',
    ctx?ctx.structure:'—',d?.available?stamp(d.generatedAt):'Ошибка WEEX'];
   const row=document.createElement('tr');
   for(let i=0;i<values.length;i++){
    const cell=document.createElement('td');cell.textContent=values[i];
-   if(i>=1&&i<=3)cell.className=css(frames[i-1]?.direction);
+   if(i>=2&&i<=4)cell.className=css(frames[i-2]?.direction);
    row.appendChild(cell);
   }
   tbody.appendChild(row);
  }
  if(!tbody.children.length){
   const row=document.createElement('tr'),cell=document.createElement('td');
-  cell.colSpan=8;cell.textContent='Нет прогнозов для выбранного фильтра';
+  cell.colSpan=9;cell.textContent='Нет прогнозов для выбранного фильтра';
   row.appendChild(cell);tbody.appendChild(row);
  }
  const selector=$('details-symbol'),old=selector.value;
