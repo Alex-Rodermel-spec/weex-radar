@@ -121,6 +121,9 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
   <div class="tile"><small>Вывод по PAPER</small><strong id="paper-verdict" style="font-size:16px">Мало данных</strong></div>
   <div class="tile"><small>Суммарный тестовый итог, б.п.</small><strong id="total-net">—</strong></div>
   <div class="tile"><small>Доля выигрышей</small><strong id="win-rate">—</strong></div>
+  <div class="tile"><small>LONG · результат</small><strong id="long-stats" style="font-size:17px">—</strong></div>
+  <div class="tile"><small>SHORT · результат</small><strong id="short-stats" style="font-size:17px">—</strong></div>
+  <div class="tile"><small>Сигналы по тренду EMA</small><strong id="aligned-stats" style="font-size:17px">—</strong></div>
   <div class="tile"><small>Ранних WATCH сейчас</small><strong id="watch-count">—</strong></div>
   <div class="tile"><small>Свежих рынков</small><strong id="markets">— / 16</strong></div>
  </div>
@@ -202,6 +205,15 @@ function render(){
  const netSum=resolved.reduce((s,x)=>s+x.netBps,0);
  $('total-net').textContent=resolved.length?fixed(netSum)+' б.п.':'—';
  $('win-rate').textContent=resolved.length?fixed(100*wins.length/resolved.length,1)+'%':'—';
+ const groupText=rows=>{
+  if(!rows.length)return 'Нет завершённых';
+  const positive=rows.filter(t=>t.status==='win').length;
+  const mean=rows.reduce((s,t)=>s+t.netBps,0)/rows.length;
+  return positive+'/'+rows.length+' · '+fixed(mean)+' б.п.';
+ };
+ $('long-stats').textContent=groupText(resolved.filter(t=>t.direction==='LONG'));
+ $('short-stats').textContent=groupText(resolved.filter(t=>t.direction==='SHORT'));
+ $('aligned-stats').textContent=groupText(resolved.filter(t=>t.trendAligned===true));
  $('watch-count').textContent=[...markets.values()].filter(x=>x.ok&&
   x.watch&&x.watch.kind!=='QUIET').length+'/'+[...markets.values()].filter(x=>x.ok).length;
  $('start').disabled=running||trades.length>=MAX_TRADES;
@@ -296,7 +308,12 @@ function accept(symbol,snap){
   trades.push({symbol,strategy:event.strategy,direction:event.direction,
    closedAt:event.closedAt,seenAt:now,detectionLagMs:now-event.closedAt,
    signalClose:event.observedClose,
-   volumeRatio:event.volumeRatio,status:'pending',entry:null,notATrade:true,
+   volumeRatio:event.volumeRatio,
+   signalTrend:event.signalTrend??'UNKNOWN',
+   trendAligned:event.trendAligned===true,
+   signalRsi14:Number.isFinite(event.signalRsi14)?event.signalRsi14:null,
+   signalAtr14Bps:Number.isFinite(event.signalAtr14Bps)?event.signalAtr14Bps:null,
+   status:'pending',entry:null,notATrade:true,
    entryAssumption:'NEXT_1M_OPEN_PROXY_NOT_EXECUTABLE'});
  }
 }
@@ -394,7 +411,8 @@ $('start').onclick=start;$('stop').onclick=stop;
 $('once').onclick=scan;
 $('export').onclick=()=>{
  const cols=['symbol','strategy','direction','closedAt','seenAt','detectionLagMs',
-  'signalClose','volumeRatio','entry','entryAssumption','exit','grossBps','netBps','status'];
+  'signalClose','volumeRatio','signalTrend','trendAligned','signalRsi14',
+  'signalAtr14Bps','entry','entryAssumption','exit','grossBps','netBps','status'];
  const csv=cols.join(',')+'\n'+trades.map(t=>cols.map(k=>
   JSON.stringify(t[k]??'')).join(',')).join('\n');
  const file=new Blob([csv],{type:'text/csv;charset=utf-8'});
