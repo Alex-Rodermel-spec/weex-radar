@@ -89,6 +89,45 @@ test('merge preserves first measurement, adds 15/30m and encrypts whole archive'
  assert.equal(summarizeJournal([],now,[],opened.forecastRows).forecastStudy.archivedForecasts,1);
  assert.deepEqual(decryptJournalArchive(encryptJournal([],env),env).forecastRows,[]);
 });
+
+test('compare 5m manual chart forecast quality: already moved BEFORE alert vs subsequent aligned 5m closes',()=>{
+ const boundary=Math.floor(sentAt/MIN)*MIN;
+ // 16 complete 1m bars preceding the timestamp: decline already in progress.
+ const prior=Array.from({length:16},(_,n)=>{
+  const distance=15-n;
+  const close=distance>5?101-(15-distance)*.08:100.2-(5-distance)*.04;
+  return [boundary-(distance+1)*MIN,close,close+.02,close-.02,close,100];
+ });
+ const bars=normalizeForecastMinutes([...prior,...futureRaw()],now);
+ const result=evaluatePublishedForecast(emitted,bars,now);
+ // SHORT was already down 20bps/99bps in the preceding 5m/15m.
+ assert.ok(result.preMove5mBps>=19&&result.preMove5mBps<=21);
+ assert.ok(result.preMove15mBps>=98&&result.preMove15mBps<=100);
+ assert.equal(result.aligned5m[1].status,'OBSERVED');
+ assert.ok(result.aligned5m[1].moveBps<0);
+ assert.ok(result.aligned5m[2].moveBps>0);
+ assert.ok(result.aligned5m[3].moveBps>0);
+ const report=summarizeForecastArchive([result],now).windows[30].byStrength.STANDARD;
+ assert.equal(report.before15m.already10bpsPct,100);
+ assert.equal(report.alignedFirst5m.favorablePct,0);
+ assert.equal(report.alignedSecond5m.favorablePct,100);
+ assert.equal(report.alignedThird5m.favorablePct,100);
+ const sealed=encryptJournal([],env,[],[result]);
+ const decoded=decryptJournalArchive(sealed,env).forecastRows[0];
+ assert.equal(decoded.preMove15mBps,result.preMove15mBps);
+ assert.equal(decoded.aligned5m[2].moveBps,result.aligned5m[2].moveBps);
+});
+test('missing pre-alert 1m data yields unknown prior momentum, not an invented early forecast',()=>{
+ const result=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),now),now);
+ assert.equal(result.preMove5mBps,null);
+ assert.equal(result.preMove15mBps,null);
+ const outdated=mergeForecastArchive([], [result],now);
+ assert.equal(outdated.rows[0].preMove15mBps,null);
+ assert.equal(outdated.rows[0].aligned5m[2].status,'OBSERVED');
+ const fromTooEarly=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),start+2*MIN),start+2*MIN);
+ assert.equal(fromTooEarly.aligned5m[1].status,'PENDING');
+});
+
 test('collector reads separate private topic plus WEEX public klines only',async()=>{
  const seen=[];
  const fake=async url=>{
