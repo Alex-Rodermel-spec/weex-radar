@@ -20,7 +20,7 @@ function makeHarness(now=Date.UTC(2026,10,10,2,0,2)){
   fetch(){throw Error('Unexpected network in unit test')},
   console
  });
- const code=match[1].replace(/load\(\);render\(\);\s*$/,'')+
+ const code=match[1].replace(/initialize\(\);\s*$/,'').replace(/load\(\);render\(\);\s*$/,'')+
   '\n;globalThis.__paperUnit={settle,accept,stress50Paper,get:()=>trades,set:x=>{trades=x}};';
  new Script(code).runInContext(context);
  return context.__paperUnit;
