@@ -30,7 +30,7 @@ small{font-size:12px}footer{color:#9798ac;font-size:12px;margin:25px 0}
 <a class="back" href="/one-minute-research.html">← Аналитика WEEX RADAR</a>
 <div class="eyebrow">WEEX RADAR V2 · RESEARCH · БЕЗ РЕАЛЬНЫХ ОРДЕРОВ</div>
 <h1>5 прибыльных PAPER-сделок</h1>
-<p class="lead">Проверяем все 16 наших рынков WEEX по закрытым свечам 1М. Фиксируем каждый новый кандидат LONG/SHORT до завершения следующих 5 минут, а затем считаем модельный результат после 22 базисных пунктов расходов. <strong>Убыточные и незавершённые сделки тоже остаются в журнале.</strong></p>
+<p class="lead">Теперь два независимых уровня: <strong>WATCH — ранняя активность возле полос Bollinger и всплески объёма</strong> (не торговый вход), и строгие <strong>PAPER LONG/SHORT</strong>. По всем 16 рынкам WEEX регистрируем новые кандидаты до исхода, оцениваем через 5 минут с 22 б.п. модельных расходов. <strong>Все убыточные и незавершённые тесты тоже сохраняются.</strong></p>
 <section class="panel">
  <h2>Проверка на свежем рынке</h2>
  <div class="grid">
@@ -38,6 +38,9 @@ small{font-size:12px}footer{color:#9798ac;font-size:12px;margin:25px 0}
   <div class="tile"><small>Убыточных тестов</small><strong id="losses">0</strong></div>
   <div class="tile"><small>Ожидают исхода</small><strong id="pending">0</strong></div>
   <div class="tile"><small>Средний результат</small><strong id="average">—</strong></div>
+  <div class="tile"><small>Суммарный тестовый итог, б.п.</small><strong id="total-net">—</strong></div>
+  <div class="tile"><small>Доля выигрышей</small><strong id="win-rate">—</strong></div>
+  <div class="tile"><small>Ранних WATCH сейчас</small><strong id="watch-count">—</strong></div>
   <div class="tile"><small>Свежих рынков</small><strong id="markets">— / 16</strong></div>
  </div>
  <div class="actions">
@@ -46,7 +49,7 @@ small{font-size:12px}footer{color:#9798ac;font-size:12px;margin:25px 0}
   <button id="once" type="button" class="secondary">Проверить сейчас</button>
   <button id="export" type="button" class="secondary">Сохранить журнал CSV</button>
  </div>
- <p id="status" role="status">Наблюдение не запущено. При открытой странице повторная проверка выполняется примерно раз в минуту.</p>
+ <p id="status" role="status">Наблюдение не запущено. При открытой странице повторная проверка выполняется примерно раз в минуту. Ранние WATCH не считаются прибыльными сделками.</p>
  <p class="warn">⚠️ Когда вкладка закрыта или Android ограничивает Chrome, эта страница не может гарантировать минутные проверки. Журнал хранится только в этом браузере и на этом адресе. Нажатия не открывают WEEX сделки и не отправляют push.</p>
 </section>
 <section class="panel">
@@ -58,10 +61,11 @@ small{font-size:12px}footer{color:#9798ac;font-size:12px;margin:25px 0}
  </table></div>
 </section>
 <section class="panel">
- <h2>Состояние 16 рынков</h2>
+ <h2>Состояние 16 рынков · WATCH + готовые свечи</h2>
+ <p class="lead">WATCH — только предварительное наблюдение. Сравнение типичного минутного диапазона с 22 б.п. расходов показывает волатильность, но не предсказывает доход.</p>
  <div class="scroll"><table class="tab">
-  <thead><tr><th>Рынок</th><th>Последняя свеча</th><th>Проверка</th></tr></thead>
-  <tbody id="markets-table"><tr><td colspan="3">Нет последней проверки</td></tr></tbody>
+  <thead><tr><th>Рынок</th><th>Последняя свеча</th><th>Ранний WATCH</th><th>Проверка</th></tr></thead>
+  <tbody id="markets-table"><tr><td colspan="4">Нет последней проверки</td></tr></tbody>
  </table></div>
 </section>
 <footer>🔒 Исследование только на публичных данных WEEX Futures. Нет аккаунтного API, автосделок, реальных ордеров или платных изменений. Требуется независимая проверка стратегии на будущих днях.</footer>
@@ -102,6 +106,11 @@ function render(){
  $('pending').textContent=pending.length;
  $('average').textContent=resolved.length?
   fixed(resolved.reduce((s,x)=>s+x.netBps,0)/resolved.length)+' б.п.':'—';
+ const netSum=resolved.reduce((s,x)=>s+x.netBps,0);
+ $('total-net').textContent=resolved.length?fixed(netSum)+' б.п.':'—';
+ $('win-rate').textContent=resolved.length?fixed(100*wins.length/resolved.length,1)+'%':'—';
+ $('watch-count').textContent=[...markets.values()].filter(x=>x.ok&&
+  x.watch&&x.watch.kind!=='QUIET').length+'/'+[...markets.values()].filter(x=>x.ok).length;
  $('start').disabled=running||wins.length>=5||trades.length>=MAX_TRADES;
  $('stop').disabled=!running;
  const rows=$('trades');rows.replaceChildren();
@@ -123,8 +132,16 @@ function render(){
  const mbody=$('markets-table');mbody.replaceChildren();
  for(const symbol of SYMBOLS){
   const x=markets.get(symbol),tr=document.createElement('tr');
+  const watch=x?.watch;
+  const watchText=!x?.ok?'—':!watch||watch.kind==='QUIET'?
+   'ТИХО · объём ×'+fixed(watch?.relativeVolume,2):
+   watch.kind==='NEAR_BAND'?'👁 WATCH '+watch.direction+
+   ' · объём ×'+fixed(watch.relativeVolume,2):
+   '👁 АКТИВНЫЙ ОБЪЁМ ×'+fixed(watch.relativeVolume,2);
+  const rangeText=x?.ok&&watch?' · диапазон 1М '+fixed(watch.oneMinuteRangeBps,1)+
+   ' б.п. vs расходы 22 б.п.':'';
   for(const v of [symbol,x?.closedAt?asBerlin(x.closedAt):'—',
-   !x?'Не проверено':x.ok?'Свежая WEEX 1М':'Нет свежих данных']){
+   watchText,!x?'Не проверено':x.ok?'Свежая WEEX 1М'+rangeText:'Нет свежих данных']){
    let td=document.createElement('td');td.textContent=v;tr.append(td);
   }
   mbody.append(tr);
@@ -187,6 +204,8 @@ async function fetchOne(symbol){
   if(!response.ok||d.mode!=='PAPER_1M_WEEX_ONLY'||d.symbol!==symbol||
    d.exchange!=='WEEX'||d.notATrade!==true||d.ordersSent!==0||
    !Array.isArray(d.bars)||!Array.isArray(d.recent)||
+   !d.marketWatch||d.marketWatch.notATrade!==true||
+   !['QUIET','NEAR_BAND','VOLUME_ACTIVITY'].includes(d.marketWatch.kind)||
    d.generatedAt-d.closedAt<1000||d.generatedAt-d.closedAt>90000)
    throw Error('INVALID_OR_STALE_WEEX_PAPER_RESPONSE');
   // Check the whole included series has no missing minute or future candle.
@@ -196,7 +215,7 @@ async function fetchOne(symbol){
   settle(symbol,d.bars,d.closedAt);
   // Paper registration is only allowed for a recent completed minute.
   if(running)accept(symbol,d);
-  markets.set(symbol,{ok:true,closedAt:d.closedAt});
+  markets.set(symbol,{ok:true,closedAt:d.closedAt,watch:d.marketWatch});
  }catch(e){markets.set(symbol,{ok:false,reason:String(e.message||e)})}
 }
 async function scan(){
@@ -208,11 +227,13 @@ async function scan(){
    await Promise.all(SYMBOLS.slice(i,i+4).map(fetchOne));
   store();render();
   const ok=[...markets.values()].filter(x=>x.ok).length;
+  const watching=[...markets.values()].filter(x=>x.ok&&x.watch&&
+   x.watch.kind!=='QUIET').length;
   $('markets').textContent=ok+' / 16';
   const w=trades.filter(t=>t.status==='win').length,
    l=trades.filter(t=>t.status==='loss').length;
   $('status').textContent='Последняя проверка '+asBerlin(Date.now())+
-   ' · WEEX '+ok+'/16 · прибыльных '+w+', убыточных '+l+
+   ' · WEEX '+ok+'/16 · WATCH '+watching+' · прибыльных '+w+', убыточных '+l+
    '. '+(running?'Следующий запрос примерно через минуту.':'Наблюдение остановлено.');
   if(w>=5&&trades.every(t=>t.status!=='pending'))stop();
  }finally{checking=false}
