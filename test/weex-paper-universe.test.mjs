@@ -83,7 +83,8 @@ test('browser PAPER page validates 66 markets before starting expanded scans',()
  assert.match(html,/universe=1/);
  assert.match(html,/extraMarkets\.length!==50/);
  assert.match(html,/d\.markets\.length!==66/);
- assert.match(html,/CONCURRENCY=16/);
+ assert.match(html,/BATCH_SIZE=6,CONCURRENCY=3/);
+ assert.match(html,/PAPER_1M_WEEX_BATCH/);
  assert.match(html,/WEEX_66_MARKETS_NOT_VERIFIED/);
  assert.match(html,/async function initialize/);
  assert.match(html,/id="universe-status"/);
