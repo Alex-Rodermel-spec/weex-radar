@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
-import {buildPaperMinuteSnapshot,handlePaperMinuteWatch} from '../lib/paper-minute-watch.mjs';
+import {buildPaperMinuteSnapshot,handlePaperMinuteWatch,candidateBookQuote} from '../lib/paper-minute-watch.mjs';
 const MINUTE=60000;
 function fakeRows(now,count=100){
  const closed=Math.floor((now-3000)/MINUTE)*MINUTE;
@@ -74,6 +74,7 @@ test('public WEEX 1m paper endpoint needs valid symbol and no trading auth',asyn
   assert.equal(res.result.symbol,'XRPUSDT');
   assert.equal(res.result.ordersSent,0);
   assert.equal(res.result.tradeReady,false);
+  assert.equal(res.result.quoteRequiredForNewPaper,true);
   assert.equal(res.headers['Cache-Control'],'no-store');
   assert.equal(seen.length,1);
   const url=new URL(seen[0].url);
@@ -113,4 +114,33 @@ test('no live order, trade API, account or webhook references in paper data hand
  for(const re of [/process\.env/,/placeOrder/,/trade-confirm/,/trade-prepare/,
   /ntfySend/,/cron-key/,/x-radar-cron-key/,/Authorization:/i])
   assert.doesNotMatch(src,re);
+});
+
+test('public WEEX bookTicker validates a fresh bid/ask and rejects stale or wide spreads',async()=>{
+ const now=Date.UTC(2026,10,10,5,15,12),close=now-9000;
+ const old=globalThis.fetch,seen=[];
+ const reply=(time,bid='100.00',ask='100.08')=>({
+  ok:true,headers:{get:()=>null},
+  text:async()=>JSON.stringify([{symbol:'XRPUSDT',bidPrice:bid,
+   askPrice:ask,time:String(time)}])
+ });
+ globalThis.fetch=async(url,options)=>{
+  seen.push({url,options});
+  return reply(now-1000);
+ };
+ try{
+  const q=await candidateBookQuote('XRPUSDT',close,now);
+  assert.equal(q.source,'WEEX_PUBLIC_BOOKTICKER');
+  assert.equal(q.bid,100);
+  assert.equal(q.ask,100.08);
+  assert.equal(q.notATrade,true);
+  assert.ok(q.spreadBps>0);
+  assert.equal(seen.length,1);
+  assert.match(seen[0].url,/market\/ticker\/bookTicker\?symbol=XRPUSDT/);
+  assert.equal(seen[0].options.cache,'no-store');
+  globalThis.fetch=async()=>reply(close-1000);
+  await assert.rejects(candidateBookQuote('XRPUSDT',close,now),/STALE_OR_INVALID/);
+  globalThis.fetch=async()=>reply(now-1000,'100','102');
+  await assert.rejects(candidateBookQuote('XRPUSDT',close,now),/STALE_OR_INVALID/);
+ }finally{globalThis.fetch=old}
 });
