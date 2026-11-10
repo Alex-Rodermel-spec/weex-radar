@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0e1120">
+<title>WEEX RADAR · Прогнозист 1М / 5М / 10М</title>
+<style>
+:root{color-scheme:dark;font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;--bg:#0a1020;--panel:#131d2e;--line:#2b3852;--muted:#a0b0c8;--green:#71e5bc;--red:#ffa2b3;--purple:#ba9fff}
+*{box-sizing:border-box}body{margin:0;color:#f2f5ff;background:radial-gradient(ellipse at 75% -10%,#4d327b75,transparent 50%),radial-gradient(ellipse at 0% 30%,#1355606b,transparent 40%),var(--bg);padding:14px 16px 60px}main{max-width:1150px;margin:auto}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:14px 0 20px;border-bottom:1px solid var(--line)}
+.brand{font-weight:900;letter-spacing:.09em}.brand span{color:var(--purple)}nav{display:flex;gap:16px;flex-wrap:wrap}a{color:#c9beff;text-decoration:none;font-weight:700}a:hover{text-decoration:underline}
+h1{font-size:clamp(34px,5.2vw,60px);line-height:1.07;letter-spacing:-.05em;margin:25px 0 10px}
+h1 span{color:#b5a4ff}.lead{max-width:870px;color:var(--muted);line-height:1.75}
+.panel{border:1px solid var(--line);border-radius:19px;background:linear-gradient(145deg,#1a2540e0,#0f1c2bec);margin:20px 0;padding:20px;box-shadow:0 14px 45px #04081170}
+.heading{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:15px}h2{font-size:19px;margin:0}
+.pill{font-size:11px;border:1px solid #6f6394;border-radius:99px;padding:5px 10px;color:#d0c0ff;white-space:nowrap}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button,select{font:inherit;padding:10px 15px;border-radius:11px;background:#202e46;color:#f2f5ff;border:1px solid #65739d}
+button{cursor:pointer;font-weight:800}button.primary{background:linear-gradient(125deg,#8e6bee,#6950bc);border-color:#8c80c9}
+button:disabled{opacity:.5;cursor:default}button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
+.kpi{background:#17233a;border:1px solid #344761;border-radius:13px;padding:14px}.kpi small{display:block;color:var(--muted)}.kpi strong{font-size:26px;letter-spacing:-.03em}
+.status{font-size:13px;color:#bdd0e6;background:#102038;border:1px solid #354966;border-radius:12px;padding:12px;margin:12px 0}
+.scroll{overflow:auto;border-radius:14px;border:1px solid var(--line)}table{width:100%;min-width:800px;border-collapse:collapse;font-size:12px}th{text-align:left;background:#202741;color:#b9cae4;padding:12px 10px}td{text-align:left;padding:13px 10px;border-top:1px solid #303e56;vertical-align:top}tbody tr:hover{background:#25325280}td:first-child{font-weight:850;white-space:nowrap}
+.long{color:var(--green);font-weight:850}.short{color:var(--red);font-weight:850}.mixed{color:#c2cce0;font-weight:650}
+.legend{color:#a1adc4;font-size:12px;margin-top:12px}
+details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 ui-monospace,SFMono-Regular,monospace;color:#9fe8cb}
+@media(max-width:680px){body{padding:10px 12px 40px}.panel{padding:13px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi{padding:11px}.kpi strong{font-size:22px}nav{gap:9px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto;animation:none!important;transition:none!important}}
+</style>
+</head>
+<body><main>
+<header>
+ <div class="brand">◈ WEEX <span>RADAR</span> · <span>ПРОГНОЗИСТ</span></div>
+ <nav aria-label="Разделы">
+  <a href="/">LONG / SHORT</a>
+  <a href="/health.html">Диагностика</a>
+  <a href="/paper-five.html">PAPER ×50</a>
+ </nav>
+</header>
+<h1>Прогнозы отдельно.<br><span>Входы отдельно.</span></h1>
+<p class="lead">Самостоятельный прогнозный монитор на <strong>1М, 5М и 10М</strong>. Использует закрытые свечи WEEX, EMA20/50, RSI14, Bollinger20/2, объём, ATR и видимые уровни структуры. Это гипотезы направления, <strong>не разрешение открывать сделку</strong>. LONG/SHORT торгового радара остаются полностью независимыми.</p>
+<section class="panel">
+ <div class="heading"><h2>Прогнозный монитор · 16 монет</h2><span class="pill">WEEX PUBLIC · READ-ONLY</span></div>
+ <div class="actions">
+  <button class="primary" id="refresh" type="button">↻ Обновить прогнозы</button>
+  <button id="toggle" type="button" aria-pressed="false">▶ Автообновление 3 минуты</button>
+  <label for="filter">Направление</label>
+  <select id="filter" aria-label="Фильтр прогноза">
+   <option value="ALL">Все</option><option value="LONG_BIAS">LONG-прогноз</option>
+   <option value="SHORT_BIAS">SHORT-прогноз</option><option value="MIXED">Несогласованные</option>
+  </select>
+ </div>
+ <div class="kpis">
+  <div class="kpi"><small>Данные получены</small><strong id="seen">0/16</strong></div>
+  <div class="kpi"><small>Совпадение 1/5/10 · LONG</small><strong class="long" id="long">0</strong></div>
+  <div class="kpi"><small>Совпадение 1/5/10 · SHORT</small><strong class="short" id="short">0</strong></div>
+  <div class="kpi"><small>Нейтрально / нет данных</small><strong id="mixed">16</strong></div>
+ </div>
+ <div class="status" role="status" id="status">Запусти проверку. Прогнозы не отправляют торговые уведомления и не открывают ордера.</div>
+ <div class="scroll"><table>
+  <thead><tr><th>Пара</th><th>1М</th><th>5М</th><th>10М</th><th>RSI · объём 1М</th><th>Bollinger</th><th>Структура 5М</th><th>Обновлено</th></tr></thead>
+  <tbody id="rows"><tr><td colspan="8">Нет проверки</td></tr></tbody>
+ </table></div>
+ <p class="legend">«LONG-прогноз» и «SHORT-прогноз» описывают согласованность индикаторов, не вероятность успеха. Нет сигнала входа, TP/SL, маржи, плеча или автоторговли. Будущие свечи не используются.</p>
+</section>
+<section class="panel">
+ <div class="heading"><h2>Диагностика прогнозиста</h2><span class="pill">ОТДЕЛЬНО ОТ LONG / SHORT</span></div>
+ <p class="lead">В каждом прогнозе учитываются EMA20/50, RSI14, Bollinger Bands, относительный объём, ATR, изменение максимумов и минимумов, возможные уровни ликвидности и свечные прокси Order Blocks. Реальные заявки или стопы других трейдеров по одним свечам определить нельзя.</p>
+ <details><summary>Показать данные выбранной монеты</summary>
+  <label for="details-symbol">Монета</label>
+  <select id="details-symbol"><option value="">Сначала обнови прогнозы</option></select>
+  <pre id="detail-json">Диагностика ещё не загружена.</pre>
+ </details>
+</section>
+<footer class="legend">Прогнозист WEEX RADAR · 1/5/10М · отдельный исследовательский модуль. Уведомления торгового радара остаются только подтверждёнными LONG/SHORT; прогнозист не пишет в ntfy.</footer>
+</main>
+<script>
+'use strict';
+const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT',
+ '1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT',
+ 'HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
+const $=id=>document.getElementById(id);
+const data=new Map();
+let checking=false,running=false,timer=null;
+const stamp=t=>new Date(t).toLocaleTimeString('ru-RU',{
+ timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+function label(x){
+ return x==='LONG_BIAS'?'↗ LONG-прогноз':x==='SHORT_BIAS'?'↘ SHORT-прогноз':'— нейтрально';
+}
+function css(x){return x==='LONG_BIAS'?'long':x==='SHORT_BIAS'?'short':'mixed'}
+function showDetail(){
+ const d=data.get($('details-symbol').value);
+ $('detail-json').textContent=d&&d.available?JSON.stringify({
+  symbol:d.symbol,updatedAtBerlin:stamp(d.generatedAt),
+  intervals:d.timeframes,marketStructure:d.primaryContext,
+  disclaimer:d.disclaimer
+ },null,2):'Нет свежих данных выбранной монеты';
+}
+function render(){
+ const results=[...data.values()].filter(x=>x?.available===true);
+ const long=results.filter(x=>x.combinedDirection==='LONG_BIAS').length;
+ const short=results.filter(x=>x.combinedDirection==='SHORT_BIAS').length;
+ $('seen').textContent=results.length+'/'+SYMBOLS.length;
+ $('long').textContent=long;$('short').textContent=short;
+ $('mixed').textContent=SYMBOLS.length-long-short;
+ const tbody=$('rows');tbody.replaceChildren();
+ for(const symbol of SYMBOLS){
+  const d=data.get(symbol),combined=d?.available?d.combinedDirection:'MIXED';
+  const filter=$('filter').value;
+  if(filter!=='ALL'&&filter!==combined)continue;
+  const frames=d?.available?d.timeframes:[];
+  const m1=frames[0],ctx=d?.primaryContext;
+  const values=[symbol,...[0,1,2].map(i=>frames[i]?label(frames[i].direction):'Нет данных'),
+   m1?'RSI '+m1.rsi14+' · Vol ×'+m1.relativeVolume:'—',
+   m1?'BB '+m1.bollinger20.position+' · '+m1.bollinger20.widthPct+'%':'—',
+   ctx?ctx.structure:'—',d?.available?stamp(d.generatedAt):'Ошибка WEEX'];
+  const row=document.createElement('tr');
+  for(let i=0;i<values.length;i++){
+   const cell=document.createElement('td');cell.textContent=values[i];
+   if(i>=1&&i<=3)cell.className=css(frames[i-1]?.direction);
+   row.appendChild(cell);
+  }
+  tbody.appendChild(row);
+ }
+ if(!tbody.children.length){
+  const row=document.createElement('tr'),cell=document.createElement('td');
+  cell.colSpan=8;cell.textContent='Нет прогнозов для выбранного фильтра';
+  row.appendChild(cell);tbody.appendChild(row);
+ }
+ const selector=$('details-symbol'),old=selector.value;
+ selector.replaceChildren();
+ for(const symbol of SYMBOLS){const opt=document.createElement('option');
+  opt.value=symbol;opt.textContent=symbol;selector.appendChild(opt)}
+ selector.value=SYMBOLS.includes(old)?old:SYMBOLS[0];
+ showDetail();
+}
+async function fetchOne(symbol){
+ const ctl=new AbortController(),kill=setTimeout(()=>ctl.abort(),13000);
+ try{
+  const response=await fetch('/api/signals?mode=forecast&symbol='+encodeURIComponent(symbol),
+   {cache:'no-store',signal:ctl.signal});
+  const d=await response.json();
+  if(!response.ok||d.symbol!==symbol||d.exchange!=='WEEX'||
+   d.mode!=='STANDALONE_WEEX_FORECAST_1_5_10'||!d.available||
+   d.notTrade!==true||d.ordersSent!==0||d.signalPermission!==false||
+   !Array.isArray(d.timeframes)||d.timeframes.map(x=>x.intervalMinutes).join(',')!=='1,5,10')
+   throw Error('INVALID_FORECAST_RESPONSE');
+  data.set(symbol,d);
+ }catch{data.set(symbol,{available:false,symbol})}
+ finally{clearTimeout(kill)}
+}
+async function refresh(){
+ if(checking)return;
+ checking=true;$('refresh').disabled=true;
+ const started=Date.now();
+ $('status').textContent='Читаю закрытые 1М / 5М свечи WEEX для 16 монет...';
+ try{
+  let cursor=0;
+  async function worker(){
+   while(cursor<SYMBOLS.length){const symbol=SYMBOLS[cursor++];await fetchOne(symbol)}
+  }
+  await Promise.all(Array.from({length:4},()=>worker()));
+  render();
+  const ok=[...data.values()].filter(x=>x.available).length;
+  $('status').textContent='Прогноз обновлён '+stamp(Date.now())+
+   ' · данные '+ok+'/16 · '+((Date.now()-started)/1000).toFixed(1)+' сек. '+
+   'LONG/SHORT сигналы от этого экрана не зависят.';
+ }finally{checking=false;$('refresh').disabled=false}
+}
+function schedule(){
+ if(timer)clearTimeout(timer);
+ if(!running||document.visibilityState==='hidden')return;
+ timer=setTimeout(async()=>{timer=null;await refresh();schedule()},180000);
+}
+$('refresh').onclick=refresh;
+$('filter').onchange=render;
+$('details-symbol').onchange=showDetail;
+$('toggle').onclick=()=>{
+ running=!running;
+ $('toggle').textContent=running?'■ Остановить автообновление':'▶ Автообновление 3 минуты';
+ $('toggle').setAttribute('aria-pressed',String(running));
+ if(running){refresh();schedule()}
+ else if(timer){clearTimeout(timer);timer=null}
+};
+document.addEventListener('visibilitychange',()=>{
+ if(document.visibilityState==='hidden'){
+  if(timer){clearTimeout(timer);timer=null}
+ }else if(running){refresh();schedule()}
+});
+refresh();
+</script></body></html>
