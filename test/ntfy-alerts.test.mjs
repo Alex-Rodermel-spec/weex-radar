@@ -25,6 +25,22 @@ test('only unexpired signals can enter optional ntfy delivery',()=>{
  assert.equal(checks.fresh({...good,expiresAt:now-1}),false);
  assert.equal(checks.fresh({...good,direction:'WAIT'}),false);
 });
+test('phone only receives PRE_BREAK forecasts or confirmed manual REVIEW entries',()=>{
+ const now=Date.now();
+ const common={symbol:'XRPUSDT',direction:'SHORT',exchange:'WEEX',
+  level:'EARLY_WATCH',candleCloseTime:now-10000,expiresAt:now+70000};
+ const forecast={...common,watchType:'PRE_BREAK',
+  forecast:{mode:'PRE_BREAK_SCENARIO'}};
+ assert.equal(checks.eligiblePhoneSignal({...common,watchType:'BREAKOUT'},'early'),false);
+ assert.equal(checks.eligiblePhoneSignal(common,'early'),false);
+ assert.equal(checks.eligiblePhoneSignal(forecast,'early'),true);
+ assert.equal(checks.eligiblePhoneSignal({...forecast,forecast:null},'early'),false);
+ const confirmed={...common,level:'STRONG',advisor:{status:'REVIEW'},
+  entryQuality:{ok:true},costReview:{status:'PASS_ESTIMATE'}};
+ assert.equal(checks.eligiblePhoneSignal(confirmed,'confirmed'),true);
+ assert.equal(checks.eligiblePhoneSignal({...confirmed,advisor:{status:'WAIT'}},'confirmed'),false);
+});
+
 test('ntfy never touches trading/order endpoints',()=>{
  assert.doesNotMatch(ntfy,/\/trade-confirm|\/trade-prepare|\/capi\/v3\/order/);
  assert.match(ntfy,/https:\/\/ntfy\.sh\//);
