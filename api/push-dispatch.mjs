@@ -5,6 +5,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {jwtVerify,createRemoteJWKSet} from 'jose';
 import {_test as marketSafety} from './signals.mjs';
 import {observeEarlyPush} from '../lib/early-push.mjs';
+import {runForecastNotifications} from '../lib/forecast-ntfy.mjs';
 import {ntfySend} from '../lib/ntfy-alerts.mjs';
 import {adviseSymbol} from '../lib/advisor.mjs';
 import {filterPhoneCandidates,PHONE_POLICY} from '../lib/directional-notification-policy.mjs';
@@ -153,10 +154,23 @@ export default async function handler(req,res){
    return {enabled:false,delivered:0,failed:1,duplicates:0};
   }):Promise.resolve({enabled:Boolean(process.env.NTFY_TOPIC),delivered:0,failed:0,duplicates:0});
   const [early,ntfy]=await Promise.all([earlyPromise,ntfyPromise]);
+  // Separate forecast channel is strictly observational and optional.
+  // It runs only in the first two minutes of each 10-minute window and
+  // NEVER blocks confirmed LONG/SHORT delivery or alters order permissions.
+  let independentForecast={mode:'SEPARATE_NTFY_FORECAST_1_5_10',
+   configured:false,delivered:0,failed:0,ordersSent:0};
+  try{
+   independentForecast=await runForecastNotifications();
+   console.info('WEEX_RADAR_FORECAST_DISPATCH '+JSON.stringify(independentForecast));
+  }catch(e){
+   console.warn('WEEX_RADAR_FORECAST_DISPATCH_FAILED '+
+    String(e.message||e).slice(0,95));
+   independentForecast.failed=1;
+  }
   return reply(res,source,200,{
    ok:true,deliveryMode:'ntfy-only',signals:signals.length,
    delivered:ntfy.delivered,failed:ntfy.failed,duplicates:ntfy.duplicates,
-   early,ntfy,forecastFollowup,directionalDiagnostics,
+   early,ntfy,forecastFollowup,independentForecast,directionalDiagnostics,
    notificationPolicy:PHONE_POLICY.mode,
    telegram:{enabled:false},chrome:{enabled:false}
   },healthMarkets);

@@ -142,7 +142,7 @@ test('forecast follow-up cannot write orders, loosen filters, modify journal or 
  const ntfy=readFileSync(new URL('../lib/ntfy-alerts.mjs',import.meta.url),'utf8');
  assert.doesNotMatch(dispatch,/followupSentForecasts\(/);
  assert.match(dispatch,/reason:'LONG_SHORT_ONLY_PHONE_POLICY'/);
- assert.match(dispatch,/forecastFollowup,directionalDiagnostics/);
+ assert.match(dispatch,/forecastFollowup,independentForecast,directionalDiagnostics/);
  assert.match(dispatch,/ntfySend\('confirmed',signals\)/);
  assert.match(dispatch,/const earlyPromise=safeEarlyPush\(\)/);
  assert.match(dispatch,/const early=await observeEarlyPush\(\)/);

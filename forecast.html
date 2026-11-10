@@ -25,6 +25,8 @@ button:disabled{opacity:.5;cursor:default}button:focus-visible,select:focus-visi
 .scroll{overflow:auto;border-radius:14px;border:1px solid var(--line)}table{width:100%;min-width:800px;border-collapse:collapse;font-size:12px}th{text-align:left;background:#202741;color:#b9cae4;padding:12px 10px}td{text-align:left;padding:13px 10px;border-top:1px solid #303e56;vertical-align:top}tbody tr:hover{background:#25325280}td:first-child{font-weight:850;white-space:nowrap}
 .long{color:var(--green);font-weight:850}.short{color:var(--red);font-weight:850}.mixed{color:#c2cce0;font-weight:650}
 .legend{color:#a1adc4;font-size:12px;margin-top:12px}
+.topic-field{width:100%;max-width:430px;background:#0c1729;color:#fff;border:1px solid #6984ae;border-radius:11px;padding:11px;font:inherit;margin-top:10px}
+.topic-secret{word-break:break-all;font:12px/1.5 ui-monospace,monospace;color:#a4e9cc;background:#0b1d2c;padding:10px;border-radius:9px;margin-top:9px}
 details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 ui-monospace,SFMono-Regular,monospace;color:#9fe8cb}
 @media(max-width:680px){body{padding:10px 12px 40px}.panel{padding:13px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi{padding:11px}.kpi strong{font-size:22px}nav{gap:9px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto;animation:none!important;transition:none!important}}
@@ -41,6 +43,20 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
 </header>
 <h1>Прогнозы отдельно.<br><span>Входы отдельно.</span></h1>
 <p class="lead">Самостоятельный прогнозный монитор на <strong>1М, 5М и 10М</strong>. Использует закрытые свечи WEEX, EMA20/50, RSI14, Bollinger20/2, объём, ATR и видимые уровни структуры. Это гипотезы направления, <strong>не разрешение открывать сделку</strong>. LONG/SHORT торгового радара остаются полностью независимыми.</p>
+<section class="panel" aria-label="Отдельные уведомления прогнозов">
+ <div class="heading"><h2>🔔 Уведомления прогнозиста на телефон</h2><span class="pill">ОТДЕЛЬНЫЙ NTFY-КАНАЛ</span></div>
+ <p class="lead">Прогнозист отправляет только отдельные <b>🔮 ПРОГНОЗ LONG / SHORT</b> по согласованности 1М / 5М / 10М — не чаще двух за десятиминутное окно. Торговые <b>LONG / SHORT</b> останутся в прежнем канале и не изменятся. Прогноз <b>не является входом</b>.</p>
+ <p class="lead">Подписаться можно по одноразовому сообщению «🔮 ПОДКЛЮЧИТЬ ПРОГНОЗЫ» в твоём существующем ntfy. Если сообщение пропущено, вставь <b>текущую тему ntfy</b> из приложения ниже. Она обрабатывается только в твоём браузере и никуда с этой страницы не передаётся.</p>
+ <label for="base-topic">Твоя существующая тема торгового ntfy</label>
+ <input class="topic-field" id="base-topic" type="password" autocomplete="off" spellcheck="false" placeholder="wr-••••••••••••••••••••••••••••••••">
+ <div class="actions" style="margin-top:12px">
+  <button id="subscribe-forecast" type="button" class="primary">🔮 Открыть подписку в ntfy</button>
+  <button id="copy-forecast-topic" type="button" disabled>📋 Скопировать тему прогнозов</button>
+ </div>
+ <div class="status" id="subscribe-status" role="status">Подписка на отдельный канал прогнозов пока не подтверждена на телефоне.</div>
+ <div id="derived-topic" class="topic-secret" hidden></div>
+ <p class="legend">Не отправляй свою тему ntfy другим людям и не присылай её в чат. Доставка зависит от ntfy и разрешений Android.</p>
+</section>
 <section class="panel">
  <div class="heading"><h2>Прогнозный монитор · 16 монет</h2><span class="pill">WEEX PUBLIC · READ-ONLY</span></div>
  <div class="actions">
@@ -86,6 +102,39 @@ const data=new Map();
 let checking=false,running=false,timer=null;
 const stamp=t=>new Date(t).toLocaleTimeString('ru-RU',{
  timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+// Derive the SAME secret forecast topic as the server, locally using the
+// owner's existing 128-bit trading topic. Never send that topic to this site.
+let derivedForecastTopic=null;
+async function deriveForecastTopic(){
+ const original=$('base-topic').value.trim();
+ if(!/^[A-Za-z0-9_-]{16,64}$/.test(original))
+  throw Error('Вставь существующую тему ntfy из приложения.');
+ const encoder=new TextEncoder();
+ const key=await crypto.subtle.importKey('raw',encoder.encode(original),
+  {name:'HMAC',hash:'SHA-256'},false,['sign']);
+ const bytes=new Uint8Array(await crypto.subtle.sign('HMAC',key,
+  encoder.encode('weex-radar-forecast-topic-v1')));
+ const hex=Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');
+ derivedForecastTopic='wr-'+hex.slice(0,32);
+ $('derived-topic').hidden=false;
+ $('derived-topic').textContent='ТЕМА ПРОГНОЗОВ: '+derivedForecastTopic;
+ $('copy-forecast-topic').disabled=false;
+ $('base-topic').value='';
+ return derivedForecastTopic;
+}
+$('subscribe-forecast').onclick=async()=>{
+ try{
+  const topic=await deriveForecastTopic();
+  $('subscribe-status').textContent='Открываю ntfy. Подтверди новую подписку «WEEX Forecast»; торговая тема останется прежней.';
+  window.location.href='ntfy://ntfy.sh/'+topic+'?display=WEEX+Forecast';
+ }catch(e){$('subscribe-status').textContent=String(e.message||e)}
+};
+$('copy-forecast-topic').onclick=async()=>{
+ if(!derivedForecastTopic)return;
+ try{await navigator.clipboard.writeText(derivedForecastTopic);
+  $('subscribe-status').textContent='Тема прогнозов скопирована. В ntfy нажми «+» и добавь её как новую подписку.';
+ }catch{$('subscribe-status').textContent='Скопируй тему из зелёной строки и добавь в ntfy вручную.'}
+};
 function label(x){
  return x==='LONG_BIAS'?'↗ LONG-прогноз':x==='SHORT_BIAS'?'↘ SHORT-прогноз':'— нейтрально';
 }
