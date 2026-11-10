@@ -29,6 +29,9 @@ test('paper snapshot returns closed contiguous historical candles, never an orde
  assert.equal(snap.tradeReady,false);
  assert.equal(snap.bars.length,100);
  assert.equal(snap.bars.at(-1).time,snap.closedAt-MINUTE);
+ assert.ok(snap.bars.every(b=>Number.isFinite(b.high)&&Number.isFinite(b.low)&&
+  b.high>=b.close&&b.low<=b.close&&b.high>=b.low));
+ assert.equal(snap.tradeReady,false);
  assert.ok(snap.generatedAt>snap.closedAt);
  assert.equal(snap.assumedRoundTripCostsBps,22);
  assert.equal(snap.marketWatch.notATrade,true);
@@ -98,6 +101,11 @@ test('paper page compiles and contains win/loss and five-minute future settlemen
  assert.match(page,/AFTER_CLOSE_MS=4500/);
  assert.match(page,/MAX_DETECTION_MS=25000/);
  assert.match(page,/MAX_RESPONSE_AGE_MS=12000/);
+ assert.match(page,/PAPER_LEVERAGE=50/);
+ assert.match(page,/PAPER_STRESS_BPS=150/);
+ assert.match(page,/PAPER_50X_STRESS_V1/);
+ assert.match(page,/id="risk-touches-50"/);
+ assert.match(page,/id="margin-roi-50"/);
  assert.doesNotMatch(page,/setInterval\(/);
  assert.match(page,/notATrade/);
  assert.match(page,/id="watch-count"/);
