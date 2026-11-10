@@ -4,35 +4,115 @@
 <meta name="theme-color" content="#0c0b17"><meta name="referrer" content="no-referrer">
 <title>WEEX RADAR · 5 прибыльных PAPER-тестов</title>
 <style>
-:root{color-scheme:dark;font:15px/1.5 system-ui,-apple-system,Arial,sans-serif}
-*{box-sizing:border-box}body{margin:0;background:#0b0c17;color:#f5f0ff;padding:20px 12px 60px}
-main{max-width:1000px;margin:0 auto}.back{color:#d0b4ff;text-decoration:none}
-h1{font-size:clamp(27px,5vw,41px);line-height:1.15;margin:22px 0 10px}
-h2{font-size:20px;margin:18px 0 9px}.eyebrow{color:#cda3ff;font-weight:900;font-size:11px;letter-spacing:.12em}
-.lead{color:#b6bad0;max-width:760px}.panel{padding:18px;border:1px solid #403452;background:linear-gradient(145deg,#1f1930,#141524);border-radius:18px;margin:18px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
-.tile{border:1px solid #3c3651;background:#151625;padding:14px;border-radius:13px}
-.tile small{color:#a4a9c3;display:block}.tile strong{font-size:27px;font-weight:900;display:block}
-button{border:0;border-radius:12px;background:#8552d2;color:white;font:inherit;font-weight:800;padding:13px 19px;cursor:pointer}
-button.secondary{border:1px solid #685f80;background:transparent}
-button:disabled{opacity:.45;cursor:default}
-.actions{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}
-#status{color:#c8c9df;min-height:44px}.warn{color:#ffbd9d}.ok{color:#a9edc6}
-.tab{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
-.tab th,.tab td{border-bottom:1px solid #39334b;padding:10px 7px;text-align:left}
-.tab th{color:#c2a8e4;font-weight:800}
-.scroll{overflow-x:auto}.pill{border:1px solid #68617f;border-radius:20px;padding:3px 9px;display:inline-block;white-space:nowrap}
-.pending{color:#ffdca1}.win{color:#94ecb7}.loss{color:#ffadad}
-small{font-size:12px}footer{color:#9798ac;font-size:12px;margin:25px 0}
-@media(max-width:600px){.panel{padding:13px}.tile strong{font-size:24px}}
+:root{
+ color-scheme:dark;--bg:#090c16;--surface:#111727;--surface-2:#171e31;
+ --text:#f4f5fc;--muted:#9da8c0;--line:#28334c;--purple:#8a6bff;
+ --aqua:#45dfbd;--danger:#ff8297;--amber:#ffc977;
+ font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+}
+*,*:before,*:after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+ margin:0;min-height:100vh;color:var(--text);
+ background:radial-gradient(ellipse 65% 42% at 85% -12%,#33255b80,transparent 75%),
+ radial-gradient(ellipse 50% 34% at 1% 15%,#0d4a5170,transparent 78%),var(--bg);
+ padding:14px 16px 72px;
+}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.24;
+ background-image:linear-gradient(#5a64800b 1px,transparent 1px),linear-gradient(90deg,#5a64800b 1px,transparent 1px);
+ background-size:42px 42px}
+main{max-width:1160px;margin:auto;position:relative}
+a{color:#c3b3ff;text-decoration:none}a:hover{text-decoration:underline}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0 20px;border-bottom:1px solid #48547355}
+.brand{display:flex;align-items:center;gap:11px;font-size:15px;font-weight:900;letter-spacing:.12em;color:#fff}
+.brandmark{width:37px;height:37px;border:1px solid #8b6dff80;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#332568,#172340);box-shadow:0 0 28px #8955fe33;font-size:20px}
+.topright{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.topchip{border:1px solid #59648055;color:#b6c2d9;padding:5px 10px;border-radius:100px;font-size:11px;font-weight:800;letter-spacing:.05em;background:#151b2bab}
+.topchip.accent{color:#b0f0dc;border-color:#278f754d;background:#13564626}
+.hero{padding:43px 0 26px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);gap:25px;align-items:center}
+.eyebrow{color:#b3a3ff;font-weight:900;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+h1{font-size:clamp(36px,5.8vw,65px);line-height:1.02;letter-spacing:-.055em;margin:13px 0 17px;font-weight:850}
+h1 span{background:linear-gradient(90deg,#fff,#a3ecf2 54%,#a99aff);background-clip:text;-webkit-background-clip:text;color:transparent}
+h2{font-size:19px;letter-spacing:-.025em;margin:0;font-weight:800}
+p{margin:12px 0}
+.lead{color:var(--muted);max-width:820px;font-size:14px;line-height:1.7}
+.lead strong{color:#e0e4f6}
+.hero-meta{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
+.hero-highlight{border:1px solid #7583b94a;background:linear-gradient(152deg,#33205b77,#121e36ee 80%);border-radius:23px;padding:22px;box-shadow:0 20px 70px #07091075;overflow:hidden;position:relative}
+.hero-highlight:after{content:"◌";font-size:140px;color:#806bff13;position:absolute;right:-5px;top:-58px}
+.hero-highlight small{color:#adb7cc;font-weight:700}
+.hero-highlight .big{font-size:54px;font-weight:900;line-height:1;letter-spacing:-.07em;margin:8px 0}
+.hero-highlight .big span{color:var(--aqua)}
+.hero-highlight .sub{color:#b9c6df;font-size:12px}
+.progress{height:7px;border-radius:8px;background:#354056;overflow:hidden;margin:18px 0 9px}
+.progress>span{display:block;height:100%;width:0%;border-radius:8px;background:linear-gradient(90deg,#8673ff,#4de4bc);transition:width .5s ease}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px;flex-wrap:wrap}
+.section-meta{font-size:12px;color:var(--muted)}
+.panel{border:1px solid var(--line);padding:24px;border-radius:23px;margin:18px 0;
+ background:linear-gradient(145deg,#171e30ed,#101626f5 75%);
+ box-shadow:0 16px 55px #0307103d}
+.panel.primary{border-color:#6657b35c;background:linear-gradient(128deg,#211e3aa8,#111b2ef2 75%)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tile{border:1px solid #38435b8f;background:linear-gradient(155deg,#1c263a,#151d2f);padding:18px;border-radius:17px;min-width:0}
+.tile small{color:#9dabca;display:block;font-size:12px;font-weight:650}
+.tile strong{font-size:clamp(20px,2.3vw,29px);font-weight:850;display:block;margin-top:6px;letter-spacing:-.035em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.tile:first-child{background:linear-gradient(145deg,#273d46,#132932);border-color:#2f82754b}
+.tile:first-child strong{color:#98f5d2}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+button{border:1px solid #9586ff60;border-radius:12px;background:linear-gradient(130deg,#8e73f8,#6952d0);
+ color:#fff;font:inherit;font-size:13px;font-weight:800;padding:12px 16px;cursor:pointer;transition:transform .13s ease,background .18s ease,box-shadow .15s ease}
+button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 22px #7351f538}
+button:active:not(:disabled){transform:translateY(0)}
+button:focus-visible,a:focus-visible{outline:2px solid #9de8dc;outline-offset:3px}
+button.secondary{background:#192237b3;border:1px solid #455272;color:#cbd5ed}
+button:disabled{opacity:.46;cursor:not-allowed}
+#status{color:#bdcce5;min-height:26px;padding:12px 14px;background:#0b1422;border:1px solid #3d52664a;border-radius:12px;font-size:13px}
+.warn{color:#e6bb8a;font-size:12px}
+.info-line{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.pulse-dot{width:8px;height:8px;border-radius:100%;background:#747e94;box-shadow:0 0 0 4px #747e9419;flex:none}
+.pulse-dot.live{background:#49ddb6;box-shadow:0 0 0 4px #49ddb626}
+.tab{width:100%;border-collapse:separate;border-spacing:0;margin-top:5px;font-size:12px;min-width:650px}
+.tab th,.tab td{border-bottom:1px solid #2d3953;padding:13px 10px;text-align:left;vertical-align:middle}
+.tab th{color:#97a8c6;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.045em;background:#141c2ced;position:sticky;top:0}
+.tab tbody tr:hover{background:#1e29434c}
+.tab td:first-child{font-weight:800;color:#e5ebfa}
+.scroll{overflow-x:auto;border:1px solid #293853;border-radius:14px}
+.pill{border:1px solid #68617f;border-radius:20px;padding:3px 9px;display:inline-block;white-space:nowrap}
+.pending{color:#ffd28f}.win{color:#79ebbe}.loss{color:#ff94a8}
+small{font-size:12px}
+footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1px solid #35405c55}
+.empty-kpi{color:#93a0b8}
+@media(max-width:850px){.hero{grid-template-columns:1fr}.hero-highlight{max-width:490px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:18px}}
+@media(max-width:550px){body{padding:8px 12px 50px}.topbar{padding:12px 0 14px}.brand{font-size:12px}.topchip{font-size:10px}
+.hero{padding:26px 0 12px;gap:12px}h1{font-size:40px}.panel{padding:15px;border-radius:18px}.grid{gap:9px}.tile{padding:12px;border-radius:13px}.tile strong{font-size:21px}
+.actions{display:grid;grid-template-columns:1fr 1fr}.actions button:first-child{grid-column:1/-1}.actions button{padding:12px 9px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
 </style>
 </head><body><main>
-<a class="back" href="/one-minute-research.html">← Аналитика WEEX RADAR</a>
-<div class="eyebrow">WEEX RADAR V2 · RESEARCH · БЕЗ РЕАЛЬНЫХ ОРДЕРОВ</div>
-<h1>5 прибыльных PAPER-сделок</h1>
-<p class="lead">Теперь два независимых уровня: <strong>WATCH — ранняя активность возле полос Bollinger и всплески объёма</strong> (не торговый вход), и строгие <strong>PAPER LONG/SHORT</strong>. По всем 16 рынкам WEEX регистрируем новые кандидаты до исхода, оцениваем через 5 минут с 22 б.п. модельных расходов. <strong>Все убыточные и незавершённые тесты тоже сохраняются.</strong></p>
-<section class="panel">
- <h2>Проверка на свежем рынке</h2>
+<header class="topbar">
+ <div class="brand"><span class="brandmark" aria-hidden="true">◈</span> WEEX <span style="color:#ad9aff">RADAR</span> <span style="color:#7282a9;font-size:11px">V2</span></div>
+ <div class="topright"><span class="topchip accent">● WEEX PUBLIC DATA</span><span class="topchip">PAPER MODE · NO ORDERS</span></div>
+</header>
+<section class="hero" aria-labelledby="page-title">
+ <div>
+  <div class="eyebrow">MINUTE INTELLIGENCE / ИССЛЕДОВАТЕЛЬСКИЙ ТЕРМИНАЛ</div>
+  <h1 id="page-title">Меньше шума.<br><span>Больше ясности.</span></h1>
+  <p class="lead">16 рынков WEEX · ранние WATCH-наблюдения · строгие PAPER LONG/SHORT. Мы тестируем цель <strong>5 положительных исходов</strong>, фиксируем также каждый убыток и не выдаём историческую модель за прибыль.</p>
+  <div class="hero-meta">
+   <span class="topchip">1M DATA</span><span class="topchip">BB 20/2 + VOLUME</span><span class="topchip">5M EVALUATION</span><span class="topchip">0 REAL ORDERS</span>
+  </div>
+ </div>
+ <aside class="hero-highlight" aria-label="Прогресс теста">
+  <small>Цель PAPER-тестирования</small>
+  <div class="big"><span id="hero-wins">0</span><span style="font-size:29px;color:#7e8aa9"> / 5</span></div>
+  <div class="progress" role="progressbar" aria-label="Положительные PAPER-исходы" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" id="wins-progress"><span id="progress-fill"></span></div>
+  <div class="sub">После расходов 0,22% на круг · не реальные сделки</div>
+ </aside>
+</section>
+<section class="panel primary" id="terminal">
+ <div class="section-head"><h2>Торговый монитор <span style="color:#8f9cb7;font-size:12px;font-weight:600">· READ ONLY</span></h2>
+  <span class="info-line"><span class="pulse-dot" id="monitor-dot"></span><span id="monitor-state">Остановлен</span></span>
+ </div>
  <div class="grid">
   <div class="tile"><small>Прибыльных тестов</small><strong id="wins">0 / 5</strong></div>
   <div class="tile"><small>Убыточных тестов</small><strong id="losses">0</strong></div>
@@ -52,16 +132,16 @@ small{font-size:12px}footer{color:#9798ac;font-size:12px;margin:25px 0}
  <p id="status" role="status">Наблюдение не запущено. При открытой странице повторная проверка выполняется примерно раз в минуту. Ранние WATCH не считаются прибыльными сделками.</p>
  <p class="warn">⚠️ Когда вкладка закрыта или Android ограничивает Chrome, эта страница не может гарантировать минутные проверки. Журнал хранится только в этом браузере и на этом адресе. Нажатия не открывают WEEX сделки и не отправляют push.</p>
 </section>
-<section class="panel">
- <h2>Журнал каждой тестовой сделки</h2>
+<section class="panel" id="journal">
+ <div class="section-head"><h2>Журнал PAPER-сделок</h2><span class="topchip">WIN · LOSS · PENDING</span></div>
  <p class="lead">Модель: кандидат на закрытой 1М свече, условный вход по OPEN следующей свечи, выход по CLOSE пятой следующей свечи. Изменение цены в направлении сделки минус 0,22% модельных расходов. <strong>Спред, реальное исполнение, SL/TP и funding не учтены.</strong> Пять побед не доказывают прибыльность стратегии.</p>
  <div class="scroll"><table class="tab">
   <thead><tr><th>Монета</th><th>Сигнал (Берлин)</th><th>Направление</th><th>Условный вход</th><th>Исход через 5М</th></tr></thead>
   <tbody id="trades"><tr><td colspan="5">Пока нет записей</td></tr></tbody>
  </table></div>
 </section>
-<section class="panel">
- <h2>Состояние 16 рынков · WATCH + готовые свечи</h2>
+<section class="panel" id="markets-section">
+ <div class="section-head"><h2>16 рынков · обзор WATCH</h2><span class="topchip">LIVE CANDLE SNAPSHOT</span></div>
  <p class="lead">WATCH — только предварительное наблюдение. Сравнение типичного минутного диапазона с 22 б.п. расходов показывает волатильность, но не предсказывает доход.</p>
  <div class="scroll"><table class="tab">
   <thead><tr><th>Рынок</th><th>Последняя свеча</th><th>Ранний WATCH</th><th>Проверка</th></tr></thead>
@@ -102,6 +182,12 @@ function render(){
  const pending=trades.filter(x=>x.status==='pending');
  const resolved=[...wins,...losses];
  $('wins').textContent=wins.length+' / 5';
+ $('hero-wins').textContent=Math.min(5,wins.length);
+ const fill=Math.min(100,wins.length*20);
+ $('progress-fill').style.width=fill+'%';
+ $('wins-progress').setAttribute('aria-valuenow',String(Math.min(5,wins.length)));
+ $('monitor-dot').className=running?'pulse-dot live':'pulse-dot';
+ $('monitor-state').textContent=running?'Наблюдение включено':'Наблюдение остановлено';
  $('losses').textContent=losses.length;
  $('pending').textContent=pending.length;
  $('average').textContent=resolved.length?
@@ -241,6 +327,8 @@ async function scan(){
 function start(){
  if(running||trades.filter(t=>t.status==='win').length>=5||trades.length>=MAX_TRADES)return;
  running=true;$('start').disabled=true;$('stop').disabled=false;
+ $('monitor-dot').className='pulse-dot live';
+ $('monitor-state').textContent='Наблюдение включено';
  // No browser-side polling can survive closing the tab or Android throttling.
  if(ticker)clearInterval(ticker);
  ticker=setInterval(()=>{if(running)scan()},60000);
@@ -248,6 +336,8 @@ function start(){
 }
 function stop(){
  running=false;
+ $('monitor-dot').className='pulse-dot';
+ $('monitor-state').textContent='Наблюдение остановлено';
  if(ticker){clearInterval(ticker);ticker=null}
  render();
  if(!checking)$('status').textContent='Остановлено. Журнал сохранён в этом браузере.';
