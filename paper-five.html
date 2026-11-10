@@ -118,6 +118,7 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
   <div class="tile"><small>Убыточных тестов</small><strong id="losses">0</strong></div>
   <div class="tile"><small>Ожидают исхода</small><strong id="pending">0</strong></div>
   <div class="tile"><small>Средний результат</small><strong id="average">—</strong></div>
+  <div class="tile"><small>Вывод по PAPER</small><strong id="paper-verdict" style="font-size:16px">Мало данных</strong></div>
   <div class="tile"><small>Суммарный тестовый итог, б.п.</small><strong id="total-net">—</strong></div>
   <div class="tile"><small>Доля выигрышей</small><strong id="win-rate">—</strong></div>
   <div class="tile"><small>Ранних WATCH сейчас</small><strong id="watch-count">—</strong></div>
@@ -134,7 +135,7 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
 </section>
 <section class="panel" id="journal">
  <div class="section-head"><h2>Журнал PAPER-сделок</h2><span class="topchip">WIN · LOSS · PENDING</span></div>
- <p class="lead">Модель: кандидат на закрытой 1М свече, условный вход по OPEN следующей свечи, выход по CLOSE пятой следующей свечи. Изменение цены в направлении сделки минус 0,22% модельных расходов. <strong>Спред, реальное исполнение, SL/TP и funding не учтены.</strong> Пять побед не доказывают прибыльность стратегии.</p>
+ <p class="lead">Модель: кандидат на закрытой 1М свече, условный вход по OPEN следующей свечи, выход по CLOSE пятой следующей свечи. Изменение цены в направлении сделки минус 0,22% модельных расходов. <strong>Спред, реальное исполнение, SL/TP и funding не учтены.</strong> Пять побед — промежуточный этап: наблюдение продолжится, чтобы оценить общий итог, включая убытки.</p>
  <div class="scroll"><table class="tab">
   <thead><tr><th>Монета</th><th>Сигнал (Берлин)</th><th>Направление</th><th>Условный вход</th><th>Исход через 5М</th></tr></thead>
   <tbody id="trades"><tr><td colspan="5">Пока нет записей</td></tr></tbody>
@@ -192,12 +193,15 @@ function render(){
  $('pending').textContent=pending.length;
  $('average').textContent=resolved.length?
   fixed(resolved.reduce((s,x)=>s+x.netBps,0)/resolved.length)+' б.п.':'—';
+ const meanNet=resolved.length?resolved.reduce((s,x)=>s+x.netBps,0)/resolved.length:null;
+ $('paper-verdict').textContent=resolved.length<50?'Мало данных ('+resolved.length+'/50)':
+  meanNet>0?'PAPER-плюс, ещё не доказан':'PAPER-минус после расходов';
  const netSum=resolved.reduce((s,x)=>s+x.netBps,0);
  $('total-net').textContent=resolved.length?fixed(netSum)+' б.п.':'—';
  $('win-rate').textContent=resolved.length?fixed(100*wins.length/resolved.length,1)+'%':'—';
  $('watch-count').textContent=[...markets.values()].filter(x=>x.ok&&
   x.watch&&x.watch.kind!=='QUIET').length+'/'+[...markets.values()].filter(x=>x.ok).length;
- $('start').disabled=running||wins.length>=5||trades.length>=MAX_TRADES;
+ $('start').disabled=running||trades.length>=MAX_TRADES;
  $('stop').disabled=!running;
  const rows=$('trades');rows.replaceChildren();
  if(!trades.length){let tr=document.createElement('tr'),td=document.createElement('td');
@@ -278,7 +282,7 @@ function accept(symbol,snap){
    continue;
   if(trades.some(t=>t.symbol===symbol&&
    Math.abs(t.closedAt-event.closedAt)<5*ONE))continue;
-  if(trades.filter(t=>t.status==='win').length>=5||trades.length>=MAX_TRADES)break;
+  if(trades.length>=MAX_TRADES)break;
   // A signal is registered when a fresh WEEX response arrives, BEFORE its
   // fifth-minute CLOSE is known. Results cannot be cherry-picked retroactively.
   trades.push({symbol,strategy:event.strategy,direction:event.direction,
@@ -328,11 +332,12 @@ async function scan(){
   $('status').textContent='Последняя проверка '+asBerlin(Date.now())+
    ' · WEEX '+ok+'/16 · WATCH '+watching+' · прибыльных '+w+', убыточных '+l+
    '. '+(running?'Следующий запрос примерно через минуту.':'Наблюдение остановлено.');
-  if(w>=5&&trades.every(t=>t.status!=='pending'))stop();
+  // Five positive paper outcomes are a milestone, NOT an automatic stop:
+  // continue observing losses and the overall net expectancy for manual review.
  }finally{checking=false}
 }
 function start(){
- if(running||trades.filter(t=>t.status==='win').length>=5||trades.length>=MAX_TRADES)return;
+ if(running||trades.length>=MAX_TRADES)return;
  running=true;$('start').disabled=true;$('stop').disabled=false;
  $('monitor-dot').className='pulse-dot live';
  $('monitor-state').textContent='Наблюдение включено';
