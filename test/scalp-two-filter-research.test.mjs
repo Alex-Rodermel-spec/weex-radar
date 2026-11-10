@@ -21,6 +21,24 @@ test('two indicators detect an upward or downward closed 1m BB breakout with vol
  assert.equal(twoFilterCandidate(sample(102,110),base+21*M+1000).direction,null);
  assert.equal(twoFilterCandidate(sample(102,110),base+21*M+1000).reason,'LOW_VOLUME');
 });
+test('BB band reentry identifies trend-turn hypotheses without issuing orders',()=>{
+ const make=(prev,last)=>sample(last,160).map((bar,i)=>{
+  if(i===19)return {...bar,open:100,close:prev,
+   high:Math.max(100,prev)+.1,low:Math.min(100,prev)-.1};
+  if(i===20)return {...bar,open:prev,close:last,
+   high:Math.max(prev,last)+.1,low:Math.min(prev,last)-.1};
+  return bar;
+ });
+ const up=make(98,99.8),down=make(102,100.2),now=base+21*M+1000;
+ assert.equal(twoFilterCandidate(up,now,{bandPeriod:20,bandStd:2,
+  volumePeriod:20,minVolumeRatio:1.15,strategy:'BAND_REENTRY'}).direction,'LONG');
+ assert.equal(twoFilterCandidate(down,now,{bandPeriod:20,bandStd:2,
+  volumePeriod:20,minVolumeRatio:1.15,strategy:'BAND_REENTRY'}).direction,'SHORT');
+ assert.equal(twoFilterCandidate(up,now,{bandPeriod:20,bandStd:2,
+  volumePeriod:20,minVolumeRatio:1.15,strategy:'BAND_BREAKOUT'}).direction,null);
+ assert.equal(twoFilterCandidate(up,now,{bandPeriod:20,bandStd:2,
+  volumePeriod:20,minVolumeRatio:1.15,strategy:'BAD'}).direction,null);
+});
 test('unclosed, malformed or gapped 1m candles cannot be used',()=>{
  const a=sample();
  assert.equal(twoFilterCandidate(a,a.at(-1).closeTime).direction,null);
