@@ -91,7 +91,7 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
 </head><body><main>
 <header class="topbar">
  <div class="brand"><span class="brandmark" aria-hidden="true">◈</span> WEEX <span style="color:#ad9aff">RADAR</span> <span style="color:#7282a9;font-size:11px">V2</span></div>
- <div class="topright"><span class="topchip accent">● WEEX PUBLIC DATA</span><span class="topchip">PAPER MODE · NO ORDERS</span></div>
+ <div class="topright"><span class="topchip accent">● WEEX PUBLIC DATA</span><span class="topchip" id="last-check-chip">ЕЩЁ НЕ ПРОВЕРЕНО</span><span class="topchip">PAPER · NO ORDERS</span></div>
 </header>
 <section class="hero" aria-labelledby="page-title">
  <div>
@@ -316,6 +316,7 @@ async function scan(){
   const watching=[...markets.values()].filter(x=>x.ok&&x.watch&&
    x.watch.kind!=='QUIET').length;
   $('markets').textContent=ok+' / 16';
+  $('last-check-chip').textContent='WEEX '+ok+'/16 · '+asBerlin(Date.now());
   const w=trades.filter(t=>t.status==='win').length,
    l=trades.filter(t=>t.status==='loss').length;
   $('status').textContent='Последняя проверка '+asBerlin(Date.now())+
@@ -341,6 +342,20 @@ function stop(){
  if(ticker){clearInterval(ticker);ticker=null}
  render();
  if(!checking)$('status').textContent='Остановлено. Журнал сохранён в этом браузере.';
+}
+// A hidden Android browser can suspend minute timers. When the page becomes
+// visible again, recheck FRESH completed candles; do not backfill "live"
+// entries from outcomes that may have already happened while hidden.
+if(typeof document.addEventListener==='function'){
+ document.addEventListener('visibilitychange',()=>{
+  if(!running)return;
+  if(document.visibilityState==='hidden'){
+   $('status').textContent='Вкладка скрыта: Android может остановить минутные запросы. Новые PAPER-сделки пока не подтверждаем.';
+  }else if(document.visibilityState==='visible'){
+   $('status').textContent='Вкладка снова открыта — перепроверяю свежие закрытые свечи WEEX.';
+   scan();
+  }
+ });
 }
 $('start').onclick=start;$('stop').onclick=stop;
 $('once').onclick=scan;
