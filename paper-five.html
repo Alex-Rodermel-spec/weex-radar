@@ -133,10 +133,18 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
  <div class="actions">
   <button id="start" type="button">▶ Запустить наблюдение</button>
   <button id="stop" type="button" class="secondary" disabled>■ Остановить</button>
-  <button id="once" type="button" class="secondary">Проверить сейчас</button>
+  <button id="once" type="button" class="secondary">Проверить и запустить PAPER</button>
   <button id="export" type="button" class="secondary">Сохранить журнал CSV</button>
  </div>
- <p id="status" role="status">Наблюдение не запущено. При открытой странице повторная проверка выполняется примерно раз в минуту. Ранние WATCH не считаются прибыльными сделками.</p>
+ <p id="status" role="status">Наблюдение остановлено. Кнопка «Проверить и запустить PAPER» также включает запись новых сигналов. При открытой странице проверка примерно раз в минуту; WATCH и исторические свечи не считаются сделками.</p>
+ <div class="grid" aria-label="Почему нет PAPER-сделок">
+  <div class="tile"><small>Исторические BB-сигналы за 90 минут · НЕ сделки</small><strong id="hist-90">—</strong></div>
+  <div class="tile"><small>Свежих кандидатов за этот проход</small><strong id="raw-now">0</strong></div>
+  <div class="tile"><small>Нет пригодной котировки WEEX</small><strong id="skip-quote">0</strong></div>
+  <div class="tile"><small>Запоздалых / просроченных</small><strong id="skip-late">0</strong></div>
+  <div class="tile"><small>Новое в PAPER-журнале</small><strong id="paper-added">0</strong></div>
+ </div>
+ <p id="paper-explain" class="info-line" role="status">Ждём первую проверку. Даже исторические BB-сигналы нельзя задним числом записывать как новые PAPER-сделки.</p>
  <p class="warn">⚠️ ×50 — чисто виртуальное моделирование, не изменение плеча твоего счёта WEEX. Только модельные комиссии и проскальзывание 0,22% движения цены соответствуют примерно 11% виртуальной начальной маржи при ×50, ещё до спреда. Реальная ликвидация зависит от mark price, MMR, типа маржи и исполнения; порог 1,5% — только наш учебный стресс-тест, а не точная цена ликвидации.</p>
  <p class="warn">⚠️ Когда вкладка закрыта или Android ограничивает Chrome, эта страница не может гарантировать минутные проверки. Журнал хранится только в этом браузере и на этом адресе. Нажатия не открывают WEEX сделки и не отправляют push.</p>
 </section>
@@ -152,8 +160,8 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
  <div class="section-head"><h2>16 рынков · обзор WATCH</h2><span class="topchip">LIVE CANDLE SNAPSHOT</span></div>
  <p class="lead">WATCH — только предварительное наблюдение. Сравнение типичного минутного диапазона с 22 б.п. расходов показывает волатильность, но не предсказывает доход.</p>
  <div class="scroll"><table class="tab">
-  <thead><tr><th>Рынок</th><th>Последняя свеча</th><th>Ранний WATCH</th><th>Проверка</th></tr></thead>
-  <tbody id="markets-table"><tr><td colspan="4">Нет последней проверки</td></tr></tbody>
+  <thead><tr><th>Рынок</th><th>Последняя свеча</th><th>Ранний WATCH</th><th>BB за 90 мин (история)</th><th>Проверка</th></tr></thead>
+  <tbody id="markets-table"><tr><td colspan="5">Нет последней проверки</td></tr></tbody>
  </table></div>
 </section>
 <footer>🔒 Исследование только на публичных данных WEEX Futures. Нет аккаунтного API, автосделок, реальных ордеров или платных изменений. Требуется независимая проверка стратегии на будущих днях.</footer>
@@ -274,7 +282,8 @@ function render(){
   const rangeText=x?.ok&&watch?' · диапазон 1М '+fixed(watch.oneMinuteRangeBps,1)+
    ' б.п. vs расходы 22 б.п.'+regimeText:'';
   for(const v of [symbol,x?.closedAt?asBerlin(x.closedAt):'—',
-   watchText,!x?'Не проверено':x.ok?'Свежая WEEX 1М'+rangeText:'Нет свежих данных']){
+   watchText,x?.hist?String(x.hist.guardedCandidates)+' (фильтровано)':'—',
+   !x?'Не проверено':x.ok?'Свежая WEEX 1М'+rangeText:'Нет свежих данных']){
    let td=document.createElement('td');td.textContent=v;tr.append(td);
   }
   mbody.append(tr);
@@ -351,37 +360,37 @@ function settle(symbol,bars,closedAt){
  }
 }
 function accept(symbol,snap){
- const now=Date.now(),quote=snap.paperEntryQuote;
- // Only a fresh, explicit post-close WEEX bid/ask quote creates a NEW
- // forward paper record; missing/late/wide-spread book = no paper entry.
+ const now=Date.now();
+ const rawCurrent=Array.isArray(snap.recent)?
+  snap.recent.filter(e=>e?.notATrade&&
+   e.closedAt===snap.closedAt&&['LONG','SHORT'].includes(e.direction)&&
+   ['BAND_BREAKOUT','BAND_REENTRY'].includes(e.strategy)):[];
+ if(!rawCurrent.length)return 'NO_CURRENT_CANDIDATE';
+ const remaining=rawCurrent.filter(e=>
+  now-e.closedAt>=1000&&now-e.closedAt<=MAX_DETECTION_MS);
+ if(!remaining.length)return 'LATE_CANDLE';
+ if(!Number.isSafeInteger(snap.generatedAt)||
+  now-snap.generatedAt<0||now-snap.generatedAt>MAX_RESPONSE_AGE_MS)
+  return 'STALE_RESPONSE';
+ const quote=snap.paperEntryQuote;
  if(!quote||quote.source!=='WEEX_PUBLIC_BOOKTICKER'||
   quote.notATrade!==true||!Number.isFinite(quote.bid)||
   !Number.isFinite(quote.ask)||quote.bid<=0||quote.ask<quote.bid||
   !Number.isFinite(quote.spreadBps)||quote.spreadBps<0||
   quote.spreadBps>40||!Number.isSafeInteger(quote.quotedAt)||
   quote.quotedAt<snap.closedAt||now-quote.quotedAt<0||
-  now-quote.quotedAt>12000)return;
- // Real browser arrival time matters. A server response 90 seconds after
- // the candle is too late for a forward five-minute minute-entry claim.
- if(!Number.isSafeInteger(snap.generatedAt)||
-  now-snap.generatedAt<0||now-snap.generatedAt>MAX_RESPONSE_AGE_MS)return;
- const remaining=snap.recent.filter(e=>e&&e.notATrade&&
-  ['LONG','SHORT'].includes(e.direction)&&
-  ['BAND_BREAKOUT','BAND_REENTRY'].includes(e.strategy)&&
-  e.closedAt===snap.closedAt&&now-e.closedAt>=1000&&
-  now-e.closedAt<=MAX_DETECTION_MS);
+  now-quote.quotedAt>12000)return 'QUOTE_NOT_USABLE';
+ let added=0;
  for(const event of remaining){
   if(trades.some(t=>key(t)===[symbol,event.strategy,event.direction,event.closedAt].join('|')))
    continue;
   if(trades.some(t=>t.symbol===symbol&&
    Math.abs(t.closedAt-event.closedAt)<5*ONE))continue;
-  if(trades.length>=MAX_TRADES)break;
-  // A signal is registered when a fresh WEEX response arrives, BEFORE its
-  // fifth-minute CLOSE is known. Results cannot be cherry-picked retroactively.
+  if(trades.length>=MAX_TRADES)return 'JOURNAL_LIMIT';
+  // Registered before the later five-minute outcome exists.
   trades.push({symbol,strategy:event.strategy,direction:event.direction,
    closedAt:event.closedAt,seenAt:now,detectionLagMs:now-event.closedAt,
-   signalClose:event.observedClose,
-   volumeRatio:event.volumeRatio,
+   signalClose:event.observedClose,volumeRatio:event.volumeRatio,
    quotedAt:quote.quotedAt,entrySpreadBps:quote.spreadBps,
    signalTrend:event.signalTrend??'UNKNOWN',
    trendAligned:event.trendAligned===true,
@@ -390,7 +399,9 @@ function accept(symbol,snap){
    status:'pending',entry:event.direction==='LONG'?quote.ask:quote.bid,
    notATrade:true,entryAssumption:'WEEX_PUBLIC_BOOKTICKER',
    paperRiskModel:'PAPER_50X_STRESS_V1',paperLeverage:50});
+  added++;
  }
+ return added>0?'RECORDED':'DUPLICATE_OR_COOLDOWN';
 }
 async function fetchOne(symbol){
  try{
@@ -406,14 +417,21 @@ async function fetchOne(symbol){
    d.marketWatch.regime?.notATrade!==true||
    d.generatedAt-d.closedAt<1000||d.generatedAt-d.closedAt>90000)
    throw Error('INVALID_OR_STALE_WEEX_PAPER_RESPONSE');
+  if(!d.historical90m||d.historical90m.kind!=='PAST_CANDLES_ONLY_NOT_PAPER'||
+   d.historical90m.notATrade!==true||
+   !Number.isInteger(d.historical90m.guardedCandidates))
+   throw Error('INVALID_HISTORY_DIAGNOSTICS');
   // Check the whole included series has no missing minute or future candle.
   if(d.bars.length<35||d.bars.some((b,i)=>
    !Number.isSafeInteger(b.time)||b.time%ONE!==0||
    (i>0&&b.time!==d.bars[i-1].time+ONE)))throw Error('GAPPED_DATA');
   settle(symbol,d.bars,d.closedAt);
   // Paper registration is only allowed for a recent completed minute.
-  if(running&&document.visibilityState!=='hidden')accept(symbol,d);
-  markets.set(symbol,{ok:true,closedAt:d.closedAt,watch:d.marketWatch});
+  const currentEvents=d.recent.filter(e=>e.closedAt===d.closedAt).length;
+  const result=running&&document.visibilityState!=='hidden'?
+   accept(symbol,d):'NOT_RUNNING';
+  markets.set(symbol,{ok:true,closedAt:d.closedAt,watch:d.marketWatch,
+   hist:d.historical90m,currentEvents,registration:result});
  }catch(e){markets.set(symbol,{ok:false,reason:String(e.message||e)})}
 }
 async function scan(){
@@ -427,6 +445,24 @@ async function scan(){
   const ok=[...markets.values()].filter(x=>x.ok).length;
   const watching=[...markets.values()].filter(x=>x.ok&&x.watch&&
    x.watch.kind!=='QUIET').length;
+  const hist=[...markets.values()].reduce((s,x)=>s+
+   (x.ok?x.hist?.guardedCandidates||0:0),0);
+  const fresh=[...markets.values()].reduce((s,x)=>s+
+   (x.ok?x.currentEvents||0:0),0);
+  const skippedQuote=[...markets.values()].filter(x=>x.registration==='QUOTE_NOT_USABLE').length;
+  const skippedLate=[...markets.values()].filter(x=>
+   ['LATE_CANDLE','STALE_RESPONSE'].includes(x.registration)).length;
+  const added=[...markets.values()].filter(x=>x.registration==='RECORDED').length;
+  $('hist-90').textContent=String(hist)+' / '+ok+' рынков';
+  $('raw-now').textContent=fresh;
+  $('skip-quote').textContent=skippedQuote;
+  $('skip-late').textContent=skippedLate;
+  $('paper-added').textContent=added;
+  $('paper-explain').textContent=!running?
+   'PAPER выключен: нажми «Проверить и запустить PAPER», чтобы начать запись НОВЫХ сигналов.':
+   !fresh?'В эту минуту строгих LONG/SHORT нет. WATCH и история 90 минут — не сделки.':
+   added?'Записано '+added+' новых PAPER-тестов. Результат оценивается после будущих 5 минут.':
+   'Кандидаты были, но не записаны: нет пригодной котировки, пришли поздно либо повторились.';
   $('markets').textContent=ok+' / 16';
   $('last-check-chip').textContent='WEEX '+ok+'/16 · '+asBerlin(Date.now());
   const w=trades.filter(t=>t.status==='win').length,
@@ -483,7 +519,7 @@ if(typeof document.addEventListener==='function'){
  });
 }
 $('start').onclick=start;$('stop').onclick=stop;
-$('once').onclick=scan;
+$('once').onclick=()=>{if(!running)start();else scan()};
 $('export').onclick=()=>{
  const cols=['symbol','strategy','direction','closedAt','seenAt','detectionLagMs',
   'signalClose','volumeRatio','signalTrend','trendAligned','signalRsi14',
