@@ -67,6 +67,27 @@ test('four-state ntfy confirmed alerts are still recorded with exact raw SL/TP',
  assert.equal(parseConfirmedNotification(alert()).decisionAtAlert,'LEGACY');
  assert.equal(parseConfirmedNotification(alert()).netRRAtAlert,null);
 });
+test('current WEEX ENTRY notifications enter read-only history using original quote',()=>{
+ const time=Math.floor(stamp/1000);
+ const msg={event:'message',time,sequence_id:'c'.repeat(32),
+  title:'🟢 ВХОД LONG · XRPUSDT',
+  message:'WEEX Futures · 📈 LONG\n'+
+   '📍 Цена для проверки входа: 1,01 USDT\n'+
+   '📌 Точная котировка наблюдения: 1.010012345 USDT\n'+
+   '🛑 SL: 0,98 · 🎯 расчётный TP: 1,04\n'+
+   'SL 0.98 · TP 1.04\n'+
+   '📊 Расчётный R/R после расходов: 1.53:1\n'+
+   '⏰ Сигнал действует до 13:02:00'};
+ const p=parseConfirmedNotification(msg);
+ assert.ok(p);assert.equal(p.symbol,'XRPUSDT');
+ assert.equal(p.direction,'LONG');assert.equal(p.decisionAtAlert,'CHECK');
+ assert.equal(p.entry,1.010012345);assert.equal(p.stop,.98);
+ assert.equal(p.take,1.04);assert.equal(p.netRRAtAlert,1.53);
+ assert.equal(p.expiresAt,Date.UTC(2026,10,8,12,2,0));
+ assert.equal(parseConfirmedNotification({...msg,title:'🔮 ПРОГНОЗ РОСТА · XRPUSDT'}),null);
+ assert.equal(parseConfirmedNotification({...msg,message:msg.message.replace('WEEX Futures','Bybit Futures')}),null);
+});
+
 test('SHIB prices with localized commas are parsed; forecasts never pollute confirmed history',()=>{
  const msg={event:'message',time:Math.floor(stamp/1000),
   title:'🔴 ПРОПУСТИТЬ · 1000SHIBUSDT SHORT · 🔔 ОБЫЧНЫЙ',

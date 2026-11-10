@@ -39,6 +39,7 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 <button id="login">🔐 Войти на 24 часа</button>
 </div>
 <button class="secondary" id="finger-login">👆 Войти по отпечатку / Passkey</button>
+<p class="field-note">Если сессия уже открыта, кнопка остаётся здесь как индикатор. Для сделки отпечаток запрашивается отдельно при подтверждении.</p>
 <button class="secondary" id="finger-register" hidden>👆 Подключить отпечаток для входа и подтверждения сделок</button>
 <p class="field-note" id="finger-status">Отпечаток хранится только в телефоне. Android также может предложить PIN или блокировку экрана. Чтобы подключить впервые, войди по паролю RADAR.</p>
 <p class="muted" id="session-status" role="status">🔒 Вход действует 24 часа. Каждую реальную сделку подтверждаешь отдельно.</p>
@@ -142,12 +143,15 @@ async function refreshPhoneStatus(){
  passkeyEnrolled=d.loggedIn&&d.enrolled===true;
  $('finger-register').hidden=!(d.loggedIn&&d.enrolled===false);
  $('finger-status').textContent=passkeyEnrolled?
-  '✅ Passkey подключён. Вход и каждую реальную сделку подтверждаешь на телефоне (отпечаток/PIN).':
-  '🔐 Сначала войди по паролю и подключи отпечаток один раз; потом можно входить через Passkey.';
+  '✅ Passkey подключён. Каждая реальная сделка запрашивает отдельное подтверждение телефоном (отпечаток/PIN).':
+  '🔐 Сначала войди по паролю и подключи Passkey один раз. До подключения вход возможен по паролю.';
+ $('confirm').textContent=passkeyEnrolled?'👆 Подтвердить сделку отпечатком / Passkey':'Подтвердить реальную сделку WEEX';
 }
 function sessionUI(active,until=0){
  $('login-fields').hidden=active;
- $('finger-login').hidden=active;
+ $('finger-login').hidden=false;
+ $('finger-login').disabled=active;
+ $('finger-login').textContent=active?'👆 Passkey · вход уже выполнен':'👆 Войти по отпечатку / Passkey';
  if(!active){passkeyEnrolled=false;$('finger-register').hidden=true;}
  $('logout').hidden=!active;
  $('status').disabled=!active;

@@ -5,7 +5,8 @@ import {timingSafeEqual} from 'node:crypto';
 import {jwtVerify,createRemoteJWKSet} from 'jose';
 import {_test as marketSafety} from './signals.mjs';
 import {sendEarlyPush} from '../lib/early-push.mjs';
-import {ntfySend,followupSentForecasts} from '../lib/ntfy-alerts.mjs';
+import {ntfySend} from '../lib/ntfy-alerts.mjs';
+import {adviseSymbol} from '../lib/advisor.mjs';
 import {checkEntryLevels} from '../lib/entry-quality.mjs';
 import {summarizeFilterDiagnostics} from '../lib/filter-diagnostics.mjs';
 import {assessNetCosts} from '../lib/net-costs.mjs';
@@ -100,14 +101,8 @@ export default async function handler(req,res){
   // Snapshot-only telemetry. No order, alert, storage or scan decision changes.
   console.info('WEEX_RADAR_FILTER_DIAGNOSTICS '+
     JSON.stringify(summarizeFilterDiagnostics(result.symbols)));
-  // Follow-up to previously sent 5m forecasts; runs separately from core
-  // 1m alerts and confirmed 5m ntfy, and never affects their eligibility.
-  const followupPromise=followupSentForecasts({markets:result.symbols})
-   .catch(e=>{
-    console.warn('WEEX_RADAR_FORECAST_FOLLOWUP_UNAVAILABLE '+
-     String(e.message||e).slice(0,80));
-    return {enabled:false,checked:0,sent:0,failed:1,pending:0,duplicates:0};
-   });
+  // Keep forecast outcome analysis in research; do not send second alerts
+  // saying BREAKOUT, WAIT, or SKIP after directional forecasts.
   const candidates=result.symbols.filter(s=>s.status==='ok'&&['LONG','SHORT'].includes(s.direction)&&
     s.expiresAt>Date.now()+15000&&s.exchange&&s.candleCloseTime);
   // A cached or slow scan is NOT a live entry. Recheck exchange quotes immediately
@@ -132,8 +127,9 @@ export default async function handler(req,res){
         entryMid:quote.price,stop:Number(signal.stop),take:Number(signal.take),
         bid:quote.bid,ask:quote.ask
       });
-      return quality.ok&&signal.entryQuality?.ok===true&&entry.ok?
-        {...signal,livePrice:quote.price,entryQuality:entry,costReview}:null;
+      const refreshed={...signal,livePrice:quote.price,entryQuality:entry,costReview};
+      refreshed.advisor=adviseSymbol(refreshed,Date.now());
+      return quality.ok&&signal.entryQuality?.ok===true&&entry.ok?refreshed:null;
     }catch{return null}
   }));
   const signals=checked.filter(Boolean);
@@ -146,7 +142,7 @@ export default async function handler(req,res){
    return {enabled:false,delivered:0,failed:1,duplicates:0};
   }):Promise.resolve({enabled:Boolean(process.env.NTFY_TOPIC),delivered:0,failed:0,duplicates:0});
   const [early,ntfy]=await Promise.all([earlyPromise,ntfyPromise]);
-  const forecastFollowup=await followupPromise;
+  const forecastFollowup={enabled:false,checked:0,sent:0,failed:0,pending:0,duplicates:0};
   return reply(res,source,200,{
    ok:true,deliveryMode:'ntfy-only',signals:signals.length,
    delivered:ntfy.delivered,failed:ntfy.failed,duplicates:ntfy.duplicates,

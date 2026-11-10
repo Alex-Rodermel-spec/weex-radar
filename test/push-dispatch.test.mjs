@@ -19,7 +19,9 @@ test('ntfy-only signed dispatch preserves filtering, starts early watch, skips o
  assert.match(code,/const earlyPromise=safeEarlyPush\(\)/);
  assert.match(code,/const \[early,ntfy\]=await Promise\.all\(\[earlyPromise,ntfyPromise\]\)/);
  assert.match(code,/const source=await authorized\(req\)/);
- assert.match(code,/entry\.ok\?\s*\{\.\.\.signal,livePrice:quote\.price,entryQuality:entry,costReview\}:null/);
+ assert.match(code,/const refreshed=\{\.\.\.signal,livePrice:quote.price,entryQuality:entry,costReview\}/);
+ assert.match(code,/refreshed\.advisor=adviseSymbol/);
+ assert.match(code,/quality\.ok&&signal\.entryQuality\?\.ok===true&&entry\.ok\?refreshed:null/);
  assert.doesNotMatch(code,/webpush|telegramPoll|telegramSend|@vercel\/blob|VAPID_PRIVATE_KEY/);
 });
 test('audit distinguishes zero phone subscriptions from already-delivered signals',()=>{

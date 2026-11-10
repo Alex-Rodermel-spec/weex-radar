@@ -64,7 +64,7 @@ export default async function handler(req,res){
   try{
     // After owner enrolls their phone passkey, EVERY live WEEX order also
     // needs a fresh RP-bound device assertion bound to this exact one-time
-    // proposal. A 30-minute login cookie alone does not authorize trading.
+    // proposal. Even a 24-hour login cookie alone does not authorize trading.
     const passkey=await verifyLiveTradePasskey(req,req.body.proposal);
     if(passkey.required)res.setHeader('Set-Cookie',clearFlowCookie());
     // This fixed path is a distributed mutex. Never overwrite it.

@@ -72,17 +72,22 @@ test('ntfy adds explicit shadow caution without altering raw TP SL levels',()=>{
  const signal={symbol:'HYPEUSDT',exchange:'WEEX',direction:'LONG',
   level:'NORMAL',livePrice:100,stop:99,take:102,
   trapReview:{byDirection:{LONG:{kind:'BULL_TRAP',ageBars:1}}}};
- const msg=formatPhoneAlert(signal);
- assert.match(msg.message,/ТЕСТ ЛОВУШКИ: ложный пробой вверх/);
- assert.match(msg.message,/сигнал не блокируется/);
+ const preview=formatPhoneAlert(signal);
+ assert.equal(preview.status,'FORECAST');
+ assert.doesNotMatch(preview.message,/SL 99 · TP 102/);
+ assert.equal(parseConfirmedNotification({event:'message',time:1794000000,
+  title:preview.title,message:preview.message}),null);
+ const msg=formatPhoneAlert({...signal,advisor:{status:'REVIEW'},
+  entryQuality:{ok:true},costReview:{status:'PASS_ESTIMATE',netRR:1.6}});
+ assert.equal(msg.status,'CHECK');
  assert.match(msg.message,/SL 99 · TP 102/);
+ assert.doesNotMatch(msg.message,/ТЕСТ ЛОВУШКИ/);
  const parsed=parseConfirmedNotification({event:'message',time:1794000000,
   title:msg.title,message:msg.message});
+ assert.ok(parsed);
  assert.equal(parsed.symbol,'HYPEUSDT');
  assert.equal(parsed.stop,99);
  assert.equal(parsed.take,102);
- const noTrap=formatPhoneAlert({...signal,trapReview:null});
- assert.doesNotMatch(noTrap.message,/ТЕСТ ЛОВУШКИ/);
 });
 test('research module never places orders, blocks signal, or changes 1m watch',()=>{
  const radar=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');

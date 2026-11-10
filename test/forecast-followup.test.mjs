@@ -140,8 +140,8 @@ test('forecast follow-up cannot write orders, loosen filters, modify journal or 
  const core=readFileSync(new URL('../lib/forecast-followup.mjs',import.meta.url),'utf8');
  const dispatch=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
  const ntfy=readFileSync(new URL('../lib/ntfy-alerts.mjs',import.meta.url),'utf8');
- assert.match(dispatch,/followupSentForecasts\(\{markets:result\.symbols\}\)/);
- assert.match(dispatch,/forecastFollowup,telegram/);
+ assert.doesNotMatch(dispatch,/followupSentForecasts\(/);
+ assert.match(dispatch,/const forecastFollowup=\{enabled:false/);
  assert.match(dispatch,/ntfySend\('confirmed',signals\)/);
  assert.match(dispatch,/const earlyPromise=safeEarlyPush\(\)/);
  assert.match(ntfy,/followupSequence\(forecast\)/);
