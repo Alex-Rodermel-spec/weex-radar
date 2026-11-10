@@ -46,7 +46,8 @@ test('only coherent fresh three-timeframe directional forecasts qualify',()=>{
 });
 test('notification clearly separates forecast hypothesis from LONG/SHORT entry',()=>{
  const m=forecastMessage(fixture());
- assert.match(m.title,/^🔮 ПРОГНОЗ · BTCUSDT SHORT$/u);
+ assert.match(m.title,/^🔮 🟣 СИЛЬНЫЙ ПРОГНОЗ · BTCUSDT SHORT$/u);
+ assert.match(m.message,/СИЛЬНЫЙ ПРОГНОЗ/);
  assert.match(m.message,/1М \/ 5М \/ 10М/);
  assert.match(m.message,/НЕ сигнал входа/);
  assert.match(m.message,/Bollinger/);
@@ -75,7 +76,7 @@ test('owner gets one onboarding message in old topic; forecasts go ONLY to deriv
  assert.equal(forecasts.length,2);
  assert.ok(configs[0].click.startsWith('ntfy://ntfy.sh/'));
  assert.match(configs[0].message,/отдельные прогнозы/);
- assert.ok(forecasts.every(x=>x.title.startsWith('🔮 ПРОГНОЗ')&&
+ assert.ok(forecasts.every(x=>x.title.startsWith('🔮 🟣 СИЛЬНЫЙ ПРОГНОЗ')&&
   /НЕ сигнал входа/.test(x.message)));
  assert.ok(events.every(x=>!x.message.includes('API_SECRET')));
  const nextHistory=async url=>{
