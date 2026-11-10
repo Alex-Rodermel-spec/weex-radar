@@ -66,3 +66,19 @@ test('paper journal records only latest closed candle candidate, dedupes it and 
  assert.equal(unit.get().length,2);
  assert.equal(unit.get()[0].status,'pending');
 });
+
+test('five paper wins are not permission or a stop: more hypothetical tests can be recorded',()=>{
+ const unit=makeHarness(),closed=Date.UTC(2026,10,10,4,0);
+ const prior=['BTCUSDT','ETHUSDT','SOLUSDT','DOGEUSDT','BNBUSDT']
+  .map((symbol,i)=>({symbol,strategy:'BAND_BREAKOUT',
+   direction:'LONG',closedAt:closed-i*10*M,status:'win',netBps:5}));
+ unit.set(prior);
+ const snap={closedAt:closed,generatedAt:closed+1000,recent:[{
+  strategy:'BAND_REENTRY',direction:'SHORT',closedAt:closed,
+  observedClose:1.1,volumeRatio:1.3,notATrade:true
+ }]};
+ unit.accept('XRPUSDT',snap);
+ assert.equal(unit.get().length,6);
+ assert.equal(unit.get()[5].status,'pending');
+ assert.equal(unit.get().filter(x=>x.status==='win').length,5);
+});
