@@ -221,11 +221,16 @@ function render(){
   const watch=x?.watch;
   const watchText=!x?.ok?'—':!watch||watch.kind==='QUIET'?
    'ТИХО · объём ×'+fixed(watch?.relativeVolume,2):
-   watch.kind==='NEAR_BAND'?'👁 WATCH '+watch.direction+
-   ' · объём ×'+fixed(watch.relativeVolume,2):
-   '👁 АКТИВНЫЙ ОБЪЁМ ×'+fixed(watch.relativeVolume,2);
+   watch.kind==='NEAR_BAND'?'👁 У ГРАНИЦЫ BB · '+watch.direction:
+   watch.kind==='VOLUME_ACTIVITY'?'👁 АКТИВНЫЙ ОБЪЁМ ×'+fixed(watch.relativeVolume,2):
+   watch.kind==='MOMENTUM'?'👁 ИМПУЛЬС 5М · наблюдение':
+   '👁 СЖАТИЕ BB · наблюдение';
+  const diagnostics=watch?.regime;
+  const regimeText=diagnostics?.available?
+   ' · EMA '+diagnostics.trend+' · RSI '+fixed(diagnostics.rsi14,1)+
+   ' · ATR '+fixed(diagnostics.atr14Bps,1)+' б.п.':'';
   const rangeText=x?.ok&&watch?' · диапазон 1М '+fixed(watch.oneMinuteRangeBps,1)+
-   ' б.п. vs расходы 22 б.п.':'';
+   ' б.п. vs расходы 22 б.п.'+regimeText:'';
   for(const v of [symbol,x?.closedAt?asBerlin(x.closedAt):'—',
    watchText,!x?'Не проверено':x.ok?'Свежая WEEX 1М'+rangeText:'Нет свежих данных']){
    let td=document.createElement('td');td.textContent=v;tr.append(td);
@@ -291,7 +296,8 @@ async function fetchOne(symbol){
    d.exchange!=='WEEX'||d.notATrade!==true||d.ordersSent!==0||
    !Array.isArray(d.bars)||!Array.isArray(d.recent)||
    !d.marketWatch||d.marketWatch.notATrade!==true||
-   !['QUIET','NEAR_BAND','VOLUME_ACTIVITY'].includes(d.marketWatch.kind)||
+   !['QUIET','NEAR_BAND','VOLUME_ACTIVITY','MOMENTUM','SQUEEZE'].includes(d.marketWatch.kind)||
+   d.marketWatch.regime?.notATrade!==true||
    d.generatedAt-d.closedAt<1000||d.generatedAt-d.closedAt>90000)
    throw Error('INVALID_OR_STALE_WEEX_PAPER_RESPONSE');
   // Check the whole included series has no missing minute or future candle.
