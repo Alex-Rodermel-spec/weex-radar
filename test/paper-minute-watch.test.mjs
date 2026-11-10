@@ -93,7 +93,11 @@ test('paper page compiles and contains win/loss and five-minute future settlemen
  assert.match(page,/status==='win'/);
  assert.match(page,/status==='loss'/);
  assert.match(page,/localStorage/);
- assert.match(page,/setInterval/);
+ assert.match(page,/setTimeout/);
+ assert.match(page,/AFTER_CLOSE_MS=4500/);
+ assert.match(page,/MAX_DETECTION_MS=25000/);
+ assert.match(page,/MAX_RESPONSE_AGE_MS=12000/);
+ assert.doesNotMatch(page,/setInterval\(/);
  assert.match(page,/notATrade/);
  assert.match(page,/id="watch-count"/);
  assert.match(page,/id="total-net"/);
