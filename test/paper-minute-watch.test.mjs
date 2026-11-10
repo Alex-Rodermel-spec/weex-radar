@@ -32,7 +32,13 @@ test('paper snapshot returns closed contiguous historical candles, never an orde
  assert.ok(snap.generatedAt>snap.closedAt);
  assert.equal(snap.assumedRoundTripCostsBps,22);
  assert.equal(snap.marketWatch.notATrade,true);
- assert.ok(['NEAR_BAND','VOLUME_ACTIVITY','QUIET'].includes(snap.marketWatch.kind));
+ assert.ok(['NEAR_BAND','VOLUME_ACTIVITY','MOMENTUM','SQUEEZE','QUIET']
+  .includes(snap.marketWatch.kind));
+ assert.equal(snap.marketWatch.regime.notATrade,true);
+ assert.equal(snap.marketWatch.regime.tradeReady,false);
+ assert.equal(snap.marketWatch.regime.available,true);
+ assert.ok(Number.isFinite(snap.marketWatch.regime.rsi14));
+ assert.ok(Number.isFinite(snap.marketWatch.regime.atr14Bps));
  assert.ok(Number.isFinite(snap.marketWatch.relativeVolume));
  assert.ok(Number.isFinite(snap.marketWatch.oneMinuteRangeBps));
  assert.ok(snap.marketWatch.oneMinuteRangeBps>=0);
@@ -94,6 +100,9 @@ test('paper page compiles and contains win/loss and five-minute future settlemen
  assert.match(page,/id="win-rate"/);
  assert.match(page,/marketWatch\.notATrade/);
  assert.match(page,/kind==='NEAR_BAND'/);
+ assert.match(page,/kind==='MOMENTUM'/);
+ assert.match(page,/kind==='VOLUME_ACTIVITY'/);
+ assert.match(page,/regime\.trend/);
 });
 test('no live order, trade API, account or webhook references in paper data handler',()=>{
  const src=readFileSync(new URL('../lib/paper-minute-watch.mjs',import.meta.url),'utf8');
