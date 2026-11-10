@@ -190,3 +190,22 @@ test('50x SHORT stress checks HIGH not LOW and missing OHLC fails closed',()=>{
  const withoutHigh=rows.map(({high,...r})=>r);
  assert.equal(unit.stress50Paper(withoutHigh,100,'LONG',0),null);
 });
+
+test('paper scanner reports why a fresh LONG/SHORT was skipped, never invents a fill',()=>{
+ const closed=Date.UTC(2026,10,10,2,0),now=closed+5000;
+ const unit=makeHarness(now);
+ const event={strategy:'BAND_BREAKOUT',direction:'LONG',closedAt:closed,
+  observedClose:100,volumeRatio:2.0,notATrade:true};
+ assert.equal(unit.accept('XRPUSDT',{closedAt:closed,generatedAt:now-1000,
+  recent:[],paperEntryQuote:null}),'NO_CURRENT_CANDIDATE');
+ assert.equal(unit.accept('XRPUSDT',{closedAt:closed,generatedAt:now-1000,
+  recent:[event],paperEntryQuote:null}),'QUOTE_NOT_USABLE');
+ assert.equal(unit.get().length,0);
+ const quote={source:'WEEX_PUBLIC_BOOKTICKER',notATrade:true,
+  bid:99.99,ask:100.01,spreadBps:2,quotedAt:closed+4000};
+ assert.equal(unit.accept('XRPUSDT',{closedAt:closed,generatedAt:closed+4000,
+  recent:[event],paperEntryQuote:quote}),'RECORDED');
+ assert.equal(unit.accept('XRPUSDT',{closedAt:closed,generatedAt:closed+4000,
+  recent:[event],paperEntryQuote:quote}),'DUPLICATE_OR_COOLDOWN');
+ assert.equal(unit.get().length,1);
+});
