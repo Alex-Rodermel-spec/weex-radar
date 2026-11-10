@@ -91,15 +91,15 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
 </head><body><main>
 <header class="topbar">
  <div class="brand"><span class="brandmark" aria-hidden="true">◈</span> WEEX <span style="color:#ad9aff">RADAR</span> <span style="color:#7282a9;font-size:11px">V2</span></div>
- <div class="topright"><span class="topchip accent">● WEEX PUBLIC DATA</span><span class="topchip" id="last-check-chip">ЕЩЁ НЕ ПРОВЕРЕНО</span><span class="topchip">×50 PAPER · ZERO ORDERS</span></div>
+ <div class="topright"><span class="topchip accent" id="universe-status">● ПРОВЕРЯЕМ 50 НОВЫХ</span><span class="topchip" id="last-check-chip">ЕЩЁ НЕ ПРОВЕРЕНО</span><span class="topchip">×50 PAPER · ZERO ORDERS</span></div>
 </header>
 <section class="hero" aria-labelledby="page-title">
  <div>
   <div class="eyebrow">MINUTE INTELLIGENCE / ИССЛЕДОВАТЕЛЬСКИЙ ТЕРМИНАЛ</div>
   <h1 id="page-title">Меньше шума.<br><span>Больше ясности.</span></h1>
-  <p class="lead">16 рынков WEEX · ранние WATCH-наблюдения · строгие PAPER LONG/SHORT. Мы тестируем цель <strong>5 положительных исходов</strong>, фиксируем также каждый убыток и не выдаём историческую модель за прибыль.</p>
+  <p class="lead">16 основных + 50 дополнительных рынков WEEX · ранние WATCH-наблюдения · строгие PAPER LONG/SHORT. Мы тестируем цель <strong>5 положительных исходов</strong>, фиксируем также каждый убыток и не выдаём историческую модель за прибыль.</p>
   <div class="hero-meta">
-   <span class="topchip">1M DATA</span><span class="topchip">BB 20/2 + VOLUME</span><span class="topchip">5M EVALUATION</span><span class="topchip">0 REAL ORDERS</span>
+   <span class="topchip" id="universe-chip">16 + 50 · ПРОВЕРКА WEEX</span><span class="topchip">1M DATA</span><span class="topchip">BB 20/2 + VOLUME</span><span class="topchip">5M EVALUATION</span><span class="topchip">0 REAL ORDERS</span>
   </div>
  </div>
  <aside class="hero-highlight" aria-label="Прогресс теста">
@@ -128,17 +128,18 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
   <div class="tile"><small>SHORT · результат</small><strong id="short-stats" style="font-size:17px">—</strong></div>
   <div class="tile"><small>Сигналы по тренду EMA</small><strong id="aligned-stats" style="font-size:17px">—</strong></div>
   <div class="tile"><small>Ранних WATCH сейчас</small><strong id="watch-count">—</strong></div>
-  <div class="tile"><small>Свежих рынков</small><strong id="markets">— / 16</strong></div>
+  <div class="tile"><small>Свежих рынков</small><strong id="markets">— / 66</strong></div>
  </div>
  <div class="actions">
-  <button id="start" type="button">▶ Запустить наблюдение</button>
+  <button id="start" type="button" disabled>▶ Запустить наблюдение</button>
   <button id="stop" type="button" class="secondary" disabled>■ Остановить</button>
-  <button id="once" type="button" class="secondary">Проверить и запустить PAPER</button>
+  <button id="once" type="button" class="secondary" disabled>Проверить и запустить PAPER</button>
   <button id="export" type="button" class="secondary">Сохранить журнал CSV</button>
  </div>
- <p id="status" role="status">Наблюдение остановлено. Кнопка «Проверить и запустить PAPER» также включает запись новых сигналов. При открытой странице проверка примерно раз в минуту; WATCH и исторические свечи не считаются сделками.</p>
+ <p id="status" role="status">Проверяем официальный список WEEX. В тесте будет 16 основных и до 50 дополнительных рынков. PAPER-запись начнётся только после нажатия кнопки.</p>
+ <p class="info-line" id="universe-description">Дополнительные 50 монет выбираются через официальный публичный WEEX API. Если проверка не пройдёт, сохраняем только 16 базовых рынков и показываем предупреждение.</p>
  <div class="grid" aria-label="Почему нет PAPER-сделок">
-  <div class="tile"><small>Исторические BB-сигналы за 90 минут · НЕ сделки</small><strong id="hist-90">—</strong></div>
+  <div class="tile"><small>Исторические BB-сигналы за ~80–90 минут · НЕ сделки</small><strong id="hist-90">—</strong></div>
   <div class="tile"><small>Свежих кандидатов за этот проход</small><strong id="raw-now">0</strong></div>
   <div class="tile"><small>Нет пригодной котировки WEEX</small><strong id="skip-quote">0</strong></div>
   <div class="tile"><small>Запоздалых / просроченных</small><strong id="skip-late">0</strong></div>
@@ -165,7 +166,7 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
  </table></div>
 </section>
 <section class="panel" id="markets-section">
- <div class="section-head"><h2>16 рынков · обзор WATCH</h2><span class="topchip">LIVE CANDLE SNAPSHOT</span></div>
+ <div class="section-head"><h2>WEEX · обзор WATCH по всем активным рынкам</h2><span class="topchip">LIVE CANDLE SNAPSHOT</span></div>
  <p class="lead">WATCH — только предварительное наблюдение. Сравнение типичного минутного диапазона с 22 б.п. расходов показывает волатильность, но не предсказывает доход.</p>
  <div class="scroll"><table class="tab">
   <thead><tr><th>Рынок</th><th>Последняя свеча</th><th>Ранний WATCH</th><th>BB за 90 мин (история)</th><th>Проверка</th></tr></thead>
@@ -175,9 +176,10 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
 <footer>🔒 Исследование только на публичных данных WEEX Futures. Нет аккаунтного API, автосделок, реальных ордеров или платных изменений. Требуется независимая проверка стратегии на будущих днях.</footer>
 <script>
 'use strict';
-const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT',
+const BASE_SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT',
  '1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT',
  'BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
+let SYMBOLS=[...BASE_SYMBOLS],UNIVERSE_OK=false,UNIVERSE_NOTE='Загрузка списка WEEX...';
 const KEY='weex-paper-five-forward-v1';
 const COSTS_BPS=22,ONE=60000,HORIZON=5*ONE,MAX_TRADES=500;
 // 50x is a SIMULATION DISPLAY, not an exchange leverage setting.
@@ -193,12 +195,43 @@ const asBerlin=ms=>new Date(ms).toLocaleString('ru-RU',{timeZone:'Europe/Berlin'
  hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',hour12:false});
 const fixed=(n,d=2)=>Number.isFinite(n)?n.toFixed(d):'—';
 const key=t=>[t.symbol,t.strategy,t.direction,t.closedAt].join('|');
+async function loadWeexUniverse(){
+ try{
+  const response=await fetch('/api/signals?mode=one-minute-research&universe=1',
+   {cache:'no-store'});
+  const d=await response.json();
+  if(!response.ok||d.mode!=='WEEX_PAPER_UNIVERSE'||
+   d.exchange!=='WEEX'||d.notATrade!==true||d.ordersSent!==0||
+   !Array.isArray(d.baseMarkets)||!Array.isArray(d.extraMarkets)||
+   !Array.isArray(d.markets)||d.baseMarkets.length!==16||
+   d.extraMarkets.length!==50||d.markets.length!==66||
+   d.baseMarkets.some((s,i)=>s!==BASE_SYMBOLS[i])||
+   new Set(d.markets).size!==66||
+   d.markets.some(s=>typeof s!=='string'||!/^[A-Z0-9]{2,25}USDT$/.test(s)))
+   throw Error('WEEX_66_MARKETS_NOT_VERIFIED');
+  SYMBOLS=[...d.markets];UNIVERSE_OK=true;
+  UNIVERSE_NOTE='16 базовых + 50 новых контрактов WEEX ('+d.selection+')';
+  $('universe-status').textContent='● WEEX 66 / 66 ПОДТВЕРЖДЕНЫ';
+  $('universe-chip').textContent='16 БАЗОВЫХ + 50 НОВЫХ';
+  $('universe-description').textContent=UNIVERSE_NOTE+
+   '. Тестируем только публичные свечи; дополнительные рынки не включены в реальную торговлю.';
+ }catch(e){
+  UNIVERSE_OK=false;SYMBOLS=[...BASE_SYMBOLS];
+  UNIVERSE_NOTE='Новые 50 не подтверждены WEEX API; безопасный режим 16 основных.';
+  $('universe-status').textContent='● ДОПОЛНИТЕЛЬНЫЕ НЕ ПРОВЕРЕНЫ';
+  $('universe-chip').textContent='16 БАЗОВЫХ · ОГРАНИЧЕННО';
+  $('universe-description').textContent=UNIVERSE_NOTE+
+   ' Обнови страницу, когда API восстановится. Ошибка: '+String(e.message||e);
+ }
+ $('markets').textContent='— / '+SYMBOLS.length;
+ return SYMBOLS;
+}
 
 function load(){
  try{
   const parsed=JSON.parse(localStorage.getItem(KEY)||'[]');
   if(Array.isArray(parsed))trades=parsed.filter(t=>t&&
-   SYMBOLS.includes(t.symbol)&&['LONG','SHORT'].includes(t.direction)&&
+   /^[A-Z0-9]{2,25}USDT$/.test(t.symbol)&&['LONG','SHORT'].includes(t.direction)&&
    ['pending','win','loss','risk','unresolved'].includes(t.status)&&
    Number.isSafeInteger(t.closedAt)).slice(-MAX_TRADES);
  }catch{trades=[]}
@@ -446,9 +479,13 @@ async function scan(){
  if(checking)return;
  checking=true;
  try{
-  $('status').textContent='Проверяю 16 рынков WEEX по 1М...';
-  for(let i=0;i<SYMBOLS.length;i+=4)
-   await Promise.all(SYMBOLS.slice(i,i+4).map(fetchOne));
+  $('status').textContent='Проверяю '+SYMBOLS.length+
+   ' рынков WEEX по 1М (16 основных + '+(SYMBOLS.length-16)+' дополнительных)...';
+  // Bounded concurrency keeps the 66-market scan closer to the closing
+  // minute; never issue all 66 requests as one unbounded burst.
+  const CONCURRENCY=16;
+  for(let i=0;i<SYMBOLS.length;i+=CONCURRENCY)
+   await Promise.all(SYMBOLS.slice(i,i+CONCURRENCY).map(fetchOne));
   store();render();
   const ok=[...markets.values()].filter(x=>x.ok).length;
   const watching=[...markets.values()].filter(x=>x.ok&&x.watch&&
@@ -494,12 +531,14 @@ async function scan(){
    !fresh?'В эту минуту строгих LONG/SHORT нет. WATCH и история 90 минут — не сделки.':
    added?'Записано '+added+' новых PAPER-тестов. Результат оценивается после будущих 5 минут.':
    'Кандидаты были, но не записаны: нет пригодной котировки, пришли поздно либо повторились.';
-  $('markets').textContent=ok+' / 16';
+  $('markets').textContent=ok+' / '+SYMBOLS.length;
   $('last-check-chip').textContent='WEEX '+ok+'/16 · '+asBerlin(Date.now());
-  const w=trades.filter(t=>t.status==='win').length,
-   l=trades.filter(t=>t.status==='loss').length;
+  const newModel=trades.filter(t=>t.paperRiskModel==='PAPER_50X_STRESS_V1');
+  const w=newModel.filter(t=>t.status==='win').length,
+   l=newModel.filter(t=>['loss','risk'].includes(t.status)).length;
   $('status').textContent='Последняя проверка '+asBerlin(Date.now())+
-   ' · WEEX '+ok+'/16 · WATCH '+watching+' · прибыльных '+w+', убыточных '+l+
+   ' · WEEX '+ok+'/'+SYMBOLS.length+' · WATCH '+watching+
+   ' · прибыльных '+w+', убыточных/риск '+l+
    '. '+(running?'Следующий запрос примерно через минуту.':'Наблюдение остановлено.');
   // Five positive paper outcomes are a milestone, NOT an automatic stop:
   // continue observing losses and the overall net expectancy for manual review.
@@ -564,6 +603,15 @@ $('export').onclick=()=>{
  a.href=url;a.download='weex-paper-five-journal.csv';a.click();
  URL.revokeObjectURL(url);
 };
-load();render();
+async function initialize(){
+ $('start').disabled=true;$('once').disabled=true;
+ await loadWeexUniverse();
+ load();render();
+ $('start').disabled=trades.length>=MAX_TRADES;
+ $('once').disabled=false;
+ $('status').textContent=UNIVERSE_NOTE+
+  '. Нажми «Проверить и запустить PAPER», чтобы начать запись новых сигналов.';
+}
+initialize();
 </script>
 </main></body></html>
