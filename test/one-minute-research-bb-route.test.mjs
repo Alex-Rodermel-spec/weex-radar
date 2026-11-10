@@ -85,3 +85,49 @@ test('read-only research route includes separate 5m/10m BB+volume studies',async
   globalThis.fetch=originalFetch;
  }
 });
+
+test('real one-minute route dispatches a PAPER batch before requiring single symbol',async()=>{
+ const original=globalThis.fetch,now=Date.now();
+ const names=['BTCUSDT','XRPUSDT','SOLUSDT'],seen=[];
+ const one=JSON.stringify(fakeBars('1m',now).slice(-100));
+ globalThis.fetch=async url=>{
+  const x=String(url);seen.push(x);
+  if(x.includes('/market/ticker/bookTicker'))
+   return {ok:true,headers:{get:()=>null},text:async()=>JSON.stringify([])};
+  assert.ok(x.includes('/market/klines?'),'Only read public market candles');
+  assert.equal(new URL(x).searchParams.get('interval'),'1m');
+  return {ok:true,headers:{get:()=>null},text:async()=>one};
+ };
+ const res={statusCode:200,result:null,headers:{},
+  setHeader(k,v){this.headers[k]=v;return this},
+  status(n){this.statusCode=n;return this},
+  json(v){this.result=v;return this}};
+ try{
+  await handleOneMinuteResearch({method:'GET',query:{
+   paper:'1',batch:'1',quick:'1',symbols:names.join(',')
+  }},res,names);
+  assert.equal(res.statusCode,200,JSON.stringify(res.result).slice(0,300));
+  assert.equal(res.result.mode,'PAPER_1M_WEEX_BATCH');
+  assert.equal(res.result.ordersSent,0);
+  assert.equal(res.result.results.length,names.length);
+  assert.ok(res.result.results.every(x=>x.status==='ok'&&
+   x.data?.mode==='PAPER_1M_WEEX_ONLY'&&
+   x.data.ordersSent===0&&x.data.historical90m===null));
+  assert.equal(res.headers['Cache-Control'],'no-store');
+  assert.ok(seen.length>=3);
+ }finally{globalThis.fetch=original}
+});
+test('PAPER batch routing fails closed for an unsupported member, with no fetch',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async()=>{throw Error('Must never fetch an unsupported pair')};
+ const res={statusCode:200,result:null,headers:{},
+  setHeader(){return this},status(code){this.statusCode=code;return this},
+  json(v){this.result=v;return this}};
+ try{
+  await handleOneMinuteResearch({method:'GET',query:{
+   paper:'1',batch:'1',quick:'1',symbols:'BTCUSDT,FAKEUSDT'
+  }},res,['BTCUSDT']);
+  assert.equal(res.statusCode,400);
+  assert.match(res.result.error,/batch/i);
+ }finally{globalThis.fetch=original}
+});
