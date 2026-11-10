@@ -34,6 +34,15 @@ test('paper snapshot returns closed contiguous historical candles, never an orde
  assert.equal(snap.tradeReady,false);
  assert.ok(snap.generatedAt>snap.closedAt);
  assert.equal(snap.assumedRoundTripCostsBps,22);
+ assert.equal(snap.historical90m.kind,'PAST_CANDLES_ONLY_NOT_PAPER');
+ assert.equal(snap.historical90m.notATrade,true);
+ assert.equal(snap.historical90m.observedMinutes,80);
+ assert.ok(snap.historical90m.rawCandidates>=snap.historical90m.guardedCandidates);
+ assert.equal(snap.historical90m.qualityRejected,
+  snap.historical90m.rawCandidates-snap.historical90m.guardedCandidates);
+ assert.ok(snap.historical90m.lastSignals.length<=10);
+ assert.ok(snap.historical90m.lastSignals.every(x=>x.notATrade&&
+  x.closedAt<=snap.closedAt));
  assert.equal(snap.marketWatch.notATrade,true);
  assert.ok(['NEAR_BAND','VOLUME_ACTIVITY','MOMENTUM','SQUEEZE','QUIET']
   .includes(snap.marketWatch.kind));
@@ -106,6 +115,12 @@ test('paper page compiles and contains win/loss and five-minute future settlemen
  assert.match(page,/PAPER_50X_STRESS_V1/);
  assert.match(page,/id="risk-touches-50"/);
  assert.match(page,/id="margin-roi-50"/);
+ assert.match(page,/id="hist-90"/);
+ assert.match(page,/id="paper-explain"/);
+ assert.match(page,/id="skip-quote"/);
+ assert.match(page,/id="paper-added"/);
+ assert.match(page,/PAST_CANDLES_ONLY_NOT_PAPER/);
+ assert.match(page,/\$\('once'\)\.onclick=\(\)=>\{if\(!running\)start\(\);else scan\(\)\}/);
  assert.doesNotMatch(page,/setInterval\(/);
  assert.match(page,/notATrade/);
  assert.match(page,/id="watch-count"/);
