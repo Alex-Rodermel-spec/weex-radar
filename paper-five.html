@@ -118,6 +118,8 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
   <div class="tile"><small>Убыточных тестов</small><strong id="losses">0</strong></div>
   <div class="tile"><small>Ожидают исхода</small><strong id="pending">0</strong></div>
   <div class="tile"><small>Средний результат</small><strong id="average">—</strong></div>
+  <div class="tile"><small>×50 · средний итог от маржи</small><strong id="margin-roi-50">—</strong></div>
+  <div class="tile"><small>×50 · риск-касания 1,5%</small><strong id="risk-touches-50">0</strong></div>
   <div class="tile"><small>Вывод по PAPER</small><strong id="paper-verdict" style="font-size:16px">Мало данных</strong></div>
   <div class="tile"><small>Суммарный тестовый итог, б.п.</small><strong id="total-net">—</strong></div>
   <div class="tile"><small>Доля выигрышей</small><strong id="win-rate">—</strong></div>
@@ -138,10 +140,10 @@ footer{color:#8190af;font-size:12px;margin:29px 0;padding-top:15px;border-top:1p
 </section>
 <section class="panel" id="journal">
  <div class="section-head"><h2>Журнал PAPER-сделок</h2><span class="topchip">WIN · LOSS · PENDING</span></div>
- <p class="lead">Новая модель: кандидат на закрытой 1М свече → после своевременного получения публичной котировки WEEX условный вход <strong>LONG по ask / SHORT по bid</strong> → выход по CLOSE пятой следующей свечи. Вычитаем 0,22% модельных комиссий/проскальзывания плюс предполагаемую половину входного спреда для выхода. <strong>Не моделируются реальные исполнения, SL/TP, финансирование или будущий спред.</strong> Старые записи по OPEN следующей свечи видны в таблице и CSV, но <strong>не смешиваются</strong> с новой статистикой.</p>
+ <p class="lead">Режим <strong>×50 — только виртуально</strong>. Сигнал по закрытой 1М свече → публичный WEEX ask для LONG или bid для SHORT → исход на следующих пяти закрытых свечах. Из результата вычитаем 0,22% модельных расходов и допущение о выходном спреде. Если минутные high/low касаются <strong>1,5% против позиции</strong>, считаем тест <strong>рисковым, а не прибыльным</strong> и условно закрываем по этому порогу. Это <strong>не реальный уровень ликвидации</strong> и не гарантия выхода: ликвидация может наступить раньше, исполнение хуже, а порядок движения внутри минуты неизвестен. Старые записи без bid/ask остаются отдельно.</p>
  <div class="scroll"><table class="tab">
-  <thead><tr><th>Монета</th><th>Сигнал (Берлин)</th><th>Направление</th><th>Условный вход</th><th>Исход через 5М</th></tr></thead>
-  <tbody id="trades"><tr><td colspan="5">Пока нет записей</td></tr></tbody>
+  <thead><tr><th>Монета</th><th>Сигнал (Берлин)</th><th>Направление</th><th>Условный вход</th><th>Исход через 5М</th><th>×50 от маржи</th></tr></thead>
+  <tbody id="trades"><tr><td colspan="6">Пока нет записей</td></tr></tbody>
  </table></div>
 </section>
 <section class="panel" id="markets-section">
@@ -160,6 +162,10 @@ const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT',
  'BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 const KEY='weex-paper-five-forward-v1';
 const COSTS_BPS=22,ONE=60000,HORIZON=5*ONE,MAX_TRADES=500;
+// 50x is a SIMULATION DISPLAY, not an exchange leverage setting.
+// 150bps adverse threshold is a conservative stress benchmark, NOT
+// the actual WEEX liquidation or a guaranteed exchange stop-loss fill.
+const PAPER_LEVERAGE=50,PAPER_STRESS_BPS=150;
 // The paper record must be timely; an old signal is not a fresh entry.
 // Next-minute OPEN remains a research proxy, not a guaranteed executable price.
 const MAX_DETECTION_MS=25000,MAX_RESPONSE_AGE_MS=12000,AFTER_CLOSE_MS=4500;
@@ -175,7 +181,7 @@ function load(){
   const parsed=JSON.parse(localStorage.getItem(KEY)||'[]');
   if(Array.isArray(parsed))trades=parsed.filter(t=>t&&
    SYMBOLS.includes(t.symbol)&&['LONG','SHORT'].includes(t.direction)&&
-   ['pending','win','loss','unresolved'].includes(t.status)&&
+   ['pending','win','loss','risk','unresolved'].includes(t.status)&&
    Number.isSafeInteger(t.closedAt)).slice(-MAX_TRADES);
  }catch{trades=[]}
 }
@@ -189,8 +195,9 @@ function render(){
  // public bid/ask-on-arrival cohort. Both remain visible in the export.
  const current=trades.filter(x=>x.entryAssumption==='WEEX_PUBLIC_BOOKTICKER');
  const wins=current.filter(x=>x.status==='win'),losses=current.filter(x=>x.status==='loss');
+ const risky=current.filter(x=>x.status==='risk');
  const pending=current.filter(x=>x.status==='pending');
- const resolved=[...wins,...losses];
+ const resolved=[...wins,...losses,...risky];
  $('wins').textContent=wins.length+' / 5';
  $('hero-wins').textContent=Math.min(5,wins.length);
  const fill=Math.min(100,wins.length*20);
@@ -200,6 +207,9 @@ function render(){
  $('monitor-state').textContent=running?'Наблюдение включено':'Наблюдение остановлено';
  $('losses').textContent=losses.length;
  $('pending').textContent=pending.length;
+ $('risk-touches-50').textContent=risky.length;
+ $('margin-roi-50').textContent=resolved.length?
+  fixed(resolved.reduce((sum,t)=>sum+t.marginRoi50Pct,0)/resolved.length)+'%':'—';
  $('average').textContent=resolved.length?
   fixed(resolved.reduce((s,x)=>s+x.netBps,0)/resolved.length)+' б.п.':'—';
  const meanNet=resolved.length?resolved.reduce((s,x)=>s+x.netBps,0)/resolved.length:null;
@@ -223,7 +233,7 @@ function render(){
  $('stop').disabled=!running;
  const rows=$('trades');rows.replaceChildren();
  if(!trades.length){let tr=document.createElement('tr'),td=document.createElement('td');
-  td.colSpan=5;td.textContent='Нет тестовых сделок. Настройка не создаёт фиктивных побед.';
+  td.colSpan=6;td.textContent='Нет тестовых сделок. Настройка не создаёт фиктивных побед.';
   tr.append(td);rows.append(tr);
  }
  for(const t of trades.slice().reverse().slice(0,70)){
@@ -232,10 +242,16 @@ function render(){
    Number.isFinite(t.entry)?String(t.entry):'ещё нет',
    t.status==='pending'?'ОЖИДАНИЕ':
    t.status==='unresolved'?'НЕТ ДАННЫХ':
+   t.status==='risk'?'×50 РИСК 1,5% · условный выход '+fixed(t.netBps)+' б.п.':
    (t.status==='win'?'ПЛЮС ':'МИНУС ')+fixed(t.netBps)+' б.п.'+
-   (t.entryAssumption==='WEEX_PUBLIC_BOOKTICKER'?' · BID/ASK':' · СТАРЫЙ OPEN')];
+   (t.entryAssumption==='WEEX_PUBLIC_BOOKTICKER'?' · BID/ASK':' · СТАРЫЙ OPEN'),
+   t.entryAssumption!=='WEEX_PUBLIC_BOOKTICKER'?'СТАРЫЙ ТЕСТ':
+    t.status==='pending'?'ОЖИДАНИЕ':
+    t.status==='unresolved'?'НЕТ ДАННЫХ':
+    fixed(t.marginRoi50Pct)+'%'+(t.status==='risk'?' · стресс':'')];
   for(const v of cells){let td=document.createElement('td');td.textContent=v;tr.append(td)}
-  tr.lastChild.className=t.status==='win'?'win':t.status==='loss'?'loss':'pending';
+  tr.lastChild.className=t.status==='win'?'win':
+   ['loss','risk'].includes(t.status)?'loss':'pending';
   rows.append(tr);
  }
  const mbody=$('markets-table');mbody.replaceChildren();
@@ -260,6 +276,30 @@ function render(){
   }
   mbody.append(tr);
  }
+}
+// Hypothetical ×50 isolated-margin stress study. Uses 1m OHLC wicks, which
+// cannot establish intraminute order, mark-price liquidation or stop fills.
+function stress50Paper(five,entry,direction,exitSpreadBps=0){
+ if(five.length!==5||!Number.isFinite(entry)||entry<=0||
+  !['LONG','SHORT'].includes(direction)||!Number.isFinite(exitSpreadBps)||
+  exitSpreadBps<0||five.some(b=>!Number.isFinite(b.high)||
+  !Number.isFinite(b.low)||!Number.isFinite(b.close)||b.low<=0||
+  b.high<b.low||b.high<b.close||b.low>b.close))return null;
+ const worst=direction==='LONG'?
+  Math.min(...five.map(b=>b.low)):Math.max(...five.map(b=>b.high));
+ const adverseBps=Math.max(0,(direction==='LONG'?
+  (entry-worst)/entry:(worst-entry)/entry)*10000);
+ const touched=adverseBps>=PAPER_STRESS_BPS;
+ const horizonExit=five[4].close;
+ const stressExit=entry*(1+(direction==='LONG'?-1:1)*
+  PAPER_STRESS_BPS/10000);
+ const usedExit=touched?stressExit:horizonExit;
+ const grossBps=(direction==='LONG'?1:-1)*(usedExit-entry)/entry*10000;
+ const netBps=Number((grossBps-COSTS_BPS-exitSpreadBps).toFixed(2));
+ return {exit:usedExit,horizonExit,riskTouched:touched,
+  adverseBps:Number(adverseBps.toFixed(2)),netBps,
+  // % of fixed INITIAL test margin, NOT actual wallet PnL or liquidation.
+  marginRoi50Pct:Number((netBps*PAPER_LEVERAGE/100).toFixed(2))};
 }
 function settle(symbol,bars,closedAt){
  for(const t of trades){
@@ -287,14 +327,24 @@ function settle(symbol,bars,closedAt){
    {t.status='unresolved';continue}
   const entry=quoteModel?t.entry:entryBar.open,exit=five[4].close;
   if(!Number.isFinite(entry)||entry<=0){t.status='unresolved';continue}
-  const grossBps=(t.direction==='LONG'?1:-1)*(exit-entry)/entry*10000;
-  // Public quote contains spread at entry. A *modeled* half-entry-spread
-  // is additionally deducted as an exit proxy; no claim of a real fill.
   const exitSpreadBps=quoteModel?Number(t.entrySpreadBps)/2:0;
   if(!Number.isFinite(exitSpreadBps)||exitSpreadBps<0){t.status='unresolved';continue}
-  t.entry=entry;t.exit=exit;t.grossBps=Number(grossBps.toFixed(2));
-  t.netBps=Number((grossBps-COSTS_BPS-exitSpreadBps).toFixed(2));
-  t.status=t.netBps>0?'win':'loss';t.resolvedAt=t.closedAt+HORIZON;
+  if(quoteModel){
+   const stressed=stress50Paper(five,entry,t.direction,exitSpreadBps);
+   if(!stressed){t.status='unresolved';continue}
+   t.entry=entry;t.exit=stressed.exit;t.horizonExit=stressed.horizonExit;
+   t.riskTouched50=stressed.riskTouched;
+   t.maxAdverseBps=stressed.adverseBps;
+   t.netBps=stressed.netBps;t.marginRoi50Pct=stressed.marginRoi50Pct;
+   t.grossBps=Number((stressed.netBps+COSTS_BPS+exitSpreadBps).toFixed(2));
+   t.status=stressed.riskTouched?'risk':t.netBps>0?'win':'loss';
+  }else{
+   const grossBps=(t.direction==='LONG'?1:-1)*(exit-entry)/entry*10000;
+   t.entry=entry;t.exit=exit;t.grossBps=Number(grossBps.toFixed(2));
+   t.netBps=Number((grossBps-COSTS_BPS).toFixed(2));
+   t.status=t.netBps>0?'win':'loss';
+  }
+  t.resolvedAt=t.closedAt+HORIZON;
  }
 }
 function accept(symbol,snap){
@@ -434,7 +484,8 @@ $('export').onclick=()=>{
  const cols=['symbol','strategy','direction','closedAt','seenAt','detectionLagMs',
   'signalClose','volumeRatio','signalTrend','trendAligned','signalRsi14',
   'signalAtr14Bps','entry','entryAssumption','quotedAt','entrySpreadBps',
-  'exit','grossBps','netBps','status'];
+  'exit','horizonExit','grossBps','netBps','marginRoi50Pct',
+  'riskTouched50','maxAdverseBps','status'];
  const csv=cols.join(',')+'\n'+trades.map(t=>cols.map(k=>
   JSON.stringify(t[k]??'')).join(',')).join('\n');
  const file=new Blob([csv],{type:'text/csv;charset=utf-8'});
