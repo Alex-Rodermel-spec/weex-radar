@@ -185,3 +185,67 @@ test('public WEEX bookTicker validates a fresh bid/ask and rejects stale or wide
   await assert.rejects(candidateBookQuote('XRPUSDT',close,now),/STALE_OR_INVALID/);
  }finally{globalThis.fetch=old}
 });
+
+test('six-market public batch serves exactly requested symbols with no trades or history in fast mode',async()=>{
+ const old=globalThis.fetch,now=Date.now(),calls=[];
+ globalThis.fetch=async(url,opts)=>{
+  calls.push({url,opts});
+  return {ok:true,headers:{get:()=>null},
+   text:async()=>JSON.stringify(fakeRows(now))};
+ };
+ try{
+  const names=['XRPUSDT','BTCUSDT','SOLUSDT','ADAUSDT','ETHUSDT','DOGEUSDT'];
+  const out=mkRes();
+  await handlePaperMinuteWatch({method:'GET',query:{
+   batch:'1',quick:'1',symbols:names.join(',')
+  }},out,names);
+  assert.equal(out.statusCode,200,JSON.stringify(out.result).slice(0,600));
+  assert.equal(out.result.mode,'PAPER_1M_WEEX_BATCH');
+  assert.equal(out.result.notATrade,true);
+  assert.equal(out.result.ordersSent,0);
+  assert.deepEqual(out.result.results.map(x=>x.symbol),names);
+  assert.ok(out.result.results.every(x=>x.status==='ok'&&
+   x.data.symbol===x.symbol&&x.data.ordersSent===0&&
+   x.data.historical90m===null));
+  assert.equal(calls.length,6);
+  assert.ok(calls.every(x=>x.url.includes('/market/klines?')&&
+   x.opts.cache==='no-store'));
+ }finally{globalThis.fetch=old}
+});
+test('batch validates allowlist, rejects duplicate and over-six requests without fetching',async()=>{
+ const old=globalThis.fetch;
+ globalThis.fetch=async()=>{throw Error('Must not fetch on invalid request')};
+ try{
+  for(const names of [
+   'XRPUSDT,NOUSDT','XRPUSDT,XRPUSDT',
+   Array.from({length:7},(_,i)=>'COIN'+i+'USDT').join(',')
+  ]){
+   const out=mkRes();
+   await handlePaperMinuteWatch({method:'GET',
+    query:{batch:'1',quick:'1',symbols:names}},out,
+    ['XRPUSDT',...Array.from({length:7},(_,i)=>'COIN'+i+'USDT')]);
+   assert.equal(out.statusCode,400);
+   assert.equal(out.result.ordersSent,undefined);
+  }
+ }finally{globalThis.fetch=old}
+});
+test('a WEEX error for one symbol does not hide five healthy public batch results',async()=>{
+ const old=globalThis.fetch,now=Date.now();
+ globalThis.fetch=async(url)=>{
+  if(url.includes('symbol=XRPUSDT'))
+   return {ok:false,status:503,headers:{get:()=>null},text:async()=>''};
+  return {ok:true,headers:{get:()=>null},text:async()=>JSON.stringify(fakeRows(now))};
+ };
+ try{
+  const names=['XRPUSDT','BTCUSDT','SOLUSDT'];
+  const out=mkRes();
+  await handlePaperMinuteWatch({method:'GET',query:{
+   batch:'1',quick:'1',symbols:names.join(',')
+  }},out,names);
+  assert.equal(out.statusCode,200);
+  assert.equal(out.result.results[0].status,'unavailable');
+  assert.equal(out.result.results[0].data,null);
+  assert.ok(out.result.results.slice(1).every(x=>x.status==='ok'));
+  assert.equal(out.result.ordersSent,0);
+ }finally{globalThis.fetch=old}
+});
