@@ -42,7 +42,7 @@ test('read-only research route includes separate 5m/10m BB+volume studies',async
   assert.equal(res.result.mode,'RESEARCH_ONLY_ONE_MINUTE');
   assert.equal(res.result.ordersSent,0);
   assert.equal(res.result.liveActivation,false);
-  for(const key of ['horizon5m','horizon10m']){
+  for(const key of ['horizon5m','horizon10m','reentry5m','reentry10m']){
    const study=res.result.shadowBBVolume[key];
    assert.equal(study.mode,'SHADOW_BB_VOLUME_1M');
    assert.equal(study.tradeReady,false);
@@ -51,6 +51,10 @@ test('read-only research route includes separate 5m/10m BB+volume studies',async
   }
   assert.equal(res.result.shadowBBVolume.horizon5m.horizonMinutes,5);
   assert.equal(res.result.shadowBBVolume.horizon10m.horizonMinutes,10);
+  assert.equal(res.result.shadowBBVolume.reentry5m.strategy,'BAND_REENTRY');
+  assert.equal(res.result.shadowBBVolume.reentry10m.strategy,'BAND_REENTRY');
+  assert.ok(Object.hasOwn(res.result.shadowBBVolume.reentry5m,'byPeriod'));
+  assert.equal(res.result.shadowBBVolume.reentry10m.horizonMinutes,10);
   assert.equal(res.headers['X-Content-Type-Options'],'nosniff');
  }finally{
   globalThis.fetch=originalFetch;
