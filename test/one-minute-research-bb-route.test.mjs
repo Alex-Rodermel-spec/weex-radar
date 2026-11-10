@@ -56,6 +56,10 @@ test('read-only research route includes separate 5m/10m BB+volume studies',async
   assert.ok(Object.hasOwn(res.result.shadowBBVolume.reentry5m,'byPeriod'));
   assert.equal(res.result.shadowBBVolume.reentry10m.horizonMinutes,10);
   assert.equal(res.headers['X-Content-Type-Options'],'nosniff');
+  assert.equal(res.headers['Cache-Control'],'no-store');
+  assert.equal(res.result.currentMinute.notATrade,true);
+  assert.equal(res.result.currentMinute.fresh,true);
+  assert.equal(res.result.currentMinute.observation.breakout.notATrade,true);
  }finally{
   globalThis.fetch=originalFetch;
  }
