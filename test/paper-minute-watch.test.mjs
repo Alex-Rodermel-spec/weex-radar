@@ -117,6 +117,9 @@ test('paper page compiles and contains win/loss and five-minute future settlemen
  assert.match(page,/id="margin-roi-50"/);
  assert.match(page,/id="hist-90"/);
  assert.match(page,/id="paper-explain"/);
+ assert.match(page,/id="history-events-body"/);
+ assert.match(page,/historyRows\.sort/);
+ assert.match(page,/ИСТОРИЯ · НЕ PAPER-СДЕЛКИ/);
  assert.match(page,/id="skip-quote"/);
  assert.match(page,/id="paper-added"/);
  assert.match(page,/PAST_CANDLES_ONLY_NOT_PAPER/);
