@@ -24,6 +24,12 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 .lab{border:1px solid #54426d;border-radius:17px;padding:18px;margin:22px 0;background:linear-gradient(140deg,#20182e,#131725)}
 .lab-kicker{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9b9ff}
 .lab h2{margin:8px 0}.lab .grid{margin:14px 0}.split-note{font-size:13px;color:#aeb4c7}
+.marketlist{display:grid;gap:8px;margin:12px 0}
+.marketrow{padding:12px 14px;border:1px solid #3a3650;border-radius:12px;background:#151521;display:grid;grid-template-columns:minmax(105px,1fr) minmax(130px,1.2fr) minmax(94px,.8fr);align-items:center;gap:10px}
+.marketrow strong{display:block}.marketrow small{display:block;color:#aeb0c3;font-size:12px;word-break:break-word}
+.marketrow .marketresult{font-weight:700;text-align:right}.good{color:#a9ecc3}.caution{color:#ffd497}.muted{color:#a3aab9}
+.marketrow .marketresult small{text-align:right}
+@media(max-width:560px){.marketrow{grid-template-columns:1fr 1fr}.marketrow .marketresult{grid-column:1/-1;text-align:left}.marketrow .marketresult small{text-align:left}}
 @media(max-width:560px){.lab{padding:14px}.tile strong{font-size:21px}}
 </style>
 </head>
@@ -45,6 +51,20 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 <option>ADAUSDT</option><option>LINKUSDT</option><option>SUIUSDT</option><option>AVAXUSDT</option>
 </select></label><button id="run">Проверить на истории</button>
 </div>
+<section class="lab" aria-labelledby="all-market-title">
+ <span class="lab-kicker">WEEX RADAR V2 · LIVE MARKET WATCH · БЕЗ СДЕЛОК</span>
+ <h2 id="all-market-title">📡 Все 16 монет WEEX · 1М</h2>
+ <p>Одно нажатие проверяет последнюю закрытую минутную свечу на каждом из 16 рынков: BB20/2 + объём и защиту от запоздания. Данные и результаты отображаются отдельно по монетам. Никаких ордеров, личных ключей или автоматических уведомлений.</p>
+ <button id="scan-all" type="button">Проверить все 16 сейчас</button>
+ <p id="scan-all-status" role="status">Ручная проверка только по нажатию кнопки. Исторические исходы — не прогноз прибыли.</p>
+ <div id="scan-all-summary" class="grid" hidden>
+  <div class="tile"><small>Свежих рынков</small><strong id="scan-ok">—</strong></div>
+  <div class="tile"><small>1М сценариев (не входов)</small><strong id="scan-candidates">—</strong></div>
+  <div class="tile"><small>Ошибок / устаревших</small><strong id="scan-errors">—</strong></div>
+ </div>
+ <div class="marketlist" id="all-market-grid" aria-live="polite"></div>
+ <p class="warn">⚠️ 1М сценарий никогда не означает готовую сделку. Это свечи, а не live bid/ask. Нужна отдельная проверка цены, риска, SL/TP и ручное подтверждение через Passkey. Отсутствие сценария — нормальный результат.</p>
+</section>
 <p id="status" role="status">Выбери монету и нажми кнопку проверки.</p>
 <div id="data" hidden>
 <h2>Результат на истории <span id="symbol"></span></h2>
@@ -133,6 +153,94 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 <script>
 const $=id=>document.getElementById(id);
 const show=(id,value)=>{$(id).textContent=String(value??'—')};
+const ALL_WEEX_1M=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT',
+ '1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT',
+ 'BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
+const formatBps=value=>Number.isFinite(value)?value.toFixed(2)+' б.п.':'недостаточно данных';
+const berlinDate=value=>new Date(value).toLocaleTimeString('ru-RU',{
+ timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit'
+});
+function marketRow(symbol,record){
+ const node=document.createElement('div');node.className='marketrow';
+ const left=document.createElement('div'),middle=document.createElement('div'),
+  right=document.createElement('div');
+ right.className='marketresult';
+ const symbolEl=document.createElement('strong');symbolEl.textContent=symbol;
+ left.appendChild(symbolEl);
+ if(!record.ok){
+  const why=document.createElement('small');why.textContent='Данные недоступны / устарели';
+  left.appendChild(why);middle.textContent='—';right.textContent='НЕ ПРОВЕРЕНО';
+  right.classList.add('caution');
+ }else{
+  const observed=document.createElement('small');
+  observed.textContent='Закрытие: '+record.price+' · '+berlinDate(record.closedAt)+' (Берлин)';
+  left.appendChild(observed);
+  const ratio=record.volume;
+  const status=document.createElement('strong');
+  status.textContent=record.directions.length?
+   '🧪 '+record.directions.join(' / ')+' · только сценарий':
+   'Нет подтверждённого 1М сценария';
+  middle.appendChild(status);
+  const volume=document.createElement('small');
+  volume.textContent='Объём ×'+(Number.isFinite(ratio)?ratio.toFixed(2):'—')+
+   ' · '+record.reason;
+  middle.appendChild(volume);
+  right.textContent='5М: '+formatBps(record.avgNet);
+  right.classList.add(Number.isFinite(record.avgNet)&&record.avgNet>0?'good':'caution');
+  const samples=document.createElement('small');
+  samples.textContent=(record.n||0)+' модельных наблюдений';
+  right.appendChild(samples);
+ }
+ node.append(left,middle,right);return node;
+}
+$('scan-all').onclick=async()=>{
+ const button=$('scan-all');
+ button.disabled=true;
+ $('scan-all-summary').hidden=true;
+ $('all-market-grid').replaceChildren();
+ let checked=0,ok=0,issues=0,candidates=0;
+ const rows=new Map();
+ const fetchOne=async symbol=>{
+  try{
+   const response=await fetch('/api/signals?mode=one-minute-research&symbol='+encodeURIComponent(symbol),
+    {cache:'no-store'});
+   const d=await response.json();
+   if(!response.ok||d.symbol!==symbol||d.mode!=='RESEARCH_ONLY_ONE_MINUTE')
+    throw Error('BAD_RESEARCH_RESPONSE');
+   const minute=d.currentMinute||{},age=Date.now()-Number(minute.closedAt);
+   if(!minute.fresh||!Number.isFinite(age)||age<0||age>120000||
+    !Number.isFinite(Number(minute.observedClose)))throw Error('STALE_1M');
+   const obs=minute.observation||{};
+   const directions=[obs.breakout,obs.reentry]
+    .filter(x=>x&&['LONG','SHORT'].includes(x.direction))
+    .map(x=>(x.strategy==='BAND_REENTRY'?'ВОЗВРАТ ':'ПРОБОЙ ')+x.direction);
+   const result=d.shadowBBVolume?.guardedBreakout5m?.total||{};
+   rows.set(symbol,{ok:true,price:minute.observedClose,closedAt:minute.closedAt,
+    directions,volume:obs.breakout?.volumeRatio??null,
+    reason:obs.breakout?.reason||'—',avgNet:result.averageNetBps,n:result.signals});
+   ok++;candidates+=directions.length;
+  }catch{
+   rows.set(symbol,{ok:false});issues++;
+  }finally{
+   checked++;
+   $('scan-all-status').textContent='Проверено '+checked+'/'+ALL_WEEX_1M.length+
+    ' рынков WEEX. Свежих: '+ok+'; недоступных/устаревших: '+issues+'.';
+   $('all-market-grid').replaceChildren(...ALL_WEEX_1M.filter(x=>rows.has(x))
+    .map(x=>marketRow(x,rows.get(x))));
+  }
+ };
+ try{
+  // Small batches avoid creating unnecessary simultaneous WEEX API pressure.
+  for(let i=0;i<ALL_WEEX_1M.length;i+=4)
+   await Promise.all(ALL_WEEX_1M.slice(i,i+4).map(fetchOne));
+  show('scan-ok',ok+'/'+ALL_WEEX_1M.length);
+  show('scan-candidates',candidates);
+  show('scan-errors',issues);
+  $('scan-all-summary').hidden=false;
+  $('scan-all-status').textContent='Срез завершён '+berlinDate(Date.now())+
+   ' (Берлин). Он не обновляется сам и не является торговым сигналом.';
+ }finally{button.disabled=false}
+};
 $('history-run').onclick=async()=>{
  $('history-run').disabled=true;
  $('history-result').hidden=true;
