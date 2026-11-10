@@ -77,7 +77,7 @@ test('zero trading signals do not mark a successful scanner unhealthy',async()=>
  assert.equal(JSON.parse(posted.message).ntfyFailed,false);
 });
 
-test('GitHub backup warns ONLY on known stale cron and deduplicates alerts',async()=>{
+test('GitHub backup records stale cron in diagnostics but suppresses non-directional phone alerts',async()=>{
  const previousFetch=globalThis.fetch;
  const previousTopic=process.env.NTFY_TOPIC;
  process.env.NTFY_TOPIC=env.NTFY_TOPIC;
@@ -100,9 +100,9 @@ test('GitHub backup warns ONLY on known stale cron and deduplicates alerts',asyn
  try{
   const args={source:'github',http:200,markets:sample,early:activeEarly,
    ntfy:{failed:0},now,fetchImpl:mock,env};
-  assert.equal((await monitorDispatch(args)).action,'alert-sent');
-  assert.equal((await monitorDispatch(args)).action,'alert-cooldown');
-  assert.equal(publishes,1);
+  assert.equal((await monitorDispatch(args)).action,'recorded-in-diagnostics-only');
+  assert.equal((await monitorDispatch(args)).action,'recorded-in-diagnostics-only');
+  assert.equal(publishes,0,'Non-directional health messages are never sent to the phone');
   const unknown=async(url)=>({ok:true,text:async()=>''});
   assert.equal((await monitorDispatch({...args,fetchImpl:unknown})).action,'not-enough-evidence');
  }finally{

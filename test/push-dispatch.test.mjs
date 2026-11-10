@@ -17,9 +17,14 @@ test('ntfy-only signed dispatch preserves filtering, starts early watch, skips o
  const code=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
  assert.match(code,/ntfySend\('confirmed',signals\)/);
  assert.match(code,/const earlyPromise=safeEarlyPush\(\)/);
+ assert.match(code,/const early=await observeEarlyPush\(\)/);
+ assert.doesNotMatch(code,/await sendEarlyPush\(\)/);
+ assert.match(code,/filterPhoneCandidates\(withFreshQuote,Date\.now\(\)\)/);
+ assert.match(code,/notificationPolicy:PHONE_POLICY.mode/);
  assert.match(code,/const \[early,ntfy\]=await Promise\.all\(\[earlyPromise,ntfyPromise\]\)/);
  assert.match(code,/const source=await authorized\(req\)/);
- assert.match(code,/entry\.ok\?\s*\{\.\.\.signal,livePrice:quote\.price,entryQuality:entry,costReview\}:null/);
+ assert.match(code,/if\(!\(quality\.ok&&signal\.entryQuality\?\.ok===true&&entry\.ok\)\)return null/);
+ assert.match(code,/refreshed\.advisor=adviseSymbol/);
  assert.doesNotMatch(code,/webpush|telegramPoll|telegramSend|@vercel\/blob|VAPID_PRIVATE_KEY/);
 });
 test('audit distinguishes zero phone subscriptions from already-delivered signals',()=>{

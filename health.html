@@ -27,6 +27,14 @@ button:disabled{opacity:.6;cursor:wait}
 .ok .dot{background:#64dba2}.warn .dot{background:#f2bf6a}.bad .dot{background:#f1808b}
 .info{border:1px solid #5c4a6b;border-radius:14px;padding:14px 16px;background:#211b2d;margin-top:22px;color:#e2d4ee;line-height:1.5;font-size:14px}
 .caution{font-size:13px;color:#aa9fb5;margin-top:20px;line-height:1.55}
+.table-scroll{overflow-x:auto;border:1px solid #443751;border-radius:14px;margin-top:14px}
+.market-table{border-collapse:collapse;width:100%;min-width:800px;font-size:12px}
+.market-table th,.market-table td{padding:11px 9px;text-align:left;border-bottom:1px solid #403651;vertical-align:top}
+.market-table th{background:#251c32;color:#cbbde1}
+.market-table td:first-child{font-weight:750;color:#eee1fc}
+.compact{color:#c4b7d2;font-size:12px}
+#policy{color:#a5e1bc;font-size:13px;font-weight:750}
+
 </style>
 </head>
 <body>
@@ -57,6 +65,17 @@ button:disabled{opacity:.6;cursor:wait}
   <p class="detail" id="filter-detail">Один текущий скан 16 рынков, а не история пропущенных сделок.</p>
  </section>
 </div>
+<section class="card" aria-label="Полная диагностика направлений и индикаторов">
+  <div class="eyebrow">🔬 Прогнозист · все 16 основных монет</div>
+  <h2>Что видит наш радар</h2>
+  <p id="policy">Проверяем политику сигналов…</p>
+  <p class="compact">Тренд 5м/15м, RSI, ATR, объём, уровень, расчётные расходы и точная стадия отказа. Это анализ текущего среза, не прогноз гарантированной прибыли. Дополнительные 50 рынков находятся в отдельной PAPER V2.</p>
+  <div class="table-scroll"><table class="market-table">
+   <thead><tr><th>Монета</th><th>Источник</th><th>Направление</th><th>Фильтр</th><th>RSI · ATR · объём</th><th>Тренд 15м</th><th>Расходы</th></tr></thead>
+   <tbody id="market-diagnostics-body"><tr><td colspan="7">Загружаем данные…</td></tr></tbody>
+  </table></div>
+  <p class="compact" id="diagnostics-status">Диагностика ещё не обновлена.</p>
+ </section>
 <div class="info">✅ <b>Без новых регистраций и оплаты.</b> Cron оставляет служебную отметку примерно раз в 15 минут. Если он перестанет отвечать более 35 минут, независимая проверка GitHub попробует отправить предупреждение через ntfy. Оно зависит от работы GitHub и самого ntfy, поэтому не гарантировано.</div>
 <p class="caution">Важно: отсутствие торговых сигналов не означает поломку. Доступность ntfy подтверждает только связь с сервером уведомлений, но не факт появления баннера на Android. Если ntfy полностью недоступен, предупреждение через него также не придёт. Для проверки фактической доставки смотри приложение ntfy.</p>
 </main>
@@ -118,6 +137,39 @@ function render(data){
   setCard('filter',diag.unavailable?'warn':'ok',
    '● '+diag.ready+' прошли · '+diag.candidatesBlocked+' отсечены',detail);
  }else setCard('filter','warn','● Нет диагностики','Повтори проверку. Данные сигналов не менялись.');
+ const full=data.fullDiagnostics;
+ $('market-diagnostics-body').replaceChildren();
+ if(full?.mode==='READ_ONLY_FULL_FORECAST_DIAGNOSTICS'&&Array.isArray(full.markets)){
+  const allowed=full.phonePolicy;
+  $('policy').textContent=allowed?.mode==='CONFIRMED_LONG_SHORT_ONLY'?
+   '🔕 Прогнозы — без уведомлений · 📱 Только подтверждённые LONG / SHORT':
+   '⚠️ Режим телефонных уведомлений не подтверждён';
+  for(const s of full.markets){
+   const tr=document.createElement('tr');
+   const values=[
+    s.symbol||'—',s.exchange||'—',s.direction||'Нет входа',
+    s.stage+(s.reason?' · '+s.reason:''),
+    [s.rsi5===null?'—':'RSI '+s.rsi5,
+     s.atr5===null?'—':'ATR '+s.atr5,
+     s.volumeRatio5===null?'—':'Vol ×'+s.volumeRatio5].join(' · '),
+    s.trend15||'—',
+    s.estimatedCostStatus||'Пока нет расчёта'
+   ];
+   for(const val of values){
+    const td=document.createElement('td');td.textContent=val;tr.appendChild(td);
+   }
+   $('market-diagnostics-body').appendChild(tr);
+  }
+  $('diagnostics-status').textContent=
+   'Проверено '+full.observedMarkets+' монет · фильтры показывают причины отказа; '+
+   'нет сигнала не означает ошибку системы.';
+ }else{
+  $('policy').textContent='Нет данных о политике уведомлений';
+  const tr=document.createElement('tr'),td=document.createElement('td');
+  td.colSpan=7;td.textContent='Полная диагностика недоступна. Повтори проверку.';
+  tr.appendChild(td);$('market-diagnostics-body').appendChild(tr);
+  $('diagnostics-status').textContent='Источники диагностики временно недоступны.';
+ }
  $('stamp').textContent='Проверено '+clock(data.generatedAt)+' · обновляется только по запросу';
 }
 async function refresh(){
