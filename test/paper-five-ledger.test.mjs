@@ -50,7 +50,8 @@ test('paper trade cannot be labeled positive until 5 future COMPLETE minutes exi
 test('paper journal records only latest closed candle candidate, dedupes it and limits one symbol per 5 minutes',()=>{
  const unit=makeHarness(),closed=Date.UTC(2026,10,10,2,0);
  const event={strategy:'BAND_BREAKOUT',direction:'SHORT',
-  closedAt:closed,observedClose:100,volumeRatio:2.2,notATrade:true};
+  closedAt:closed,observedClose:100,volumeRatio:2.2,notATrade:true,
+  signalTrend:'DOWN',trendAligned:true,signalRsi14:42.5,signalAtr14Bps:17};
  const snap={closedAt:closed,generatedAt:closed+2000,recent:[event]};
  unit.accept('SOLUSDT',snap);
  assert.equal(unit.get().length,1);
@@ -67,6 +68,10 @@ test('paper journal records only latest closed candle candidate, dedupes it and 
   recent:[event]});
  assert.equal(unit.get().length,2);
  assert.equal(unit.get()[0].status,'pending');
+ assert.equal(unit.get()[0].signalTrend,'DOWN');
+ assert.equal(unit.get()[0].trendAligned,true);
+ assert.equal(unit.get()[0].signalRsi14,42.5);
+ assert.equal(unit.get()[0].signalAtr14Bps,17);
 });
 
 test('five paper wins are not permission or a stop: more hypothetical tests can be recorded',()=>{
