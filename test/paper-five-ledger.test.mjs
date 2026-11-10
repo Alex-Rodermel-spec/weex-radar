@@ -21,7 +21,7 @@ function makeHarness(now=Date.UTC(2026,10,10,2,0,2)){
   console
  });
  const code=match[1].replace(/load\(\);render\(\);\s*$/,'')+
-  '\n;globalThis.__paperUnit={settle,accept,get:()=>trades,set:x=>{trades=x}};';
+  '\n;globalThis.__paperUnit={settle,accept,stress50Paper,get:()=>trades,set:x=>{trades=x}};';
  new Script(code).runInContext(context);
  return context.__paperUnit;
 }
@@ -126,18 +126,67 @@ test('quoted bid/ask after discovery is used instead of already-past next-minute
   closedAt:closed,observedClose:100,volumeRatio:2,notATrade:true}]});
  assert.equal(unit.get().length,1);
  const bars=Array.from({length:5},(_,i)=>({
-  time:closed+i*M,open:98,close:101
+  time:closed+i*M,open:100,high:101.1,low:100.1,close:101
  }));
  unit.settle('XRPUSDT',bars,closed+5*M);
  const trade=unit.get()[0];
  assert.equal(trade.entry,100.2);
  assert.equal(trade.exit,101);
  assert.equal(trade.entryAssumption,'WEEX_PUBLIC_BOOKTICKER');
+ assert.equal(trade.riskTouched50,false);
  const expected=((101-100.2)/100.2)*10000-22-39.92/2;
  assert.ok(Math.abs(trade.netBps-expected)<.02);
+ assert.ok(Math.abs(trade.marginRoi50Pct-expected/2)<.02);
  const noBook=makeHarness(closed+5000);
  noBook.accept('XRPUSDT',{closedAt:closed,generatedAt:closed+4000,
   paperEntryQuote:null,recent:[{strategy:'BAND_BREAKOUT',direction:'LONG',
   closedAt:closed,observedClose:100,volumeRatio:2,notATrade:true}]});
  assert.equal(noBook.get().length,0);
+});
+
+test('50x paper simulation scales BOTH gains and costs, never opens a position',()=>{
+ const unit=makeHarness();
+ const up=Array.from({length:5},(_,i)=>({
+  time:i*M,open:100,high:101.1,low:99.95,close:101
+ }));
+ const m=unit.stress50Paper(up,100,'LONG',2);
+ assert.equal(m.riskTouched,false);
+ assert.equal(m.netBps,76);
+ assert.equal(m.marginRoi50Pct,38);
+ assert.equal(m.horizonExit,101);
+ assert.ok(m.adverseBps<=5.01);
+ assert.equal(unit.get().length,0);
+});
+test('50x LONG adverse 1.5% intraminute wick suppresses later apparent winner',()=>{
+ const unit=makeHarness(),closed=Date.UTC(2026,10,10,2,0);
+ const rows=Array.from({length:5},(_,i)=>({
+  time:closed+i*M,open:100,high:102,low:i===1?98.49:99.7,close:101
+ }));
+ const trades=[{symbol:'SOLUSDT',strategy:'BAND_BREAKOUT',
+  direction:'LONG',closedAt:closed,status:'pending',entry:100,
+  entrySpreadBps:4,entryAssumption:'WEEX_PUBLIC_BOOKTICKER'}];
+ unit.set(trades);
+ unit.settle('SOLUSDT',rows,closed+5*M);
+ assert.equal(trades[0].status,'risk');
+ assert.equal(trades[0].riskTouched50,true);
+ assert.equal(trades[0].horizonExit,101);
+ assert.equal(trades[0].netBps,-174);
+ assert.equal(trades[0].marginRoi50Pct,-87);
+ assert.ok(trades[0].maxAdverseBps>150);
+});
+test('50x SHORT stress checks HIGH not LOW and missing OHLC fails closed',()=>{
+ const unit=makeHarness(),closed=Date.UTC(2026,10,10,2,0);
+ const rows=Array.from({length:5},(_,i)=>({
+  time:closed+i*M,open:100,high:i===2?101.6:100.3,low:98.8,close:99
+ }));
+ const trades=[{symbol:'XRPUSDT',strategy:'BAND_REENTRY',
+  direction:'SHORT',closedAt:closed,status:'pending',entry:100,
+  entrySpreadBps:2,entryAssumption:'WEEX_PUBLIC_BOOKTICKER'}];
+ unit.set(trades);
+ unit.settle('XRPUSDT',rows,closed+5*M);
+ assert.equal(trades[0].status,'risk');
+ assert.equal(trades[0].netBps,-173);
+ assert.equal(trades[0].marginRoi50Pct,-86.5);
+ const withoutHigh=rows.map(({high,...r})=>r);
+ assert.equal(unit.stress50Paper(withoutHigh,100,'LONG',0),null);
 });
