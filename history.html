@@ -88,8 +88,9 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <div class="card"><small>Впервые +0,10% на 10–15-й минуте</small><strong id="forecastDelay">—</strong></div>
 </div>
 <div class="table-box"><table><thead><tr><th>Интервал после прогноза</th><th>Проверено</th><th>В сторону прогноза</th><th>Среднее движение</th></tr></thead><tbody id="forecastHorizons"></tbody></table></div>
-<h2>Сила прогноза — через 10 и 15 минут</h2>
-<div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>10 минут</th><th>15 минут</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
+<h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
+<p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
+<div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
 <p class="muted" id="forecastDetail">Измеряем только завершённые горизонты. «Первое движение» — первая полностью закрытая минутная свеча с движением ≥0,10% в сторону прогноза. Это не доказательство того, когда движение началось.</p>
 <div class="note">⚠️ <b>Это исследование, не подтверждение прибыльности.</b> Статусы TP/SL считаются по последующим закрытым минутным свечам за 60 минут. Если оба уровня коснулись одной свечи, исход считается неопределённым. Не учитываются комиссия биржи, funding, проскальзывание, риск ликвидации и реальное исполнение. *R — условное изменение доходности в единицах первоначального риска, рассчитанное только для однозначных TP и SL и без издержек. Значения не гарантируют будущий заработок.</div>
 <p class="muted" style="font-size:13px">🔐 Полная история хранится в зашифрованном виде AES-GCM в отдельной ветке существующего публичного GitHub-репозитория. Страница показывает только агрегированные результаты. Период до установки журнала не восстанавливается автоматически, кроме ещё доступных уведомлений. Архив обновляет отдельная бесплатная задача GitHub Actions примерно каждые 20 минут; возможны задержки и пробелы при сбоях планировщика. WEEX RADAR и ntfy работают независимо.</p>
@@ -174,13 +175,18 @@ function display(){
  const strength=$('forecastStrength');strength.replaceChildren();
  for(const [key,label] of [['STRONG','🟣 Сильный'],['STANDARD','🔵 Обычный'],['CAUTION','🟡 Риск']]){
   const v=forecast?.byStrength?.[key],tr=document.createElement('tr');
-  for(const value of [label,v?.total??0,v?.at10m?.observed?pct(v.at10m.favorablePct):'—',
-   v?.at15m?.observed?pct(v.at15m.favorablePct):'—']){
+  const prior=v?.before15m, first=v?.alignedFirst5m;
+  for(const value of [label,v?.total??0,
+   prior?.observed?prior.meanDirectionBps+' bps ('+prior.observed+')':'—',
+   prior?.observed?pct(prior.already10bpsPct)+' ('+prior.observed+')':'—',
+   first?.observed?pct(first.favorablePct)+' ('+first.observed+')':'—',
+   v?.at10m?.observed?pct(v.at10m.favorablePct)+' ('+v.at10m.observed+')':'—',
+   v?.at15m?.observed?pct(v.at15m.favorablePct)+' ('+v.at15m.observed+')':'—']){
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }strength.appendChild(tr);
  }
  $('forecastDetail').textContent=forecast?
-  'Проверяем 1/5/10/15/30 минут, в том числе задержку появления движения ≥0,10%. Отсутствие данных не считается поражением или успехом. Не учитываются реальные цены исполнения и комиссии.':
+  'Проверяем 1/5/10/15/30 минут, а для торговли на 5М — уже пройденное движение перед прогнозом и ближайшее закрытие 5М. Отсутствие данных не считается поражением или успехом. Не учитываются реальные цены исполнения, комиссии и вероятность прибыли.':
   'Архив нового прогнозиста пока пуст.';
  $('state').textContent=report.state==='EMPTY'?
   'Архив ещё пуст. Первая запись появится после следующего нового сигнала.':
