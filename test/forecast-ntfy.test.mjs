@@ -61,7 +61,7 @@ test('owner gets one onboarding message in old topic; forecasts go ONLY to deriv
  const publish=async(topic,message)=>{events.push({topic,...message});return true};
  const symbols=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT'];
  const reader=async symbol=>fixture(symbol,'SHORT_BIAS',now);
- const first=await runForecastNotifications({env,now,fetchImpl,publish,reader,symbols});
+ const first=await runForecastNotifications({env,now,clock:()=>now,fetchImpl,publish,reader,symbols});
  assert.equal(first.configured,true);
  assert.equal(first.due,true);
  assert.equal(first.scanned,4);
@@ -87,7 +87,7 @@ test('owner gets one onboarding message in old topic; forecasts go ONLY to deriv
   return {ok:true,text:async()=>recorded};
  };
  const second=await runForecastNotifications({
-  env,now:now+1000,fetchImpl:nextHistory,publish,reader,symbols
+  env,now:now+1000,clock:()=>now+1000,fetchImpl:nextHistory,publish,reader,symbols
  });
  assert.equal(second.delivered,0);
  assert.equal(second.setupSent,0);
