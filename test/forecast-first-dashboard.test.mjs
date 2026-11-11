@@ -22,6 +22,8 @@ test('journal defaults to direction & timing, without displayed TP/SL performanc
  assert.match(site,/id="forecast10"/);
  assert.match(site,/id="forecast15"/);
  assert.match(site,/id="confirmedSaved"/);
+ assert.match(site,/id="forecastDirection"/);
+ assert.match(site,/forecast\?\.byDirection\?\.\[key\]/);
  assert.match(site,/confirmedAuditDirection/);
  assert.ok(site.indexOf('Прогнозист — фактическое')<site.indexOf('Подтверждённые LONG'));
  assert.ok(site.indexOf('Подтверждённые LONG')<site.indexOf('Ранние предупреждения'));
