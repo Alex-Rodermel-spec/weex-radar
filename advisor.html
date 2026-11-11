@@ -42,7 +42,7 @@ small{font-size:12px;color:#ada4bb}
  <div class="kpi"><span>🟡 Ждать / нет входа</span><strong id="count-wait" class="yellow">—</strong></div>
  <div class="kpi"><span>🔴 Пропустить / нет данных</span><strong id="count-skip" class="red">—</strong></div>
 </div>
-<h2>16 инструментов · WEEX основной</h2>
+<h2>32 инструмента · WEEX основной</h2>
 <p class="lead">Сортировка: сначала редкие кандидаты для ручной проверки, затем ожидание и отклонённые сигналы. Данные обновляются по кнопке и раз в минуту, пока открыта эта страница.</p>
 <section class="grid" id="markets" aria-live="polite"><p>Проверяем…</p></section>
 <p class="caution">⚠️ Это <b>наблюдательный</b> советник, не автотрейдер и не подтверждённая прибыльная система. Учёт комиссий использует модель WEEX VIP0 с предполагаемым проскальзыванием; реальные условия могут отличаться. При отсутствии свежих данных и после истечения сигнала решение — не входить. Никаких ордеров, новых подписок, ключей или оплат.</p>
@@ -64,7 +64,7 @@ const rank={REVIEW:0,WAIT:1,SKIP:2,NO_SETUP:3,UNAVAILABLE:4};
 let busy=false;
 function render(data){
  const now=Date.now();
- if(!Array.isArray(data.symbols)||data.symbols.length!==16||
+ if(!Array.isArray(data.symbols)||data.symbols.length!==32||
     !data.symbols.every(s=>s?.advisor&&decision[s.advisor.status]))throw Error('Данные советника неполные');
  if(!Number.isFinite(data.generatedAt)||Math.abs(now-data.generatedAt)>90000)
    throw Error('Рыночные данные устарели');
