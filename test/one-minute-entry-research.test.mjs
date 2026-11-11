@@ -86,7 +86,7 @@ test('Bollinger+volume research detects fresh LONG and SHORT only with closed al
  assert.equal(evaluateOneMinuteBollingerVolume(low,five,fifteen).stage,'LOW_VOLUME');
  const mismatch=evaluateOneMinuteBollingerVolume(bollingerFixture(),five,down15);
  assert.equal(mismatch.stage,'TREND_MISMATCH');
- const future=five.map(c=>({...c,closeTime:c.closeTime+2*FIFTEEN}));
+ const future=five.map(c=>({...c,time:c.time+24*60*MIN,closeTime:c.closeTime+24*60*MIN}));
  assert.equal(evaluateOneMinuteBollingerVolume(bollingerFixture(),future,fifteen).stage,'FUTURE_CONTEXT');
  const gap=bollingerFixture();gap[90].time+=MIN;
  assert.equal(evaluateOneMinuteBollingerVolume(gap,five,fifteen).stage,
