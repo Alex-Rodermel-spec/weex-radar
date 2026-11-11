@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {forecastTopic,forecastDue,forecastEligible,forecastMessage,
- runForecastNotifications} from '../lib/forecast-ntfy.mjs';
+ forecastV2Line,runForecastNotifications} from '../lib/forecast-ntfy.mjs';
 
 const now=Date.UTC(2026,10,10,10,0,30);
 const topic='wr-'+('a'.repeat(32)),env={NTFY_TOPIC:topic};
@@ -54,6 +54,41 @@ test('notification clearly separates forecast hypothesis from LONG/SHORT entry',
  assert.equal(m.priority,3);
  assert.equal(m.click,'https://weex-radar.vercel.app/forecast.html');
 });
+test('V2 timing line is informational and never changes forecast title or trade status',()=>{
+ const strong=fixture();
+ strong.strongV2Review={baselineLevel:'STRONG',sampleReady:true,
+  status:'REVIEW_DOWNGRADE',proposedLevel:'STANDARD'};
+ const late=forecastMessage(strong);
+ assert.match(late.title,/^🔮 🟣 СИЛЬНЫЙ ПРОГНОЗ · BTCUSDT SHORT$/u);
+ assert.match(late.message,/V2: возможное опоздание/);
+ assert.match(late.message,/НЕ сигнал входа/);
+ assert.doesNotMatch(late.message,/SL \d|TP \d/);
+ strong.strongV2Review.status='REVIEW_KEEP_STRONG';
+ strong.strongV2Review.proposedLevel='STRONG';
+ assert.match(forecastMessage(strong).message,/явных признаков опоздания не найдено \(не гарантия\)/);
+ const standard=fixture();
+ standard.timeframes[2].voteAgreement=2;
+ standard.strongV2Review={baselineLevel:'STANDARD',sampleReady:true,
+  status:'REVIEW_DOWNGRADE',proposedLevel:'CAUTION'};
+ const message=forecastMessage(standard);
+ assert.match(message.title,/🔵 ОБЫЧНЫЙ ПРОГНОЗ/);
+ assert.match(message.message,/V2: возможное опоздание/);
+ standard.strongV2Review.status='REVIEW_KEEP_STANDARD';
+ standard.strongV2Review.proposedLevel='STANDARD';
+ assert.match(forecastMessage(standard).message,/явных признаков опоздания не найдено/);
+ standard.strongV2Review.sampleReady=false;
+ assert.match(forecastMessage(standard).message,/недостаточно данных/);
+ standard.strongV2Review.sampleReady=true;
+ standard.strongV2Review.baselineLevel='STRONG';
+ assert.match(forecastMessage(standard).message,/недостаточно данных/);
+ assert.equal(forecastV2Line(fixture(), 'CAUTION'),'');
+ const caution=fixture();
+ caution.timeframes[2].rsi14=25;
+ caution.strongV2Review={baselineLevel:'CAUTION',status:'REVIEW_DOWNGRADE',sampleReady:true,proposedLevel:'STANDARD'};
+ assert.match(forecastMessage(caution).title,/ПОВЫШЕННЫЙ РИСК/);
+ assert.doesNotMatch(forecastMessage(caution).message,/🧪 V2/);
+});
+
 test('owner gets one onboarding message in old topic; forecasts go ONLY to derived topic, capped at 2',async()=>{
  const events=[];
  const fetchImpl=async url=>({
