@@ -68,4 +68,4 @@ jobs:
             "repos/${GITHUB_REPOSITORY}/contents/data/journal.enc.json" \
             --input "${payload}" --silent
           echo "Encrypted journal updated, no plaintext exposed to GitHub Actions."
-          echo "Saved encrypted journal. Confirmed: $(jq -r '.total' "${response}"); early: $(jq -r '.earlyTotal // 0' "${response}") (new: $(jq -r '.earlyAdded // 0' "${response}"), updated: $(jq -r '.earlyUpdated // 0' "${response}"))." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Saved encrypted journal. Confirmed: $(jq -r '.total' "${response}"); early: $(jq -r '.earlyTotal // 0' "${response}"); forecasts: $(jq -r '.forecastTotal // 0' "${response}") (new: $(jq -r '.forecastAdded // 0' "${response}"), updated: $(jq -r '.forecastUpdated // 0' "${response}"))." >> "${GITHUB_STEP_SUMMARY}"
