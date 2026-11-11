@@ -33,7 +33,7 @@ jobs:
           jwt="$(jq -r '.value // empty' <<<"${oidc}")"
           test -n "${jwt}"
           response="$(mktemp)"
-          trap 'rm -f "${response}" "${payload:-}"' EXIT
+          trap 'rm -f "${response}" "${payload:-}" "${datafile:-}"' EXIT
           curl --fail-with-body --silent --show-error --retry 2 --max-time 65 \
             -H "Authorization: Bearer ${jwt}" \
             -H "Accept: application/json" \
@@ -45,9 +45,12 @@ jobs:
             echo "Archive is unchanged; checks completed." >> "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
-          data="$(jq -r '.contentBase64 // empty' "${response}")"
-          test -n "${data}"
-          test "${#data}" -lt 3000000
+          # Avoid Linux MAX_ARG_STRLEN (~128 KiB): base64 grows with journal.
+          # Keep the encrypted payload in a temporary file, never a jq --arg.
+          datafile="$(mktemp)"
+          jq -rj '.contentBase64 // empty' "${response}" > "${datafile}"
+          test -s "${datafile}"
+          test "$(wc -c < "${datafile}")" -lt 3000000
           # Base64 is ENCRYPTED AES-GCM data, not any private ntfy topic,
           # API secret, trading credential or unencrypted signal history.
           sha="$(gh api \
@@ -55,10 +58,10 @@ jobs:
             --jq '.sha' 2>/dev/null || true)"
           payload="$(mktemp)"
           if [[ -n "${sha}" ]]; then
-            jq -n --arg content "${data}" --arg sha "${sha}" \
+            jq -n --rawfile content "${datafile}" --arg sha "${sha}" \
               '{message:"chore(journal): save encrypted WEEX signal history",branch:"journal-data",content:$content,sha:$sha}' > "${payload}"
           else
-            jq -n --arg content "${data}" \
+            jq -n --rawfile content "${datafile}" \
               '{message:"chore(journal): start encrypted WEEX signal history",branch:"journal-data",content:$content}' > "${payload}"
           fi
           gh api --method PUT \
