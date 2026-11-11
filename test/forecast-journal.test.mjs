@@ -5,7 +5,7 @@ import {Script} from 'node:vm';
 import {
  parsePublishedForecast,normalizeForecastMinutes,evaluatePublishedForecast,
  mergeForecastArchive,summarizeForecastArchive,FORECAST_HORIZONS,
- recentForecastResearch
+ recentForecastResearch,recoverArchivedForecasts
 } from '../lib/forecast-journal.mjs';
 import {encryptJournal,decryptJournalArchive,summarizeJournal} from '../lib/journal-core.mjs';
 import {forecastTopic} from '../lib/forecast-ntfy.mjs';
@@ -190,4 +190,74 @@ test('forecast audit is isolated from trading, cron and phone push',()=>{
  for(const pattern of [/placeOrder/,/trade-confirm/,/trade-prepare/,/capi\/v3\/order/,/NTFY_TOPIC\s*=/]){
   assert.doesNotMatch(source,pattern);
  }
+});
+
+
+test('historical repair obtains only closed WEEX candles for archived NO_DATA forecasts',async()=>{
+ const oldSentAt=now-6*60*MIN-40000;
+ const old={...emitted,id:'b'.repeat(32),sentAt:oldSentAt};
+ const stale=evaluatePublishedForecast(old,[],now);
+ assert.equal(stale.windows[5].status,'NO_DATA');
+ const bound=Math.floor(oldSentAt/MIN)*MIN;
+ const first=Math.ceil((oldSentAt+1)/MIN)*MIN;
+ const historic=[
+  ...Array.from({length:16},(_,i)=>{
+   const close=i<15?100.3:100.02;
+   return [bound-(16-i)*MIN,100.2,100.4,99.9,close,500];
+  }),
+  ...Array.from({length:34},(_,i)=>
+   [first+i*MIN,100,100.1,99.7,99.8,500])
+ ];
+ assert.equal(normalizeForecastMinutes(historic,now).length,0,
+  'normal collector still rejects stale candles');
+ const urls=[];
+ const fake=async url=>{
+  urls.push(String(url));
+  return {ok:true,text:async()=>JSON.stringify(historic)};
+ };
+ const recovery=await recoverArchivedForecasts([stale],now,{fetchImpl:fake});
+ assert.equal(recovery.attempted,1);
+ assert.equal(recovery.failed,0);
+ assert.equal(recovery.rows.length,1);
+ assert.equal(recovery.rows[0].windows[5].status,'OBSERVED');
+ assert.equal(recovery.rows[0].windows[15].status,'OBSERVED');
+ assert.equal(recovery.rows[0].windows[30].status,'OBSERVED');
+ assert.ok(recovery.rows[0].windows[15].moveBps>0);
+ assert.equal(recovery.rows[0].preMove15mBps!==null,true);
+ assert.match(urls[0],/\\/market\\/historyKlines\\?/);
+ assert.match(urls[0],/priceType=LAST/);
+ assert.ok(urls[0].includes('startTime='+(bound-17*MIN)));
+ assert.ok(urls[0].includes('endTime='));
+ const merged=mergeForecastArchive([stale],recovery.rows,now);
+ assert.equal(merged.updated,1);
+ assert.equal(merged.rows[0].windows[15].status,'OBSERVED');
+ assert.equal(merged.rows[0].direction,'SHORT');
+ assert.equal(merged.rows[0].reference,100);
+ assert.equal(summarizeForecastArchive(merged.rows,now).windows[30].at5m.observed,1);
+});
+test('historical repair has a six-request budget and safely ignores wrong-time or missing candles',async()=>{
+ const old=now-8*60*MIN;
+ const archive=Array.from({length:18},(_,i)=>evaluatePublishedForecast(
+  {...emitted,id:i.toString(16).padStart(32,'0'),sentAt:old-i*MIN},[],now));
+ let requests=0;
+ const mock=async()=>{
+  requests++;
+  // Exchange returned current candles even though historic time was requested:
+  // those must not be counted as matching old forecasts.
+  return {ok:true,text:async()=>JSON.stringify(futureRaw())};
+ };
+ const first=await recoverArchivedForecasts(archive,now,{fetchImpl:mock});
+ assert.equal(first.attempted,6);
+ assert.equal(requests,6);
+ assert.equal(first.failed,0);
+ assert.equal(first.rows.length,0);
+ const failed=await recoverArchivedForecasts([archive[0]],now,{
+  fetchImpl:async()=>{throw Error('network outage')}
+ });
+ assert.equal(failed.attempted,1);
+ assert.equal(failed.failed,1);
+ assert.equal(failed.rows.length,0);
+ const unchanged=mergeForecastArchive(archive,[],now);
+ assert.equal(unchanged.rows.length,archive.length);
+ assert.equal(unchanged.rows.every(r=>r.windows[5].status==='NO_DATA'),true);
 });
