@@ -76,6 +76,15 @@ function currentPriceQuality(direction,close,atrValue,livePrice){
  if(progress>chaseTolerance)return {ok:false,reason:'Цена ушла слишком далеко — вход запоздал'};
  return {ok:true,reason:null};
 }
+// Pure, display-only history of the CLOSED breakout candle. Neither a
+// prediction nor an additional entry gate; never influences LONG/SHORT.
+export function closedFiveMinuteMoveBps(direction,open,close){
+ if(!['LONG','SHORT'].includes(direction)||!Number.isFinite(open)||
+  !Number.isFinite(close)||open<=0||close<=0)return null;
+ const bps=Math.round((direction==='LONG'?1:-1)*(close-open)/open*100_000)/10;
+ return bps===0?0:bps;
+}
+
 function getAnalysis(five,fifteen,livePrice=null,referenceNow=Date.now()){
  const last=five.at(-1),c5=five.map(c=>c.close),c15=fifteen.map(c=>c.close);
  // ADX and rolling VWAP are observations only; never alter selection/score/entry.
@@ -122,6 +131,7 @@ function getAnalysis(five,fifteen,livePrice=null,referenceNow=Date.now()){
  })};
  const score=direction?Math.round(Math.min(95,65+(volumeRatio>=1.3?12:0)+(volumeRatio>=1.8?6:0)+((direction==='LONG'?r>=60:r<=40)?4:0)+(Math.abs(e20-e50)/last.close>.003?5:0)+(Math.abs(t20-t50)/last.close>.004?5:0))):null;
  return {direction,filterDiagnostic,level:direction?(score>=85?'STRONG':'NORMAL'):'WAIT',score,price:last.close,candleCloseTime:last.closeTime,expiresAt:active?expiresAt:null,
+ closedFiveMinuteMoveBps:direction?closedFiveMinuteMoveBps(direction,last.open,last.close):null,
  stop:direction?(direction==='LONG'?last.close-ACTIVE_STRATEGY.stopAtr*volatility:last.close+ACTIVE_STRATEGY.stopAtr*volatility):null,
  take:direction?(direction==='LONG'?last.close+ACTIVE_STRATEGY.takeAtr*volatility:last.close-ACTIVE_STRATEGY.takeAtr*volatility):null,
  entryQuality,shadowFilter,sidewaysGate,retest,levelReview,shadowIndicators:contextOnly,trapReview,indicators:{rsi:Math.round(r*10)/10,volumeRatio:Math.round(volumeRatio*100)/100,trend15:t20>t50?'UP':'DOWN',atr:volatility},
