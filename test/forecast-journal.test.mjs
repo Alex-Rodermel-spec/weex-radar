@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {
  parsePublishedForecast,normalizeForecastMinutes,evaluatePublishedForecast,
- mergeForecastArchive,summarizeForecastArchive,FORECAST_HORIZONS,
+ mergeForecastArchive,summarizeForecastArchive,FORECAST_HORIZONS,berlinDayKey,
  recentForecastResearch,recoverArchivedForecasts
 } from '../lib/forecast-journal.mjs';
 import {encryptJournal,decryptJournalArchive,summarizeJournal} from '../lib/journal-core.mjs';
@@ -30,6 +30,36 @@ function futureRaw(){
   return [start+i*MIN,100,Math.max(close,100)+.02,Math.min(close,100)-.02,close,500];
  });
 }
+test('Berlin today includes local midnight, not UTC midnight, and respects DST',()=>{
+ assert.equal(berlinDayKey(Date.parse('2026-11-10T22:59:00Z')),'2026-11-10');
+ assert.equal(berlinDayKey(Date.parse('2026-11-10T23:30:00Z')),'2026-11-11');
+ assert.equal(berlinDayKey(Date.parse('2026-11-11T22:30:00Z')),'2026-11-11');
+ assert.equal(berlinDayKey(Date.parse('2026-11-11T23:00:00Z')),'2026-11-12');
+ assert.equal(berlinDayKey(Date.parse('2026-06-30T21:59:00Z')),'2026-06-30');
+ assert.equal(berlinDayKey(Date.parse('2026-06-30T22:01:00Z')),'2026-07-01');
+ const at=Date.parse('2026-11-11T14:00:00Z');
+ const complete=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),now),now);
+ const mk=(id,sentAt,direction,level,v2Timing)=>({
+  ...complete,id,sentAt:Date.parse(sentAt),direction,strength:level,v2Timing
+ });
+ const two=[
+  mk('1'.repeat(32),'2026-11-10T23:30:00Z','LONG','STANDARD','LATE'),
+  mk('2'.repeat(32),'2026-11-11T12:00:00Z','SHORT','STRONG','CLEAR'),
+  mk('3'.repeat(32),'2026-11-10T22:59:00Z','SHORT','STANDARD',null),
+  mk('4'.repeat(32),'2026-11-11T23:30:00Z','LONG','STRONG','LATE')
+ ];
+ const sum=summarizeForecastArchive(two,at).today;
+ assert.equal(sum.dateBerlin,'2026-11-11');
+ assert.equal(sum.timeZone,'Europe/Berlin');
+ assert.equal(sum.total,2);
+ assert.equal(sum.byDirection.LONG.total,1);
+ assert.equal(sum.byDirection.SHORT.total,1);
+ assert.equal(sum.byStrength.STRONG.total,1);
+ assert.equal(sum.v2Timing.LATE,1);
+ assert.equal(sum.v2Timing.CLEAR,1);
+ assert.equal(sum.at5m.observed,2);
+});
+
 test('parse only genuine sent private forecast notices (not trading alerts)',()=>{
  assert.equal(emitted.symbol,'BTCUSDT');
  assert.equal(emitted.direction,'SHORT');
