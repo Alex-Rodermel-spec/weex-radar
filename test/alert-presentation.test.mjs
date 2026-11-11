@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {alertPresentation,formatPhoneAlert,priceText} from '../lib/alert-presentation.mjs';
+import {COST_MIN_NET_RR} from '../lib/net-costs.mjs';
 const base={symbol:'XAUTUSDT',exchange:'WEEX',direction:'SHORT',level:'NORMAL',
  livePrice:4049.05,stop:4050.0042,take:4047.1116,expiresAt:Date.now()+180000};
 const cost={mode:'SHADOW_COSTS',status:'PASS_ESTIMATE',netRR:1.8};
@@ -29,6 +30,14 @@ test('unknown costs cannot imply green; cost-negative target must be red',()=>{
  assert.equal(alertPresentation({...base,retest,costReview:{mode:'SHADOW_COSTS',status:'COSTS_EXCEED_TP'}}).status,'SKIP');
  assert.equal(alertPresentation({...base,retest,costReview:{mode:'SHADOW_COSTS',status:'LOW_NET_RR'}}).status,'SKIP');
  assert.equal(alertPresentation({...base,exchange:'Bybit',retest}).status,'WAIT');
+});
+test('phone warning references the active net R/R threshold, not an obsolete number',()=>{
+ const s={...base,retest,costReview:{mode:'SHADOW_COSTS',status:'LOW_NET_RR',netRR:COST_MIN_NET_RR-0.01}};
+ const x=formatPhoneAlert(s);
+ assert.equal(x.status,'SKIP');
+ assert.match(x.message,/^🔴 ЧТО ДЕЛАТЬ: ПРОПУСТИ/u);
+ assert.ok(x.message.includes('Чистый R/R ниже '+String(COST_MIN_NET_RR).replace('.',',')));
+ assert.doesNotMatch(x.message,/Чистый R\/R ниже 1,5/u);
 });
 test('early watch is always amber and has no trade levels',()=>{
  const s={...base,level:'EARLY_WATCH',retest,costReview:cost};
