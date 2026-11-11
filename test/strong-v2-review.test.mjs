@@ -34,9 +34,20 @@ test('extended move, away from EMA and abnormal volume are diagnostics only',()=
  assert.ok(v.reasons.includes('VOLUME_SPIKE'));
  assert.equal(v.baselineLevel,'STRONG');
 });
-test('strong-only comparison, unknown bars never counted as good',()=>{
- assert.equal(reviewStrongV2(forecast({baseline:'STANDARD'}),bars()).status,
-  'NOT_BASELINE_STRONG');
+test('STANDARD is evaluated in shadow mode without changing live classification',()=>{
+ const normal=reviewStrongV2(forecast({baseline:'STANDARD'}),bars());
+ assert.equal(normal.status,'REVIEW_KEEP_STANDARD');
+ assert.equal(normal.proposedLevel,'STANDARD');
+ const late=reviewStrongV2(forecast({baseline:'STANDARD',atr:1,price:105,volume:4}),bars(5));
+ assert.equal(late.status,'REVIEW_DOWNGRADE');
+ assert.equal(late.proposedLevel,'CAUTION');
+ assert.equal(late.baselineLevel,'STANDARD');
+ assert.equal(late.notificationsUnchanged,true);
+ assert.equal(late.calibratedProbability,false);
+});
+test('unknown bars never counted as good',()=>{
+ assert.equal(reviewStrongV2(forecast({baseline:'CAUTION'}),bars()).status,
+  'NOT_ELIGIBLE');
  assert.equal(reviewStrongV2(forecast(),bars().slice(-12)).sampleReady,false);
  const gapped=bars();gapped[32].closeTime-=500;
  assert.equal(reviewStrongV2(forecast(),gapped).status,'UNAVAILABLE');
