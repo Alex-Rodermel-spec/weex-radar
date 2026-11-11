@@ -40,12 +40,20 @@ export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
  try{
-  const [last,mark]=await Promise.allSettled([candles('LAST'),candles('MARK')]);
+  const [last,mark,riskLimits,exchangeInfo]=await Promise.allSettled([
+   candles('LAST'),candles('MARK'),
+   fetch('https://api-contract.weex.com/capi/v3/market/riskLimits?symbol=1000PEPEUSDT',
+     {signal:AbortSignal.timeout(8000)}).then(r=>{if(!r.ok)throw Error('RISK_HTTP_'+r.status);return r.json()}),
+   fetch('https://api-contract.weex.com/capi/v3/market/exchangeInfo?symbol=1000PEPEUSDT',
+     {signal:AbortSignal.timeout(8000)}).then(r=>{if(!r.ok)throw Error('EXCHANGE_HTTP_'+r.status);return r.json()})
+  ]);
   const extract=(v,type)=>v.status==='fulfilled'?result(v.value,type):
    {error:String(v.reason?.message||v.reason).slice(0,100)};
   return res.status(200).json({symbol:'1000PEPEUSDT',entry:ENTRY,entryIsForecastReferenceNotFill:true,
    startBerlin:'2026-11-11 09:00',endBerlin:'2026-11-11 09:54',
    last:extract(last,'LAST'),mark:extract(mark,'MARK'),
+   riskLimits:riskLimits.status==='fulfilled'?riskLimits.value:{error:String(riskLimits.reason?.message||riskLimits.reason)},
+   exchangeInfo:exchangeInfo.status==='fulfilled'?exchangeInfo.value?.symbols?.filter(x=>x.symbol==='1000PEPEUSDT').map(x=>({symbol:x.symbol,maxLeverage:x.maxLeverage,pricePrecision:x.pricePrecision,makerFeeRate:x.makerFeeRate,takerFeeRate:x.takerFeeRate})): {error:String(exchangeInfo.reason?.message||exchangeInfo.reason)},
    note:'Historical public 1m candle OHLC. Max wick does not prove exact execution or liquidation.'});
  }catch(e){return res.status(503).json({error:String(e.message||e).slice(0,100)})}
 }
