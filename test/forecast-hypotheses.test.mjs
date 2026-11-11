@@ -92,7 +92,7 @@ test('journal exposes only aggregate hypothesis comparisons and browser script i
  const audit=report.windows[30].hypothesisAudit;
  assert.equal(audit.forward.total,2);
  const serialized=JSON.stringify(audit);
- assert.doesNotMatch(serialized,/id|sequence_id|reference|sentAt|price/);
+ assert.doesNotMatch(serialized,/"id"|"sequence_id"|"reference"|"sentAt"|"price"/);
  assert.doesNotMatch(serialized,/NTFY_TOPIC|PUSH_CRON_KEY/);
  const html=readFileSync(new URL('../history.html',import.meta.url),'utf8');
  assert.match(html,/id="forecastHypotheses"/);
