@@ -162,7 +162,11 @@ function riskLabel(q,v2){
   (v2?.status==='REVIEW_KEEP_STRONG'?' · 🧪 V2: оставлен':
    v2?.status==='REVIEW_DOWNGRADE'?' · 🧪 V2: возможное опоздание':
    ' · 🧪 V2: нет оценки');
- if(q.level==='STANDARD')return '🔵 Обычный';
+ if(q.level==='STANDARD')return '🔵 Обычный (эвристика)' +
+  (v2?.status==='REVIEW_KEEP_STANDARD'?' · 🧪 V2: без признаков опоздания':
+   v2?.status==='REVIEW_DOWNGRADE'&&v2?.baselineLevel==='STANDARD'?
+    ' · 🧪 V2: возможное опоздание':
+   ' · 🧪 V2: нет оценки');
  if(q.level==='CAUTION')return '🟡 Повышенный риск: '+
   (q.reasons||[]).slice(0,2).map(k=>RISK_REASON_LABELS[k]||k).join(', ');
  return '⚪ Оценка недоступна';
