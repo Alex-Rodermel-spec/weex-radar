@@ -66,6 +66,7 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <div class="card"><small>Через 5 минут</small><strong id="forecast5">—</strong></div>
  <div class="card"><small>Через 10 минут</small><strong id="forecast10">—</strong></div>
  <div class="card"><small>Через 15 минут</small><strong id="forecast15">—</strong></div>
+  <div class="card"><small>Через 20 минут</small><strong id="forecast20">—</strong></div>
 </div>
 <section class="card" aria-labelledby="forecast-goal-title">
  <h2 id="forecast-goal-title">🔬 Наш эксперимент: первые 100 прогнозов</h2>
@@ -75,7 +76,8 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 </section>
 <h2>🔮 Прогнозист — фактическое движение цены через 1–30 минут</h2>
 <p class="muted">Только реально опубликованные отдельные ntfy-прогнозы (не старые EARLY WATCH и не подтверждённые входы). Сравнение с ценой из уведомления, по закрытым минутным свечам WEEX. Начинаем с появления этого исследования; предыдущие неполные данные не считаем успехом.</p>
-<div class="metrics"><div class="card"><small>Впервые ≥0,10% на 10–15-й минуте</small><strong id="forecastDelay">—</strong></div></div>
+<div class="metrics"><div class="card"><small>Впервые ≥0,10% на 10–15-й минуте</small><strong id="forecastDelay">—</strong></div>
+  <div class="card"><small>Впервые ≥0,10% на 15–19-й минуте</small><strong id="forecast15to19">—</strong></div></div>
 <div class="table-box"><table><thead><tr><th>Интервал после прогноза</th><th>Проверено</th><th>В сторону прогноза</th><th>Среднее движение</th></tr></thead><tbody id="forecastHorizons"></tbody></table></div>
 <h2>📊 Гипотеза: SHORT-прогнозист против LONG-прогнозиста</h2>
 <p class="muted">Сравниваем только отдельные опубликованные прогнозы, а не подтверждённые торговые входы. Процент считается только по реально проверенным закрытым свечам. Если нет свечей — это «нет данных», а не ошибка прогноза. Наблюдение не означает прибыльность.</p>
@@ -83,7 +85,7 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
 <p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
 <div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
-<p class="muted" id="forecastDetail">Измеряем только завершённые горизонты. «Первое движение» — первая полностью закрытая минутная свеча с движением ≥0,10% в сторону прогноза. Это не доказательство того, когда движение началось.</p>
+<p class="muted" id="forecastDetail">Измеряем только завершённые горизонты. «Первое движение» — первая полностью закрытая минутная свеча с движением ≥0,10% в сторону прогноза. Интервал 15–19 мин не доказывает, что бот предсказал начало движения, а не продолжение тренда.</p>
 <section class="card" aria-labelledby="v2-review-title">
 <h2 id="v2-review-title">⏱ V2: проверка запоздания прогнозов</h2>
 <p class="muted">Только STRONG и STANDARD, где оценка V2 была напечатана в сообщении в момент отправки. Старые сообщения и неизвестные оценки отдельно. Направление цены через 5 и 15 минут — не прибыль.</p>
@@ -240,10 +242,13 @@ function display(){
  $('forecast5').textContent=forecast?.at5m?.observed?pct(forecast.at5m.favorablePct)+' ('+forecast.at5m.observed+')':'—';
  $('forecast10').textContent=forecast?.at10m?.observed?pct(forecast.at10m.favorablePct)+' ('+forecast.at10m.observed+')':'—';
  $('forecast15').textContent=forecast?.at15m?.observed?pct(forecast.at15m.favorablePct)+' ('+forecast.at15m.observed+')':'—';
+  $('forecast20').textContent=forecast?.at20m?.observed?pct(forecast.at20m.favorablePct)+' ('+forecast.at20m.observed+')':'—';
  $('forecastDelay').textContent=forecast?.firstFavorable10bps?.observed?
   forecast.firstFavorable10bps.from10to15+' из '+forecast.firstFavorable10bps.observed:'—';
+  $('forecast15to19').textContent=forecast?.firstFavorable10bps?.observed?
+   forecast.firstFavorable10bps.from15to19+' из '+forecast.firstFavorable10bps.observed:'—';
  const horizons=$('forecastHorizons');horizons.replaceChildren();
- for(const h of [1,5,10,15,30]){
+ for(const h of [1,5,10,15,20,30]){
   const v=forecast?.['at'+h+'m'],tr=document.createElement('tr');
   for(const value of [h+' мин',v?.observed??0,v?.observed?pct(v.favorablePct):'—',
    v?.meanDirectionBps===null||v?.meanDirectionBps===undefined?'—':v.meanDirectionBps+' bps']){
