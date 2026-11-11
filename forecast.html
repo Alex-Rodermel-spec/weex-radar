@@ -158,7 +158,7 @@ const RISK_REASON_LABELS={
 };
 function riskLabel(q,v2){
  if(!q||q.level==='UNAVAILABLE')return '⚪ Нет согласованного прогноза';
- if(q.level==='STRONG')return '🟣 Сильный (база)' +
+ if(q.level==='STRONG')return '🟣 Сильный (эвристика, не гарантия)' +
   (v2?.status==='REVIEW_KEEP_STRONG'?' · 🧪 V2: оставлен':
    v2?.status==='REVIEW_DOWNGRADE'?' · 🧪 V2: возможное опоздание':
    ' · 🧪 V2: нет оценки');
