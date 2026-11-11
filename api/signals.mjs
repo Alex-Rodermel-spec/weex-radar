@@ -10,12 +10,15 @@ import {evaluateRetestBoth} from '../lib/retest-check.mjs';
 import {shadowIndicators} from '../lib/shadow-indicators.mjs';
 import {evaluateTrapRisk} from '../lib/trap-risk.mjs';
 import {classifyFilterStage} from '../lib/filter-diagnostics.mjs';
-const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
-// Forecast watchlist only. The confirmed 5m radar, cron, entry gates and trade
-// routes continue to use the unchanged 16-symbol SYMBOLS array above.
-// An unavailable WEEX market is displayed as no-data; never invent a forecast.
+const ORIGINAL_SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
 const FORECAST_EXTRA_SYMBOLS=['TRXUSDT','XAUUSDT','XAGUSDT','AUDUSDT','CADUSDT','JPYUSDT','GBPUSDT','CHFUSDT','EURUSDT','GOOGLUSDT','MRNAUSDT','NVDAUSDT','AMDUSDT','MSFTUSDT','CSCOUSDT','KOUSDT'];
-const FORECAST_SYMBOLS=[...SYMBOLS,...FORECAST_EXTRA_SYMBOLS];
+// All 32 markets receive identical READ-ONLY 1m early, 5m/15m confirmed
+// and 1m/5m/10m forecast analysis. A missing WEEX quote/candle fails closed.
+const FORECAST_SYMBOLS=[...ORIGINAL_SYMBOLS,...FORECAST_EXTRA_SYMBOLS];
+const SYMBOLS=FORECAST_SYMBOLS;
+// Critical: broadening market coverage must NEVER silently broaden access to
+// real order endpoints. Only the old 16 remain eligible for manual trading.
+const TRADE_SYMBOLS=ORIGINAL_SYMBOLS;
 const DUR={'5m':300000,'15m':900000};
 function numeric(x){const n=Number(x);return Number.isFinite(n)?n:NaN;}
 function normalizeRows(rows,interval){
@@ -216,8 +219,17 @@ async function scanSymbol(symbol){
   filterDiagnostic:{stage:'data_unavailable'},reason:errors.join(' / ')};
 }
 async function scanAll(){
- const results=[];
- for(let i=0;i<SYMBOLS.length;i+=4)results.push(...await Promise.all(SYMBOLS.slice(i,i+4).map(scanSymbol)));
+ // Keep four market scans in flight, including when one exchange is slow.
+ // Dynamic workers avoid eight sequential batch barriers for 32 instruments,
+ // while keeping WEEX request concurrency no higher than before.
+ const results=Array(SYMBOLS.length);let next=0;
+ async function worker(){
+  while(next<SYMBOLS.length){
+   const i=next++;
+   results[i]=await scanSymbol(SYMBOLS[i]);
+  }
+ }
+ await Promise.all(Array.from({length:Math.min(4,SYMBOLS.length)},()=>worker()));
  return results;
 }
 export default async function handler(req,res){
@@ -262,7 +274,7 @@ export default async function handler(req,res){
  try{
   const scanned=await scanAll();
   const now=Date.now();
-  // Display-only advice. Existing scan/cron/push eligibility is unchanged.
+  // Display-only advice. 5m/15m scan now covers 32; entry and ntfy safety gates are unchanged.
   const symbols=scanned.map(s=>({...s,advisor:adviseSymbol(s,now)}));
   const advisorOverview=summarizeAdvisor(scanned,now);
   res.setHeader('Cache-Control','no-store');
@@ -270,4 +282,4 @@ export default async function handler(req,res){
   return res.status(200).json({generatedAt:now,interval:'5m',confirmationInterval:'15m',signalLifetimeMinutes:3,sourcePolicy:'WEEX first; Bybit if WEEX fails; never mix exchanges',notes:'Read-only indicative analysis. Not verified profitable.',advisorOverview,symbols});
  }catch(e){return res.status(502).json({error:'Market data unavailable',detail:String(e.message||e).slice(0,140)})}
 }
-export const _test={SYMBOLS,FORECAST_SYMBOLS,normalizeRows,ema,rsi,atr,getAnalysis,breakoutQuality,currentPriceQuality,fetchCurrentQuote,scanSymbol};
+export const _test={SYMBOLS,FORECAST_SYMBOLS,TRADE_SYMBOLS,ORIGINAL_SYMBOLS,scanAll,normalizeRows,ema,rsi,atr,getAnalysis,breakoutQuality,currentPriceQuality,fetchCurrentQuote,scanSymbol};
