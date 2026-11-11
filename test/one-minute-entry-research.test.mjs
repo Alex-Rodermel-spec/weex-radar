@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {
  normalizeOneMinute,evaluateOneMinuteDiscovery,evaluateOneMinuteBollingerVolume,
- classifyEntryRejection,simulateRejectedCandidate,
+ classifyEntryRejection,simulateRejectedCandidate,simulateTenMinuteCandidate,
  replayOneMinute,ONE_MINUTE_RESEARCH
 } from '../lib/one-minute-entry-research.mjs';
 import {handleOneMinuteResearch} from '../lib/one-minute-entry-research-route.mjs';
@@ -116,6 +116,33 @@ test('counterfactual requires complete 60m history and does not invent TP/SL ord
  const loss=bars.map(x=>({...x,high:100.2,low:99.8}));loss[0].low=98.8;
  assert.equal(simulateRejectedCandidate('LONG',100,99,103,loss).status,'SL');
 });
+test('first-10m replay counts only TP/SL hits in its own horizon, no late hit',()=>{
+ const plain=Array.from({length:10},(_,i)=>({
+  time:ST+i*MIN,closeTime:ST+(i+1)*MIN,
+  open:100,high:100.2,low:99.8,close:100
+ }));
+ const later=Array.from({length:60},(_,i)=>({...plain[i%10],
+  time:ST+i*MIN,closeTime:ST+(i+1)*MIN,
+  high:i===12?102.1:100.2}));
+ const first=simulateTenMinuteCandidate('LONG',100,99,102,plain);
+ assert.equal(first.status,'TIMEOUT');
+ assert.ok(first.netR<0,'10m no TP cannot be scored as free profit after fees');
+ assert.equal(simulateRejectedCandidate('LONG',100,99,102,later).status,'TP',
+  'an hour can hit TP later while first ten minutes have no TP');
+ const tp=plain.map(x=>({...x}));tp[3].high=102.1;
+ const won=simulateTenMinuteCandidate('LONG',100,99,102,tp);
+ assert.equal(won.status,'TP');assert.ok(won.netR>0);
+ const sl=plain.map(x=>({...x}));sl[1].low=98.9;
+ assert.equal(simulateTenMinuteCandidate('LONG',100,99,102,sl).status,'SL');
+ const both=plain.map(x=>({...x}));both[5].high=102.1;both[5].low=98.9;
+ assert.equal(simulateTenMinuteCandidate('LONG',100,99,102,both).status,'AMBIGUOUS');
+ const short=plain.map(x=>({...x}));short[2].low=97.9;
+ assert.equal(simulateTenMinuteCandidate('SHORT',100,101,98,short).status,'TP');
+ const gap=plain.map(x=>({...x}));gap[6].time+=MIN;
+ assert.equal(simulateTenMinuteCandidate('LONG',100,99,102,gap).status,'NO_DATA');
+ assert.equal(simulateTenMinuteCandidate('LONG',100,99,102,plain.slice(1)).status,'NO_DATA');
+});
+
 test('closed minute normalization rejects future and damaged candles',()=>{
  const now=ST+200*MIN+30_000;
  const raw=[
@@ -151,6 +178,11 @@ test('historical replay uses only 1m trigger and PREVIOUSLY closed 5m/15m candle
   res.results.TIMEOUT+res.results.AMBIGUOUS);
  assert.equal(ONE_MINUTE_RESEARCH.minNetRR,1.3);
  for(const study of Object.values(res.strategies)){
+  assert.equal(study.results10m.setups,study.results.setups,
+   '10m and 60m compare the exact same accepted entries');
+  assert.equal(study.results10m.setups,
+   study.results10m.TP+study.results10m.SL+
+   study.results10m.TIMEOUT+study.results10m.AMBIGUOUS);
   const f=study.filter;
   assert.equal(f.skipLevels,
    Object.values(f.levelRejections).reduce((sum,count)=>sum+count,0));
@@ -163,6 +195,7 @@ test('historical replay uses only 1m trigger and PREVIOUSLY closed 5m/15m candle
   assert.equal(cf.setups,cf.TP+cf.SL+cf.TIMEOUT+cf.AMBIGUOUS);
 
  }
+ assert.equal(res.results10m.setups,res.results.setups);
  assert.ok(res.strategies.bollingerVolume);
  assert.equal(res.strategies.bollingerVolume.filter.triggered,
   res.strategies.bollingerVolume.filter.stages.FOUND||0);
@@ -203,6 +236,8 @@ test('interactive 1m research dashboard JavaScript parses and does not expose ac
  assert.match(h,/mode=one-minute-research/);
  assert.match(h,/id="b-triggered"/);
  assert.match(h,/id="b-netr"/);
+ assert.match(h,/id="first10m-rows"/);
+ assert.match(h,/results10m/);
  assert.match(h,/id="r-bollingerVolume-pivot"/);
  assert.match(h,/levelRejections/);
  assert.match(h,/counterfactual-rows/);
