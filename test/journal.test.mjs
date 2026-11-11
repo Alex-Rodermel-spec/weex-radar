@@ -122,7 +122,8 @@ test('new data-only writer cannot silently enable trading or publish plaintext',
  assert.match(index,/href="\/history\.html"/);
  assert.match(site,/mode=journal/);
  assert.match(site,/goal-progress/);
- assert.match(site,/100 подтверждённых сигналов/);
+ assert.match(site,/100 прогнозов/);
+  assert.doesNotMatch(site,/id="tp"|id="sl"|id="rate"|id="average"/);
  assert.doesNotMatch(dispatch,/journal-export/);
  assert.doesNotMatch(early,/journal-export/);
  assert.doesNotMatch(route,/trade-confirm|\/capi\/v3\/order/);
