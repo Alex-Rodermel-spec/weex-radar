@@ -59,7 +59,26 @@ test('later move begins on 10th closed 1m candle, not assumed immediately',()=>{
  assert.equal(report.at5m.favorablePct,0);
  assert.equal(report.firstFavorable10bps.from10to15,1);
  assert.equal(report.byStrength.STANDARD.at10m.favorablePct,100);
+ assert.equal(report.byDirection.SHORT.total,1);
+ assert.equal(report.byDirection.SHORT.at10m.favorablePct,100);
+ assert.equal(report.byDirection.LONG.at10m.observed,0);
 });
+test('directional hypothesis never conflates LONG and SHORT or counts missing candles as losses',()=>{
+ const bars=normalizeForecastMinutes(futureRaw(),now);
+ const short=evaluatePublishedForecast(emitted,bars,now);
+ const long=evaluatePublishedForecast({...emitted,id:'c'.repeat(32),direction:'LONG'},bars,now);
+ const missing=evaluatePublishedForecast({...emitted,id:'d'.repeat(32),direction:'LONG'},[],now);
+ const out=summarizeForecastArchive([short,long,missing],now).windows[30];
+ assert.equal(out.byDirection.SHORT.total,1);
+ assert.equal(out.byDirection.LONG.total,2);
+ assert.equal(out.byDirection.SHORT.at10m.favorablePct,100);
+ assert.equal(out.byDirection.LONG.at10m.favorablePct,0);
+ assert.equal(out.byDirection.LONG.at10m.observed,1);
+ assert.equal(out.byDirection.LONG.at10m.noData,1);
+ assert.equal(out.byDirection.SHORT.at10m.observed+out.byDirection.LONG.at10m.observed,out.at10m.observed);
+ assert.equal(out.byDirection.LONG.before15m.observed,0);
+});
+
 test('future/unclosed or gapped candles never become wins',()=>{
  const raw=futureRaw();
  raw.splice(7,1);
