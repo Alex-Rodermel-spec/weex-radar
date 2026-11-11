@@ -44,7 +44,7 @@ test('new symbols are allowed for read-only forecast, but never order permission
   combinedDirection:'LONG_BIAS',alignment:'THREE_TIMEFRAME_ALIGNMENT',
   timeframes:[1,5,10].map(i=>({
    intervalMinutes:i,closedAt:Date.UTC(2026,10,11,10,0),
-   direction:'LONG_BIAS',rsi14:60,relativeVolume:1.1
+   direction:'LONG_BIAS',rsi14:60,relativeVolume:1.1,atr14:1.2
   }))
  });
  const now=Date.UTC(2026,10,11,10,0,30);
