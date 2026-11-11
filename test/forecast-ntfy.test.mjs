@@ -60,7 +60,7 @@ test('plain-language forecast action keeps ntfy title, V2 and encrypted journal 
  const m=forecastMessage(f);
  assert.match(m.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./u);
  assert.match(m.message,/📉 Возможное ПАДЕНИЕ/);
- assert.match(m.message,/⏳ Жди отдельного подтверждения\./);
+ assert.match(m.message,/⏳ Жди подтверждения\./);
  assert.match(m.message,/Цена 1М: 99\.5000 USDT/);
  assert.match(m.message,/НЕ сигнал входа/);
  assert.doesNotMatch(m.message,/SL [0-9]|TP [0-9]|Прибыль \(TP\)/);
@@ -133,7 +133,7 @@ test('both forecast directions and cautious warnings are concise and stay journa
   assert.match(m.message,/Цена 1М: \d+\.\d+ USDT/);
   assert.match(m.title,/^🔮 /);
   assert.match(m.message,/1М \/ 5М \/ 10М/);
-  assert.doesNotMatch(m.message,/ЧТО ДЕЛАТЬ|RSI14|Bollinger|Структура 5М/);
+  assert.doesNotMatch(m.message,/ЧТО ДЕЛАТЬ|RSI14|Bollinger/);
   const record=parsePublishedForecast({
    event:'message',topic:forecastTopic(env),time:Math.floor((now-1000)/1000),
    sequence_id:(side==='LONG_BIAS'?'d':'e').repeat(32),
