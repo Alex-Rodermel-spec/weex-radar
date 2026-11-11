@@ -96,6 +96,12 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <div class="table-box"><table><thead><tr><th>Гипотеза</th><th>До 12.11</th><th>Новые прогнозы</th><th>Статус новых данных</th></tr></thead><tbody id="forecastHypotheses"></tbody></table></div>
 <p class="muted" id="forecastProtocol">Отдельная проверка на новых сигналах начнётся 12 ноября 2026 в 00:00 по Берлину. Пропуски свечей не считаются проигрышами.</p>
 </section>
+<section class="card" aria-labelledby="quality-gate-title">
+<h2 id="quality-gate-title">🔬 V3: тест качества прогноза за 5 минут</h2>
+<p class="muted">Новая проверка, <strong>не включённая в сигналы</strong>. Из исходного сообщения и свечей ДО отправки выделяем три группы: PASS — обычный/сильный прогноз без предупреждения V2 и без уже прошедшего движения ≥0,10%; SKIP — повышенный риск, опоздание или уже прошедшее движение; UNKNOWN — недостаточно старых данных для честной оценки.</p>
+<div class="table-box"><table><thead><tr><th>Группа</th><th>Прогнозов</th><th>5М: в сторону</th><th>15М: в сторону</th><th>Новые после 12.11 · 5М</th></tr></thead><tbody id="qualityShadowRows"></tbody></table></div>
+<p class="muted" id="qualityShadowStatus">Сравнение на новой независимой выборке с 12 ноября. Для проверки нужны минимум 50 измеренных PASS и 50 SKIP, ≥80% данных, ≥3 общие монеты. Это направление цены, а не прибыль.</p>
+</section>
 <section class="card" aria-labelledby="link-study-title">
 <h2 id="link-study-title">🔗 Ранний прогноз → подтверждённый сигнал</h2>
 <p class="muted">Новый тест связи двух независимых ntfy-уведомлений. Берём <b>последний опубликованный прогноз по этой же монете</b> за 30 минут <b>до</b> отправки подтверждённого LONG/SHORT. Никаких сигналов задним числом и никаких автоматических входов.</p>
@@ -287,6 +293,35 @@ function display(){
  $('forecastV2Note').textContent=recorded?
   'Записано '+recorded+' оценок V2. Проценты — только по измеренным закрытым свечам. Малая или несопоставимая по монетам и силе выборка не доказывает преимущество.':
   'Пока нет сохранённых прогнозов с оценкой V2. Результат появится после доставки нового прогноза и проверки последующих закрытых свечей.';
+ const qualityGate=forecast?.qualityShadowGate;
+ const qualityRows=$('qualityShadowRows');qualityRows.replaceChildren();
+ for(const [key,label] of [
+  ['BASELINE','Все отправленные'],
+  ['PASS','✅ PASS · не догонять'],
+  ['SKIP','⛔ SKIP · риск/опоздание'],
+  ['UNKNOWN','❔ Не хватает данных']
+ ]){
+  const group=qualityGate?.exploratory?.groups?.[key];
+  const newer=qualityGate?.forward?.groups?.[key];
+  const tr=document.createElement('tr');
+  for(const value of [
+   label,group?.total??0,
+   fmtAccuracy(group?.at5m),fmtAccuracy(group?.at15m),
+   newer?.at5m?.observed?
+    pct(newer.at5m.favorablePct)+' ('+newer.at5m.observed+')':'—'
+  ]){
+   const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
+  }qualityRows.appendChild(tr);
+ }
+ const cmp=qualityGate?.forward?.comparison;
+ $('qualityShadowStatus').textContent=cmp?.readyForReview?
+  'На новой выборке есть минимум данных для изучения, не доказательство преимущества. Разница PASS минус SKIP за 5М: '+
+   (cmp.differencePp===null?'—':cmp.differencePp+' п.п.')+
+   ', общих монет: '+cmp.sharedSymbols+
+   '. Боевые уведомления не меняются автоматически.':
+  'Идёт сбор независимой выборки с 12.11.2026 в 00:00 по Берлину. '+
+   'PASS/SKIP пока не разрешают сделки и не меняют отправку прогнозов; '+
+   'требуются 50 измеренных в каждой группе, ≥80% закрытых свечей и ≥3 общие монеты.';
  const audit=forecast?.hypothesisAudit;
  const hypothesisTable=$('forecastHypotheses');hypothesisTable.replaceChildren();
  const fmtCompare=(c,key='differencePp')=>{
