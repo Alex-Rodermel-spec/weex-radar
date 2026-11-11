@@ -92,7 +92,7 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 </section>
 <section class="card" aria-labelledby="hypotheses-title">
 <h2 id="hypotheses-title">🧪 Проверка наших гипотез · 15 минут</h2>
-<p class="muted">Основная проверка на 15М: минимум 50 измеренных прогнозов в каждой группе, ≥80% покрытия свечами, ≥3 общие монеты (по ≥5 измеренных прогнозов в каждой группе). Разница ≥10 процентных пунктов — повод исследовать дальше, не доказательство прибыльности.</p>
+<p class="muted">Основная проверка на 15М: минимум 50 измеренных прогнозов в каждой группе, ≥80% покрытия свечами, ≥3 общие монеты (по ≥5 измеренных прогнозов в каждой группе). Разница ≥10 процентных пунктов — повод исследовать дальше, не доказательство прибыльности. Теперь отдельно проверяем ранние и запоздалые LONG и SHORT, чтобы различия в направлениях не искажали общий процент.</p>
 <div class="table-box"><table><thead><tr><th>Гипотеза</th><th>До 12.11</th><th>Новые прогнозы</th><th>Статус новых данных</th></tr></thead><tbody id="forecastHypotheses"></tbody></table></div>
 <p class="muted" id="forecastProtocol">Отдельная проверка на новых сигналах начнётся 12 ноября 2026 в 00:00 по Берлину. Пропуски свечей не считаются проигрышами.</p>
 </section>
@@ -262,6 +262,10 @@ function display(){
   ['SHORT против LONG',audit?.exploratory?.shortVsLong?.[15],audit?.forward?.shortVsLong?.[15],'differencePp'],
   ['Сильный против обычного',audit?.exploratory?.strongVsStandard?.[15],audit?.forward?.strongVsStandard?.[15],'differencePp'],
   ['Без движения ≥0,10% до сигнала против запоздалых',audit?.exploratory?.earlyVsLate?.[15],audit?.forward?.earlyVsLate?.[15],'differencePp'],
+  ['📈 Ранние LONG против запоздалых LONG',audit?.exploratory?.timingByDirection?.LONG?.[15],
+   audit?.forward?.timingByDirection?.LONG?.[15],'differencePp'],
+  ['📉 Ранние SHORT против запоздалых SHORT',audit?.exploratory?.timingByDirection?.SHORT?.[15],
+   audit?.forward?.timingByDirection?.SHORT?.[15],'differencePp'],
   ['Обычный раньше сильного (запоздания)',audit?.exploratory?.standardEarlierThanStrong,
    audit?.forward?.standardEarlierThanStrong,'strongMinusStandardLatePp']
  ];

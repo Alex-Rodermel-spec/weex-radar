@@ -87,6 +87,55 @@ test('timeliness distinguishes already-moved signals from actual 15m outcomes',(
  assert.equal(r.earlyVsLate[15].right.observed,1);
  assert.equal(r.missingPriorMovement,1);
 });
+test('separating LONG and SHORT exposes timing effects hidden by pooled accuracy',()=>{
+ const windows=move=>Object.fromEntries([1,5,10,15,30].map(h=>
+  [h,{status:'OBSERVED',moveBps:move}]));
+ const rows=[
+  mk(100,{direction:'LONG',strength:'STANDARD',
+   preMove15mBps:0,windows:windows(20)}),
+  mk(101,{direction:'LONG',strength:'STANDARD',
+   preMove15mBps:15,windows:windows(-20)}),
+  mk(102,{direction:'SHORT',strength:'STANDARD',
+   preMove15mBps:0,windows:windows(-20)}),
+  mk(103,{direction:'SHORT',strength:'STANDARD',
+   preMove15mBps:15,windows:windows(20)}),
+  mk(104,{direction:'LONG',strength:'STANDARD',
+   preMove15mBps:null,windows:windows(20)})
+ ];
+ const a=forecastHypothesisAudit(rows,NOW).forward;
+ assert.equal(a.earlyVsLate[15].differencePp,0,
+  'pooled result hides which direction is helped by early signals');
+ assert.equal(a.timingByDirection.LONG[15].differencePp,100);
+ assert.equal(a.timingByDirection.SHORT[15].differencePp,-100);
+ assert.equal(a.timingByDirection.LONG.earlyTotal,1);
+ assert.equal(a.timingByDirection.LONG.lateTotal,1);
+ assert.equal(a.timingByDirection.LONG.missingPriorMovement,1);
+ assert.equal(a.timingByDirection.LONG[15].status,'COLLECTING');
+ assert.equal(a.timingByDirection.SHORT[15].status,'COLLECTING');
+ const report=summarizeForecastArchive(rows,NOW).windows[30].hypothesisAudit.forward;
+ assert.equal(report.timingByDirection.SHORT[15].differencePp,-100);
+ assert.doesNotMatch(JSON.stringify(report.timingByDirection),
+  /"id"|"sentAt"|"reference"|"price"/);
+});
+test('direction-specific timing excludes unmatured and unknown price outcomes',()=>{
+ const rows=[
+  mk(112,{direction:'LONG',preMove15mBps:0,
+   sentAt:NOW-2*MIN,windows:{5:{status:'PENDING'},15:{status:'PENDING'}}}),
+  mk(113,{direction:'LONG',preMove15mBps:15,
+   windows:{5:{status:'NO_DATA'},15:{status:'NO_DATA'}}}),
+  mk(114,{direction:'LONG',preMove15mBps:0,
+   windows:{5:{status:'OBSERVED',moveBps:17},15:{status:'OBSERVED',moveBps:9}}})
+ ];
+ const c=forecastHypothesisAudit(rows,NOW).forward.timingByDirection.LONG[15];
+ assert.equal(c.left.total,1);
+ assert.equal(c.left.observed,1);
+ assert.equal(c.right.total,1);
+ assert.equal(c.right.observed,0);
+ assert.equal(c.right.coveragePct,0);
+ assert.equal(c.differencePp,null);
+ assert.equal(c.readyForReview,false);
+});
+
 test('journal exposes only aggregate hypothesis comparisons and browser script is valid',()=>{
  const report=summarizeForecastArchive([mk(4),mk(5)],NOW);
  const audit=report.windows[30].hypothesisAudit;
@@ -96,6 +145,8 @@ test('journal exposes only aggregate hypothesis comparisons and browser script i
  assert.doesNotMatch(serialized,/NTFY_TOPIC|PUSH_CRON_KEY/);
  const html=readFileSync(new URL('../history.html',import.meta.url),'utf8');
  assert.match(html,/id="forecastHypotheses"/);
+ assert.match(html,/Ранние LONG против запоздалых LONG/);
+ assert.match(html,/Ранние SHORT против запоздалых SHORT/);
  const script=html.match(/<script>([\s\S]*?)<\/script>/);
  assert.ok(script);assert.doesNotThrow(()=>new Script(script[1]));
  const source=readFileSync(new URL('../lib/forecast-hypotheses.mjs',import.meta.url),'utf8');
