@@ -83,6 +83,32 @@ test('30/90-day rollups count only resolved TP/SL with explicit no-fee R estimat
  assert.match(sum.limitations,/No actual order fills/);
 });
 
+test('journal today separates archived confirmed notices from forecast notifications',()=>{
+ const at=Date.parse('2026-11-11T14:00:00Z');
+ const signals=[
+  signal({sentAt:Date.parse('2026-11-10T23:30:00Z')}),
+  signal({sentAt:Date.parse('2026-11-11T12:30:00Z')}),
+  signal({sentAt:Date.parse('2026-11-10T22:30:00Z')})
+ ];
+ const forecast={
+  id:'a'.repeat(32),symbol:'BTCUSDT',direction:'SHORT',strength:'STANDARD',
+  sentAt:Date.parse('2026-11-11T12:15:00Z'),reference:100,
+  v2Timing:'CLEAR',windows:Object.fromEntries([1,5,10,15,30].map(h=>
+   [h,{status:'OBSERVED',moveBps:3}])),
+  aligned5m:Object.fromEntries([1,2,3].map(h=>
+   [h,{status:'OBSERVED',moveBps:3}])),
+  preMove5mBps:null,preMove15mBps:null,
+  firstFavorable10bpsMinute:null,firstAdverse10bpsMinute:null
+ };
+ const report=summarizeJournal(signals,at,[],[forecast]);
+ assert.equal(report.today.dateBerlin,'2026-11-11');
+ assert.equal(report.today.confirmedAlertsArchived,2);
+ assert.equal(report.today.forecastAlertsArchived,1);
+ assert.equal(report.forecastStudy.today.v2Timing.CLEAR,1);
+ assert.equal(report.forecastStudy.today.at15m.observed,1);
+ assert.match(report.today.note,/Only archived actual ntfy/);
+});
+
 test('writer endpoint rejects unsigned callers BEFORE fetching any ntfy/history',async()=>{
  const response={code:0,payload:null,headers:{},
   setHeader(k,v){this.headers[k]=v},
