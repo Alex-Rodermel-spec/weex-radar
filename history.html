@@ -73,6 +73,12 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
 <div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
 <p class="muted" id="forecastDetail">Измеряем только завершённые горизонты. «Первое движение» — первая полностью закрытая минутная свеча с движением ≥0,10% в сторону прогноза. Это не доказательство того, когда движение началось.</p>
+<section class="card" aria-labelledby="hypotheses-title">
+<h2 id="hypotheses-title">🧪 Проверка наших гипотез · 15 минут</h2>
+<p class="muted">Основная проверка на 15М: минимум 50 измеренных прогнозов в каждой группе, ≥80% покрытия свечами, ≥3 общие монеты (по ≥5 измеренных прогнозов в каждой группе). Разница ≥10 процентных пунктов — повод исследовать дальше, не доказательство прибыльности.</p>
+<div class="table-box"><table><thead><tr><th>Гипотеза</th><th>До 12.11</th><th>Новые прогнозы</th><th>Статус новых данных</th></tr></thead><tbody id="forecastHypotheses"></tbody></table></div>
+<p class="muted" id="forecastProtocol">Отдельная проверка на новых сигналах начнётся 12 ноября 2026 в 00:00 по Берлину. Пропуски свечей не считаются проигрышами.</p>
+</section>
 <h2>📈 Подтверждённые LONG / SHORT — фактическое движение на 5М</h2>
 <p class="muted">Независимая проверка направления только у реально отправленных подтверждённых торговых уведомлений. Это не статистика отдельного прогнозиста и не реальные сделки. Цель — проверить направление и своевременность без оценки целевых уровней.</p>
 <div class="metrics">
@@ -194,6 +200,31 @@ function display(){
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }strength.appendChild(tr);
  }
+ const audit=forecast?.hypothesisAudit;
+ const hypothesisTable=$('forecastHypotheses');hypothesisTable.replaceChildren();
+ const fmtCompare=(c,key='differencePp')=>{
+  const n1=c?.left?.observed??0,n2=c?.right?.observed??0;
+  const delta=c?.[key];
+  return delta===null||delta===undefined?'нет сравнения ('+n1+'/'+n2+')':
+   (delta>0?'+':'')+delta+' п.п. ('+n1+'/'+n2+')';
+ };
+ const cases=[
+  ['SHORT против LONG',audit?.exploratory?.shortVsLong?.[15],audit?.forward?.shortVsLong?.[15],'differencePp'],
+  ['Сильный против обычного',audit?.exploratory?.strongVsStandard?.[15],audit?.forward?.strongVsStandard?.[15],'differencePp'],
+  ['Без движения ≥0,10% до сигнала против запоздалых',audit?.exploratory?.earlyVsLate?.[15],audit?.forward?.earlyVsLate?.[15],'differencePp'],
+  ['Обычный раньше сильного (запоздания)',audit?.exploratory?.standardEarlierThanStrong,
+   audit?.forward?.standardEarlierThanStrong,'strongMinusStandardLatePp']
+ ];
+ for(const [label,historical,future,key] of cases){
+  const tr=document.createElement('tr');
+  for(const value of [label,fmtCompare(historical,key),fmtCompare(future,key),
+   future?.readyForReview?'Можно анализировать, не доказательство':'Накопление выборки']){
+   const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
+  }hypothesisTable.appendChild(tr);
+ }
+ $('forecastProtocol').textContent=audit?
+  'Протокол '+audit.protocol.version+' · основной горизонт 15М · направление и время, не прибыль. Новая выборка с 12.11.2026 в 00:00 по Берлину. В скобках — число оценённых прогнозов в двух группах.':
+  'Критерии исследования появятся после обновления аналитического отчёта.';
  $('forecastDetail').textContent=forecast?
   'Проверяем 1/5/10/15/30 минут, а для торговли на 5М — уже пройденное движение перед прогнозом и ближайшее закрытие 5М. Отсутствие данных не считается поражением или успехом. Не учитываются реальные цены исполнения, комиссии и вероятность прибыли.':
   'Архив нового прогнозиста пока пуст.';
