@@ -39,7 +39,9 @@ test('parse only genuine sent private forecast notices (not trading alerts)',()=
  assert.equal(parsePublishedForecast({...notice,title:'🟢 LONG BTCUSDT'},topic,now),null);
  assert.equal(parsePublishedForecast({...notice,message:'Trade @ 100'},topic,now),null);
  assert.equal(parsePublishedForecast({...notice,sequence_id:'wrong'},topic,now),null);
- assert.equal(parsePublishedForecast({...notice,time:Math.floor((now-120*MIN)/1000)},topic,now),null);
+ const backfill=parsePublishedForecast({...notice,time:Math.floor((now-6*60*MIN)/1000)},topic,now);
+ assert.ok(backfill,'genuine overnight notices remain recoverable');
+ assert.equal(parsePublishedForecast({...notice,time:Math.floor((now-13*60*MIN)/1000)},topic,now),null);
 });
 test('later move begins on 10th closed 1m candle, not assumed immediately',()=>{
  const bars=normalizeForecastMinutes(futureRaw(),now);
@@ -117,6 +119,19 @@ test('compare 5m manual chart forecast quality: already moved BEFORE alert vs su
  assert.equal(decoded.preMove15mBps,result.preMove15mBps);
  assert.equal(decoded.aligned5m[2].moveBps,result.aligned5m[2].moveBps);
 });
+test('overnight notices survive a failed writer but never become invented wins',()=>{
+ const older=parsePublishedForecast({...notice,sequence_id:'b'.repeat(32),
+  time:Math.floor((now-6*60*MIN)/1000)},topic,now);
+ assert.ok(older);
+ const audited=evaluatePublishedForecast(older,normalizeForecastMinutes(futureRaw(),now),now);
+ for(const h of FORECAST_HORIZONS)assert.equal(audited.windows[h].status,'NO_DATA');
+ const merged=mergeForecastArchive([], [audited],now);
+ assert.equal(merged.added,1);
+ const summary=summarizeForecastArchive(merged.rows,now).windows[30];
+ assert.equal(summary.total,1);
+ assert.equal(summary.at5m.noData,1);
+ assert.equal(summary.at5m.observed,0);
+});
 test('missing pre-alert 1m data yields unknown prior momentum, not an invented early forecast',()=>{
  const result=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),now),now);
  assert.equal(result.preMove5mBps,null);
@@ -141,6 +156,7 @@ test('collector reads separate private topic plus WEEX public klines only',async
  assert.equal(v.rows[0].firstFavorable10bpsMinute,10);
  assert.equal(seen.length,2);
  assert.ok(seen.some(x=>x.includes('interval=1m&limit=125')));
+ assert.ok(seen.some(x=>x.includes('since=12h')));
  assert.ok(seen.every(x=>!x.includes('/order')));
 });
 test('forecast audit is isolated from trading, cron and phone push',()=>{
