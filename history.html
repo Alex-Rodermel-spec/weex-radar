@@ -73,6 +73,12 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
 <div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
 <p class="muted" id="forecastDetail">Измеряем только завершённые горизонты. «Первое движение» — первая полностью закрытая минутная свеча с движением ≥0,10% в сторону прогноза. Это не доказательство того, когда движение началось.</p>
+<section class="card" aria-labelledby="v2-review-title">
+<h2 id="v2-review-title">⏱ V2: проверка запоздания прогнозов</h2>
+<p class="muted">Только STRONG и STANDARD, где оценка V2 была напечатана в сообщении в момент отправки. Старые сообщения и неизвестные оценки отдельно. Направление цены через 5 и 15 минут — не прибыль.</p>
+<div class="table-box"><table><thead><tr><th>Оценка V2</th><th>Прогнозов</th><th>5м · в сторону прогноза</th><th>15м · в сторону прогноза</th><th>Сильных</th><th>Обычных</th></tr></thead><tbody id="forecastV2Timing"></tbody></table></div>
+<p class="muted" id="forecastV2Note">Нужны сопоставимые выборки по монетам и силам прогнозов. В реальную торговлю эксперимент не вмешивается.</p>
+</section>
 <section class="card" aria-labelledby="hypotheses-title">
 <h2 id="hypotheses-title">🧪 Проверка наших гипотез · 15 минут</h2>
 <p class="muted">Основная проверка на 15М: минимум 50 измеренных прогнозов в каждой группе, ≥80% покрытия свечами, ≥3 общие монеты (по ≥5 измеренных прогнозов в каждой группе). Разница ≥10 процентных пунктов — повод исследовать дальше, не доказательство прибыльности.</p>
@@ -200,6 +206,25 @@ function display(){
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }strength.appendChild(tr);
  }
+ const v2Table=$('forecastV2Timing');v2Table.replaceChildren();
+ for(const [key,label] of [
+  ['LATE','⏱ V2: возможное опоздание'],
+  ['CLEAR','✓ V2: предупреждений не выявлено'],
+  ['UNKNOWN','? V2: недостаточно данных'],
+  ['NOT_RECORDED','— Ранние прогнозы без V2']]){
+  const v=forecast?.byV2Timing?.[key],tr=document.createElement('tr');
+  for(const value of [label,v?.total??0,
+   fmtAccuracy(v?.at5m),fmtAccuracy(v?.at15m),
+   v?.byStrength?.STRONG?.total??0,
+   v?.byStrength?.STANDARD?.total??0]){
+   const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
+  }v2Table.appendChild(tr);
+ }
+ const recorded=['LATE','CLEAR','UNKNOWN'].reduce((sum,k)=>
+  sum+(forecast?.byV2Timing?.[k]?.total||0),0);
+ $('forecastV2Note').textContent=recorded?
+  'Записано '+recorded+' оценок V2. Проценты — только по измеренным закрытым свечам. Малая или несопоставимая по монетам и силе выборка не доказывает преимущество.':
+  'Пока нет сохранённых прогнозов с оценкой V2. Результат появится после доставки нового прогноза и проверки последующих закрытых свечей.';
  const audit=forecast?.hypothesisAudit;
  const hypothesisTable=$('forecastHypotheses');hypothesisTable.replaceChildren();
  const fmtCompare=(c,key='differencePp')=>{
