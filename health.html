@@ -56,6 +56,10 @@ button:disabled{opacity:.6;cursor:wait}
   <div class="eyebrow">🔔 ntfy</div><h2 id="ntfy-state">Проверяем…</h2>
   <p class="detail" id="ntfy-detail">Проверка серверного канала без Chrome.</p>
  </section>
+ <section class="card" id="forecast-card">
+  <div class="eyebrow">🔮 Прогнозы · отдельный ntfy</div><h2 id="forecast-state">Проверяем…</h2>
+  <p class="detail" id="forecast-detail">Проверяем историю отправленных прогнозов на отдельном серверном канале.</p>
+ </section>
  <section class="card" id="early-card">
   <div class="eyebrow">⚡ 1м EARLY WATCH</div><h2 id="early-state">Проверяем…</h2>
   <p class="detail" id="early-detail">Последняя служебная отметка.</p>
@@ -117,6 +121,24 @@ function render(data){
  }else{
   setCard('ntfy','warn','● Нет ответа ntfy','Связь с сервисом сейчас не подтверждена. Это может быть временный сбой.');
  }
+ const forecast=data.forecastNotifications||{};
+ if(!forecast.serverConfigured)
+  setCard('forecast','bad','● Канал не настроен',
+   'Нет настроенного отдельного канала прогнозов. Зелёные сигналы проверяются независимо.');
+ else if(forecast.gatewayReachable===false)
+  setCard('forecast','warn','● Сервис не ответил',
+   'Историю серверных прогнозов сейчас проверить не удалось. Это не доказывает, что они не отправляются.');
+ else if(forecast.gatewayReachable===true){
+  const c=forecast.recentTwoHours||{},total=c.total||0;
+  setCard('forecast', 'ok', '● Канал доступен',
+   'За последние 2 часа сервер принял '+total+' прогнозов '+
+   '(сильных '+(c.STRONG||0)+', обычных '+(c.STANDARD||0)+
+   ', повышенного риска '+(c.CAUTION||0)+'). '+
+   (forecast.lastForecastAt?'Последний: '+clock(forecast.lastForecastAt)+'. ':
+    'Прогнозов в доступной истории нет — это не ошибка само по себе. ')+
+   'Доставка на Android и подписка телефона отдельно не подтверждены.');
+ }else setCard('forecast','warn','● Ожидаем проверку',
+  'Статус отдельного канала прогнозов пока неизвестен.');
  const e=cron.details?.early;
  if(e&&cron.lastSeenAt){
   setCard('early',e.failedMarkets===0&&e.checked===16?'ok':'warn',
