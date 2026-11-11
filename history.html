@@ -40,10 +40,10 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <body>
 <main>
 <header><span class="brand">◈ WEEX RADAR · JOURNAL</span><a href="/" class="back">← Вернуться к радару</a></header>
-<h1>📒 Долгосрочный журнал сигналов</h1>
+<h1>📒 Журнал реальных прогнозов</h1>
 <p><a href="/backtest.html">🧪 Сравнить стратегию с фильтрами и без — исторический тест</a></p>
 <p><a href="/early-study.html">⚡ Проверить, насколько рано работают сигналы «ЖДАТЬ» (5/15/30 минут)</a></p>
-<p class="muted lead">Теперь сравниваем результаты подтверждённых WEEX LONG/SHORT за 30 и 90 дней. Это история <b>отправленных через ntfy</b> сигналов, а не реально исполненных сделок.</p>
+<p class="muted lead">Проверяем, куда <b>реально пошла цена после отправки прогноза</b> и когда было уже поздно входить. Отдельно изучаем подтверждённые LONG и SHORT. Используем только закрытые свечи WEEX и реально отправленные уведомления; это не сделки.</p>
 <div class="controls">
  <label for="days">Период</label>
  <select id="days"><option value="30">Последние 30 дней</option><option value="90">Последние 90 дней</option></select>
@@ -51,25 +51,38 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <span id="state" role="status">Получаем журнал…</span>
 </div>
 <div class="metrics">
- <div class="card"><small>Сигналов сохранено</small><strong id="total">—</strong></div>
- <div class="card"><small>Достигли TP</small><strong class="good" id="tp">—</strong></div>
- <div class="card"><small>Достигли SL</small><strong class="bad" id="sl">—</strong></div>
- <div class="card"><small>Доля TP из проверенных</small><strong id="rate">—</strong></div>
- <div class="card"><small>Средний результат, R*</small><strong id="average">—</strong></div>
+ <div class="card"><small>🔮 Прогнозов сохранено</small><strong id="forecastTotal">—</strong></div>
+ <div class="card"><small>Через 5 минут</small><strong id="forecast5">—</strong></div>
+ <div class="card"><small>Через 10 минут</small><strong id="forecast10">—</strong></div>
+ <div class="card"><small>Через 15 минут</small><strong id="forecast15">—</strong></div>
 </div>
-<p class="muted" id="detail">Для статистического сравнения нужны реальные наблюдения, а не придуманные результаты.</p>
-<section class="card" aria-labelledby="goal-title">
- <h2 id="goal-title">🔬 Наш эксперимент: 100 подтверждённых сигналов</h2>
- <p id="goal-text" role="status">Считаем только записанные и подтверждённые оповещения WEEX.</p>
- <progress id="goal-progress" value="0" max="100">0 / 100</progress>
- <p class="muted" id="goal-note">Это контрольная точка для оценки стратегии, а не обещание прибыльности.</p>
+<section class="card" aria-labelledby="forecast-goal-title">
+ <h2 id="forecast-goal-title">🔬 Наш эксперимент: первые 100 прогнозов</h2>
+ <p id="forecast-goal-text" role="status">Считаем только опубликованные прогнозы.</p>
+ <progress id="forecast-goal-progress" value="0" max="100">0 / 100</progress>
+ <p class="muted">100 прогнозов — первый контрольный этап, а не гарантия качества. Проверяем направление и своевременность на 5М.</p>
 </section>
-<h2>По монетам</h2>
-<div class="table-box"><table><thead><tr><th>Монета</th><th>Сигналов</th><th>TP</th><th>SL</th><th>Доля TP</th></tr></thead><tbody id="market"></tbody></table></div>
-<h2>По направлению</h2>
-<div class="table-box"><table><thead><tr><th>Направление</th><th>Сигналов</th><th>TP</th><th>SL</th><th>Доля TP</th></tr></thead><tbody id="direction"></tbody></table></div>
-<h2>Сравнение предупреждений нового фильтра</h2>
-<div class="table-box"><table><thead><tr><th>Метка</th><th>Сигналов</th><th>TP</th><th>SL</th><th>Доля TP</th></tr></thead><tbody id="shadow"></tbody></table></div>
+<h2>🔮 Прогнозист — фактическое движение цены через 1–30 минут</h2>
+<p class="muted">Только реально опубликованные отдельные ntfy-прогнозы (не старые EARLY WATCH и не подтверждённые входы). Сравнение с ценой из уведомления, по закрытым минутным свечам WEEX. Начинаем с появления этого исследования; предыдущие неполные данные не считаем успехом.</p>
+<div class="metrics"><div class="card"><small>Впервые ≥0,10% на 10–15-й минуте</small><strong id="forecastDelay">—</strong></div></div>
+<div class="table-box"><table><thead><tr><th>Интервал после прогноза</th><th>Проверено</th><th>В сторону прогноза</th><th>Среднее движение</th></tr></thead><tbody id="forecastHorizons"></tbody></table></div>
+<h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
+<p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
+<div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
+<p class="muted" id="forecastDetail">Измеряем только завершённые горизонты. «Первое движение» — первая полностью закрытая минутная свеча с движением ≥0,10% в сторону прогноза. Это не доказательство того, когда движение началось.</p>
+<h2>📈 Подтверждённые LONG / SHORT — фактическое движение на 5М</h2>
+<p class="muted">Независимая проверка направления только у реально отправленных подтверждённых торговых уведомлений. Это не статистика отдельного прогнозиста и не реальные сделки. Цель — проверить направление и своевременность без оценки целевых уровней.</p>
+<div class="metrics">
+ <div class="card"><small>Подтверждённых LONG/SHORT в архиве</small><strong id="confirmedSaved">—</strong></div>
+ <div class="card"><small>Изучено на 5М</small><strong id="confirmedAuditTotal">—</strong></div>
+ <div class="card"><small>Первое закрытие 5М</small><strong id="confirmedAudit5m">—</strong></div>
+ <div class="card"><small>Через 10 минут</small><strong id="confirmedAudit10m">—</strong></div>
+ <div class="card"><small>Через 15 минут</small><strong id="confirmedAudit15m">—</strong></div>
+</div>
+<div class="table-box"><table><thead><tr><th>Направление</th><th>Изучено</th><th>Цена прошла за 15м до сигнала</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="confirmedAuditDirection"></tbody></table></div>
+<h2>🎯 Сильные и обычные LONG/SHORT</h2>
+<div class="table-box"><table><thead><tr><th>Тип сигнала</th><th>Изучено</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="confirmedAuditStrength"></tbody></table></div>
+<p class="muted" id="confirmedAuditDetail">Измеряем только закрытые свечи WEEX, начиная с времени отправки. Исторические сигналы без нужных цен не добавляем задним числом.</p>
 <h2>⚡ Ранние предупреждения — архив 30/90 дней</h2>
 <p class="muted">Только реально отправленные через ntfy PRE_BREAK и EARLY WATCH. Показываем, куда ушла цена через 5, 15 и 30 минут — не доходность сделки.</p>
 <div class="metrics">
@@ -79,32 +92,7 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <div class="card"><small>30м · движение в сторону прогноза</small><strong id="early30">—</strong></div>
 </div>
 <p class="muted" id="earlyDetail">Нужны реальные ранние уведомления и закрытые свечи после них.</p>
-<h2>🎯 Подтверждённые LONG / SHORT — для ручной торговли на 5М</h2>
-<p class="muted">Независимая проверка направления только у реально отправленных подтверждённых торговых уведомлений. Это не статистика отдельного прогнозиста и не реальные сделки. Исторические TP/SL показаны выше.</p>
-<div class="metrics">
- <div class="card"><small>LONG/SHORT изучено</small><strong id="confirmedAuditTotal">—</strong></div>
- <div class="card"><small>Первое закрытие 5М</small><strong id="confirmedAudit5m">—</strong></div>
- <div class="card"><small>Через 10 минут</small><strong id="confirmedAudit10m">—</strong></div>
- <div class="card"><small>Через 15 минут</small><strong id="confirmedAudit15m">—</strong></div>
-</div>
-<div class="table-box"><table><thead><tr><th>Направление</th><th>Изучено</th><th>Цена прошла за 15м до сигнала</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="confirmedAuditDirection"></tbody></table></div>
-<h2>🎯 Сильные и обычные LONG/SHORT</h2>
-<div class="table-box"><table><thead><tr><th>Тип сигнала</th><th>Изучено</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="confirmedAuditStrength"></tbody></table></div>
-<p class="muted" id="confirmedAuditDetail">Измеряем только закрытые свечи WEEX, начиная с времени отправки. Исторические сигналы без нужных цен не добавляем задним числом.</p>
-<h2>🔮 Новый прогнозист — точность через 1–30 минут</h2>
-<p class="muted">Только реально опубликованные отдельные ntfy-прогнозы (не старые EARLY WATCH и не подтверждённые входы). Сравнение с ценой из уведомления, по закрытым минутным свечам WEEX. Начинаем с появления этого исследования; предыдущие неполные данные не считаем успехом.</p>
-<div class="metrics">
- <div class="card"><small>Прогнозов сохранено</small><strong id="forecastTotal">—</strong></div>
- <div class="card"><small>Через 10 минут</small><strong id="forecast10">—</strong></div>
- <div class="card"><small>Через 15 минут</small><strong id="forecast15">—</strong></div>
- <div class="card"><small>Впервые +0,10% на 10–15-й минуте</small><strong id="forecastDelay">—</strong></div>
-</div>
-<div class="table-box"><table><thead><tr><th>Интервал после прогноза</th><th>Проверено</th><th>В сторону прогноза</th><th>Среднее движение</th></tr></thead><tbody id="forecastHorizons"></tbody></table></div>
-<h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
-<p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
-<div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
-<p class="muted" id="forecastDetail">Измеряем только завершённые горизонты. «Первое движение» — первая полностью закрытая минутная свеча с движением ≥0,10% в сторону прогноза. Это не доказательство того, когда движение началось.</p>
-<div class="note">⚠️ <b>Это исследование, не подтверждение прибыльности.</b> Статусы TP/SL считаются по последующим закрытым минутным свечам за 60 минут. Если оба уровня коснулись одной свечи, исход считается неопределённым. Не учитываются комиссия биржи, funding, проскальзывание, риск ликвидации и реальное исполнение. *R — условное изменение доходности в единицах первоначального риска, рассчитанное только для однозначных TP и SL и без издержек. Значения не гарантируют будущий заработок.</div>
+<div class="note">⚠️ <b>Измеряем точность направления, а не доходность торговли.</b> Статистика ценовых целей скрыта, чтобы не мешать проверке реальных прогнозов. Предыдущие наблюдения сохранены в зашифрованном архиве. Защитные настройки подтверждённых торговых уведомлений не меняются. Результаты не учитывают реальное исполнение, комиссии, funding, проскальзывание и риск ликвидации.</div>
 <p class="muted" style="font-size:13px">🔐 Полная история хранится в зашифрованном виде AES-GCM в отдельной ветке существующего публичного GitHub-репозитория. Страница показывает только агрегированные результаты. Период до установки журнала не восстанавливается автоматически, кроме ещё доступных уведомлений. Архив обновляет отдельная бесплатная задача GitHub Actions примерно каждые 20 минут; возможны задержки и пробелы при сбоях планировщика. WEEX RADAR и ntfy работают независимо.</p>
 </main>
 <script>
@@ -114,50 +102,14 @@ let report=null;
 const pct=v=>v===null||v===undefined?'—':String(v)+'%';
 const showN=v=>Number.isFinite(v)?String(v):'—';
 const utc=ms=>new Date(ms).toLocaleString('ru-RU',{timeZone:'Europe/Berlin',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-function rows(id,items,translate=x=>x){
- const body=$(id);body.replaceChildren();
- if(!items?.length){
-  const tr=document.createElement('tr'),td=document.createElement('td');
-  td.colSpan=5;td.textContent='Нет данных за выбранный период.';
-  tr.appendChild(td);body.appendChild(tr);return;
- }
- for(const item of items){
-  const tr=document.createElement('tr');
-  const fields=[translate(item.name),item.total,item.TP,item.SL,pct(item.hitRatePct)];
-  for(const value of fields){const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);}
-  body.appendChild(tr);
- }
-}
 function display(){
  if(!report)return;
  const days=$('days').value,stats=report.windows?.[days];
  if(!stats)return;
- $('total').textContent=showN(stats.total);
- $('tp').textContent=showN(stats.TP);
- $('sl').textContent=showN(stats.SL);
- $('rate').textContent=pct(stats.hitRatePct);
- $('average').textContent=stats.illustrativeAverageR===null?'—':showN(stats.illustrativeAverageR)+' R';
- const goal=report.researchGoal;
- if(goal){
-  $('goal-progress').value=Math.min(goal.target,goal.collected);
-  $('goal-progress').max=goal.target;
-  $('goal-text').textContent=goal.collected+' / '+goal.target+
-   ' сигналов за последние 90 дней · до цели: '+goal.remaining+
-   ' · с однозначным TP/SL: '+goal.resolved+'.';
-  $('goal-note').textContent=goal.reached?
-   'Контрольная точка достигнута, но это НЕ доказательство прибыли: нужна проверка чистой доходности с комиссиями и реальным исполнением.':
-   'Оценивать прибыльность ещё рано. 100 сигналов — минимальная исследовательская цель, не гарантия результата.';
- }
- $('detail').textContent=
-  'Однозначных исходов: '+stats.resolved+
-  ' · Ожидают: '+stats.PENDING+
-  ' · Не достигли TP/SL: '+stats.TIMEOUT+
-  ' · Неопределённые: '+(stats.AMBIGUOUS+stats.INTRABAR)+
-  ' · Нет данных: '+stats.NO_DATA+'.';
- rows('market',stats.byMarket);
- rows('direction',stats.byDirection,x=>x==='LONG'?'📈 LONG':x==='SHORT'?'📉 SHORT':x);
- rows('shadow',stats.byShadow,x=>x==='SKIP'?'⚠️ Тест: пропустить':
-  x==='OBSERVE'?'🔎 Тест: без замечаний':'Без отметки');
+ $('confirmedSaved').textContent=showN(stats.total);
+ const forecastCount=report.forecastStudy?.archivedForecasts??0;
+ $('forecast-goal-progress').value=Math.min(100,forecastCount);
+ $('forecast-goal-text').textContent=forecastCount+' / 100 прогнозов · осталось до контрольной точки: '+Math.max(0,100-forecastCount)+'.';
  const early=report.earlyStudy?.windows?.[days];
  $('earlyTotal').textContent=showN(early?.total);
  for(const [h,id] of [[5,'early5'],[15,'early15'],[30,'early30']]){
@@ -202,6 +154,7 @@ function display(){
   'История новой проверки LONG/SHORT пока пуста.';
  const forecast=report.forecastStudy?.windows?.[days];
  $('forecastTotal').textContent=showN(forecast?.total);
+ $('forecast5').textContent=forecast?.at5m?.observed?pct(forecast.at5m.favorablePct)+' ('+forecast.at5m.observed+')':'—';
  $('forecast10').textContent=forecast?.at10m?.observed?pct(forecast.at10m.favorablePct)+' ('+forecast.at10m.observed+')':'—';
  $('forecast15').textContent=forecast?.at15m?.observed?pct(forecast.at15m.favorablePct)+' ('+forecast.at15m.observed+')':'—';
  $('forecastDelay').textContent=forecast?.firstFavorable10bps?.observed?
@@ -232,7 +185,7 @@ function display(){
   'Архив нового прогнозиста пока пуст.';
  $('state').textContent=report.state==='EMPTY'?
   'Архив ещё пуст. Первая запись появится после следующего нового сигнала.':
-  'Архив: '+report.archivedSignals+' сигналов · последнее оповещение: '+
+  'Журнал: '+(report.forecastStudy?.archivedForecasts??0)+' прогнозов · '+report.archivedSignals+' подтверждённых LONG/SHORT. Последний подтверждённый сигнал: '+
     (report.lastSignalAt?utc(report.lastSignalAt):'—');
 }
 async function load(){
