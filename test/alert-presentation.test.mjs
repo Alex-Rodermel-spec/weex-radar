@@ -35,7 +35,7 @@ test('phone warning references the active net R/R threshold, not an obsolete num
  const s={...base,retest,costReview:{mode:'SHADOW_COSTS',status:'LOW_NET_RR',netRR:COST_MIN_NET_RR-0.01}};
  const x=formatPhoneAlert(s);
  assert.equal(x.status,'SKIP');
- assert.match(x.message,/^🔴 ЧТО ДЕЛАТЬ: ПРОПУСТИ/u);
+ assert.match(x.message,/^🔴 ПРОПУСТИ\. НЕ ВХОДИ\./u);
  assert.ok(x.message.includes('Чистый R/R ниже '+String(COST_MIN_NET_RR).replace('.',',')));
  assert.doesNotMatch(x.message,/Чистый R\/R ниже 1,5/u);
 });
@@ -50,8 +50,8 @@ test('early watch is always amber and has no trade levels',()=>{
 test('phone format has clear entry, profit, stop, and raw exact levels',()=>{
  const x=formatPhoneAlert({...base,retest,costReview:cost},{deadline:'17:58'});
  assert.match(x.message,/📍 Вход/);
- assert.match(x.message,/Прибыль \(TP\)/);
- assert.match(x.message,/Стоп \(SL\)/);
+ assert.match(x.message,/🎯 Цель/);
+ assert.match(x.message,/🛑 Стоп/);
  assert.match(x.message,/SL 4050.0042 · TP 4047.1116/);
  assert.match(x.message,/Чистый R\/R/);
  assert.match(x.message,/17:58/);
@@ -60,48 +60,85 @@ test('phone format has clear entry, profit, stop, and raw exact levels',()=>{
 test('phone alerts give one simple action without changing calculation or title',()=>{
  const check=formatPhoneAlert({...base,retest,costReview:cost},{deadline:'17:58'});
  assert.match(check.title,/^🟢 ПРОВЕРИТЬ/);
- assert.match(check.message,/^🟢 ЧТО ДЕЛАТЬ: ПРОВЕРЬ ЦЕНУ И РИСК\. НЕ АВТОВХОД\./);
- assert.match(check.message,/Сравни цену с входом, TP\/SL и расходами/);
+ assert.match(check.message,/^🟢 ПРОВЕРЬ ВХОД ВРУЧНУЮ\. НЕ АВТОВХОД\./);
+ assert.match(check.message,/Ретест удержан\. Проверь текущую цену/);
  assert.match(check.message,/SL 4050\.0042 · TP 4047\.1116/);
  const skip=formatPhoneAlert({...base,retest:{SHORT:{status:'FAILED'}},costReview:cost});
  assert.match(skip.title,/^🔴 ПРОПУСТИТЬ/);
- assert.match(skip.message,/^🔴 ЧТО ДЕЛАТЬ: ПРОПУСТИ\. НЕ ВХОДИ\./);
- assert.doesNotMatch(skip.message,/🟢 ЧТО ДЕЛАТЬ/);
+ assert.match(skip.message,/^🔴 ПРОПУСТИ\. НЕ ВХОДИ\./);
+ assert.doesNotMatch(skip.message,/^🟢 ПРОВЕРЬ/);
  const wait=formatPhoneAlert({...base,retest});
  assert.match(wait.title,/^🟡 ЖДАТЬ/);
- assert.match(wait.message,/^🟡 ЧТО ДЕЛАТЬ: ЖДИ ПОДТВЕРЖДЕНИЯ\. НЕ ВХОДИ\./);
+ assert.match(wait.message,/^🟡 ПОДОЖДИ\. НЕ ВХОДИ\./);
  const early=formatPhoneAlert({...base,level:'EARLY_WATCH'},{early:true});
- assert.match(early.message,/^🟡 ЧТО ДЕЛАТЬ: ЖДИ ПОДТВЕРЖДЕНИЯ\. НЕ ВХОДИ\./);
+ assert.match(early.message,/^👀 ЖДИ подтверждения 5М\. НЕ ВХОДИ\./);
  assert.doesNotMatch(early.message,/SL [0-9]|TP [0-9]/);
  const pre=formatPhoneAlert({...base,watchType:'PRE_BREAK',forecast:{
   mode:'PRE_BREAK_SCENARIO',direction:'SHORT',horizonMinutes:5,
   triggerPrice:4047,invalidationPrice:4053,rsi1:42,volumeRatio:1.5
  }},{early:true});
- assert.match(pre.message,/^👀 ЧТО ДЕЛАТЬ: СМОТРИМ\. НЕ ВХОДИМ\./);
+ assert.match(pre.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./);
  assert.doesNotMatch(pre.message,/SL [0-9]|TP [0-9]/);
 });
 
 test('green CHECK explains already moved 5m candle without altering original notification status',()=>{
  const fast=formatPhoneAlert({...base,retest,costReview:cost,closedFiveMinuteMoveBps:47.6});
  assert.match(fast.title,/^🟢 ПРОВЕРИТЬ/);
- assert.match(fast.message,/За закрытую 5М свечу: \+0,48% по прогнозу \(уже произошло\)/);
- assert.match(fast.message,/Не догоняй цену — проверь, не поздно ли/);
+ assert.match(fast.message,/За 5М до сигнала: \+0,48% по направлению/);
+ assert.match(fast.message,/Цена уже сдвинулась\. Не догоняй/);
  assert.match(fast.message,/SL 4050.0042 · TP 4047.1116/);
  const small=formatPhoneAlert({...base,retest,costReview:cost,closedFiveMinuteMoveBps:3});
- assert.match(small.message,/За закрытую 5М свечу: \+0,03%/);
- assert.doesNotMatch(small.message,/Движение уже было заметным/);
+ assert.match(small.message,/За 5М до сигнала: \+0,03%/);
+ assert.doesNotMatch(small.message,/Цена уже сдвинулась/);
  const against=formatPhoneAlert({...base,retest,costReview:cost,closedFiveMinuteMoveBps:-17});
- assert.match(against.message,/За закрытую 5М свечу: -0,17% против прогноза/);
- assert.doesNotMatch(against.message,/Движение уже было заметным/);
+ assert.match(against.message,/За 5М до сигнала: -0,17% против направления/);
+ assert.doesNotMatch(against.message,/Цена уже сдвинулась/);
  const original=formatPhoneAlert({...base,retest,costReview:cost});
- assert.doesNotMatch(original.message,/За закрытую 5М свечу/);
+ assert.doesNotMatch(original.message,/За 5М до сигнала/);
  const skip=formatPhoneAlert({...base,retest:{SHORT:{status:'FAILED'}},costReview:cost,
   closedFiveMinuteMoveBps:90});
  assert.equal(skip.status,'SKIP');
- assert.doesNotMatch(skip.message,/За закрытую 5М свечу/);
+ assert.doesNotMatch(skip.message,/За 5М до сигнала/);
  const early=formatPhoneAlert({...base,level:'EARLY_WATCH',
   closedFiveMinuteMoveBps:90},{early:true});
- assert.doesNotMatch(early.message,/За закрытую 5М свечу/);
+ assert.doesNotMatch(early.message,/За 5М до сигнала/);
+});
+
+test('compact texts keep ntfy precision, outcome journal and independent forecast markers',async()=>{
+ const {parseConfirmedNotification}=await import('../lib/signal-quality.mjs');
+ const sample={...base,closedFiveMinuteMoveBps:27,level:'STRONG',
+  costReview:cost,retest};
+ const notification=formatPhoneAlert(sample,{deadline:'18:23:00'});
+ assert.ok(notification.message.split('\n').length<=10,'short phone message');
+ assert.match(notification.message,/^🟢 ПРОВЕРЬ ВХОД ВРУЧНУЮ/);
+ assert.doesNotMatch(notification.message,/R\/R до расходов|ЧТО ДЕЛАТЬ|Сравни цену с входом/);
+ const arrived=parseConfirmedNotification({
+  event:'message',time:Math.floor(Date.UTC(2026,10,11,17,20,29)/1000),
+  title:notification.title,
+  message:notification.message+'\n🕒 Свеча 18:20:00 · отправка 18:20:29 · задержка 29с',
+  sequence_id:'a'.repeat(32)
+ });
+ assert.ok(arrived,'compact notifications must still be collected');
+ assert.equal(arrived.symbol,base.symbol);
+ assert.equal(arrived.direction,'SHORT');
+ assert.equal(arrived.stop,base.stop);
+ assert.equal(arrived.take,base.take);
+ assert.equal(arrived.netRRAtAlert,cost.netRR);
+ assert.equal(arrived.decisionAtAlert,'CHECK');
+ assert.equal(arrived.candleCloseAt,Date.UTC(2026,10,11,17,20));
+ const uncertain=formatPhoneAlert({...base,costReview:undefined,retest});
+ assert.equal(uncertain.status,'WAIT');
+ assert.match(uncertain.message,/НЕ ВХОДИ/);
+ const blocked=formatPhoneAlert({...base,costReview:cost,retest:{SHORT:{status:'FAILED'}}});
+ assert.equal(blocked.status,'SKIP');
+ assert.match(blocked.message,/НЕ ВХОДИ/);
+ const pre=formatPhoneAlert({...base,watchType:'PRE_BREAK',
+  forecast:{mode:'PRE_BREAK_SCENARIO',direction:'SHORT',horizonMinutes:5,
+   triggerPrice:4047,invalidationPrice:4053}
+ },{early:true,deadline:'17:58'});
+ assert.match(pre.message,/WEEX · 📍 Сейчас:/);
+ assert.match(pre.message,/❌ Отмена сценария:/);
+ assert.ok(pre.message.split('\n').length<=7);
 });
 
 test('presentation does not modify live scanner, notification dedup, or cron',()=>{
