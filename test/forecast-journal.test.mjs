@@ -263,7 +263,7 @@ test('forecast audit is isolated from trading, cron and phone push',()=>{
  const route=readFileSync(new URL('../lib/journal-route.mjs',import.meta.url),'utf8');
  const script=readFileSync(new URL('../history.html',import.meta.url),'utf8').match(/<script>([\s\S]*?)<\/script>/);
  const source=readFileSync(new URL('../lib/forecast-journal.mjs',import.meta.url),'utf8');
- assert.deepEqual(FORECAST_HORIZONS,[1,5,10,15,30]);
+ assert.deepEqual(FORECAST_HORIZONS,[1,5,10,15,20,30]);
  assert.match(route,/recentForecastResearch/);
  assert.match(route,/encryptJournal\(merged.rows,process.env,earlyMerged.rows,forecastMerged.rows,confirmedMerged.rows\)/);
  assert.ok(script);
@@ -341,4 +341,61 @@ test('historical repair has a six-request budget and safely ignores wrong-time o
  const unchanged=mergeForecastArchive(archive,[],now);
  assert.equal(unchanged.rows.length,archive.length);
  assert.equal(unchanged.rows.every(r=>r.windows[5].status==='NO_DATA'),true);
+});
+
+test('20m and first favorable 15–19m movement are measured only after publication',()=>{
+ const candles=Array.from({length:40},(_,i)=>{
+  const close=i<16?100.02:99.8; // first -20 bps at the 17th closed minute
+  return [start+i*MIN,100.02,Math.max(100.02,close)+.01,
+   Math.min(100.02,close)-.01,close,500];
+ });
+ const rows=normalizeForecastMinutes(candles,now);
+ const result=evaluatePublishedForecast(emitted,rows,now);
+ assert.equal(result.windows[15].status,'OBSERVED');
+ assert.ok(result.windows[15].moveBps<0);
+ assert.equal(result.windows[20].status,'OBSERVED');
+ assert.ok(result.windows[20].moveBps>0);
+ assert.equal(result.firstFavorable10bpsMinute,17);
+ const report=summarizeForecastArchive([result],now).windows[30];
+ assert.equal(report.firstFavorable10bps.from15to19,1);
+ assert.equal(report.firstFavorable10bps.from20to30,0);
+ assert.equal(report.at20m.favorablePct,100);
+ const noFuture=evaluatePublishedForecast(emitted,
+  normalizeForecastMinutes(candles,start+18*MIN),start+18*MIN);
+ assert.equal(noFuture.windows[20].status,'PENDING');
+});
+
+test('legacy encrypted forecast archive lacking 20m survives upgrade and can be repaired',()=>{
+ const full=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),now),now);
+ const legacy={...full,windows:{...full.windows}};
+ delete legacy.windows[20];
+ const stored=encryptJournal([],env,[],[legacy]);
+ const restored=decryptJournalArchive(stored,env).forecastRows;
+ assert.equal(restored.length,1);
+ const normalized=mergeForecastArchive(restored,[],now);
+ assert.equal(normalized.rows.length,1);
+ assert.equal(normalized.rows[0].windows[20].status,'NO_DATA');
+ assert.equal(normalized.rows[0].windows[15].moveBps,full.windows[15].moveBps);
+ assert.equal(normalized.rows[0].windows[30].moveBps,full.windows[30].moveBps);
+ const repaired=mergeForecastArchive(normalized.rows,[full],now);
+ assert.equal(repaired.rows[0].windows[20].status,'OBSERVED');
+ assert.equal(repaired.rows[0].windows[20].moveBps,full.windows[20].moveBps);
+ assert.equal(summarizeForecastArchive(repaired.rows,now).windows[30].at20m.observed,1);
+});
+
+test('new WEEX markets are archived as forecasts but are not trading radar markets',()=>{
+ const newNotice={...notice,title:'🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · XAUUSDT SHORT',
+  sequence_id:'f'.repeat(32)};
+ const result=parsePublishedForecast(newNotice,topic,now);
+ assert.equal(result?.symbol,'XAUUSDT');
+ assert.equal(result.direction,'SHORT');
+ const audit=evaluatePublishedForecast(result,normalizeForecastMinutes(futureRaw(),now),now);
+ assert.equal(mergeForecastArchive([],[audit],now).rows[0].symbol,'XAUUSDT');
+ const excluded=parsePublishedForecast(
+  {...newNotice,title:'🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · FORDUSDT SHORT'},topic,now);
+ assert.equal(excluded,null);
+ const script=readFileSync(new URL('../history.html',import.meta.url),'utf8');
+ assert.match(script,/id="forecast20"/);
+ assert.match(script,/id="forecast15to19"/);
+ assert.match(script,/\[1,5,10,15,20,30\]/);
 });
