@@ -21,6 +21,11 @@ button:disabled{opacity:.55}.grid{display:grid;grid-template-columns:repeat(auto
 .tile small{display:block;color:#b1acc1}.tile strong{display:block;font-size:24px;margin-top:5px}
 .warn{color:#ffbb92}#status{min-height:24px}ul{padding-left:20px;color:#c3c2d0}
 footer{font-size:12px;color:#9296aa;margin-top:24px}
+.compare{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0 22px}
+.compare th,.compare td{padding:10px 8px;text-align:center;border-bottom:1px solid #343046}
+.compare th:first-child,.compare td:first-child{text-align:left}
+.compare th{color:#c3b9df;font-weight:650}
+.scroller{overflow-x:auto}
 </style>
 </head>
 <body><main>
@@ -70,7 +75,17 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 </div>
 <p class="warn">Маленькое количество сигналов не доказывает преимущество. Bollinger и пробой могут находить одни и те же движения, поэтому статистика вариантов не независима.</p>
 <p class="warn">Сравнение вариантов на одной истории — не независимое подтверждение прибыльности.</p>
-<h2>Почему были отказы при пробое</h2>
+<h2>Почему ранние кандидаты не стали входами</h2>
+<p>Для всех трёх идей считаем отдельно отказы: цена уже ушла, недостаточное отношение прибыли к риску (ниже 1,5), ближайший уровень менее чем в 1R, расчётные расходы и лимит риска. Это причины отказа <strong>после</strong> появления кандидата, не ошибки прогноза направления. Ни одно правило входа не ослаблено.</p>
+<div class="scroller"><table class="compare">
+<thead><tr><th>Вариант</th><th>Цена ушла</th><th>R/R ниже 1,5</th><th>Близкий уровень</th><th>Другой риск уровней</th><th>Расходы</th><th>Лимит риска</th></tr></thead>
+<tbody>
+<tr><td>Пробой 1М</td><td id="r-breakout-quote">—</td><td id="r-breakout-rr">—</td><td id="r-breakout-pivot">—</td><td id="r-breakout-other">—</td><td id="r-breakout-costs">—</td><td id="r-breakout-risk">—</td></tr>
+<tr><td>Откат EMA20</td><td id="r-pullback-quote">—</td><td id="r-pullback-rr">—</td><td id="r-pullback-pivot">—</td><td id="r-pullback-other">—</td><td id="r-pullback-costs">—</td><td id="r-pullback-risk">—</td></tr>
+<tr><td>Bollinger + объём</td><td id="r-bollingerVolume-quote">—</td><td id="r-bollingerVolume-rr">—</td><td id="r-bollingerVolume-pivot">—</td><td id="r-bollingerVolume-other">—</td><td id="r-bollingerVolume-costs">—</td><td id="r-bollingerVolume-risk">—</td></tr>
+</tbody></table></div>
+<p class="warn">Число проверенных минут — не число независимых сделок. Если прошедших кандидатов нет, нельзя оценить прибыльность варианта.</p>
+<h2>Почему не появлялись пробои 1М</h2>
 <ul id="reasons"></ul>
 <div class="info">
  <p class="warn">⚠️ Если входов слишком мало, результат статистически ненадёжен. Даже положительный итог не подтверждает, что сделка прошла бы реальные комиссии, риск, котировки и задержку.</p>
@@ -107,6 +122,16 @@ $('run').onclick=async()=>{
   show('b-setups',bv.results?.setups);
   show('b-tpsl',(bv.results?.TP??0)+' / '+(bv.results?.SL??0));
   show('b-netr',bv.results?.netMeanR===null?'Недостаточно данных':bv.results?.netMeanR);
+  for(const [key,study] of Object.entries(d.strategies||{})){
+   if(!['breakout','pullback','bollingerVolume'].includes(key))continue;
+   const f=study.filter||{},reasons=f.levelRejections||{};
+   show('r-'+key+'-quote',f.skipQuote||0);
+   show('r-'+key+'-rr',reasons.REWARD_RISK||0);
+   show('r-'+key+'-pivot',reasons.NEAR_PIVOT||0);
+   show('r-'+key+'-other',(reasons.INVALID_LEVELS||0)+(reasons.OTHER_LEVELS||0));
+   show('r-'+key+'-costs',f.skipCosts||0);
+   show('r-'+key+'-risk',f.skipRisk||0);
+  }
   const labels={
    TREND_MISMATCH:'Нет совпадения 5М и 15М',
    NO_BREAK:'Нет нового 1М пробоя',
