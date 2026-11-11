@@ -79,7 +79,7 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
   <thead><tr><th>Пара</th><th>Оценка силы / риска</th><th>1М</th><th>5М</th><th>10М</th><th>RSI · объём 1М</th><th>Bollinger</th><th>Структура 5М</th><th>Обновлено</th></tr></thead>
   <tbody id="rows"><tr><td colspan="9">Нет проверки</td></tr></tbody>
  </table></div>
- <p class="legend">🟣 «Сильный» означает согласованные RSI, EMA, Bollinger, структуру и объём без обнаруженных предупреждений. 🟡 «Повышенный риск» отмечает перепроданность/перекупленность, слабый объём или возможность позднего входа. Оценки эвристические, не вероятность прибыли. Нет сигнала входа, торговых ордеров, маржи, плеча или автоторговли. Будущие свечи не используются.</p>
+ <p class="legend">🟣 «Сильный» означает согласованные RSI, EMA, Bollinger, структуру и объём без обнаруженных предупреждений. 🟡 «Повышенный риск» отмечает перепроданность/перекупленность, слабый объём или возможность позднего входа. Оценки эвристические, не вероятность прибыли. Нет сигнала входа, торговых ордеров, маржи, плеча или автоторговли. Будущие свечи не используются. Теневая V2 проверяет движение за 15 минут, удалённость от EMA20 и всплеск объёма; метки и уведомления старого прогнозиста не меняются.</p>
 </section>
 <section class="panel">
  <div class="heading"><h2>Диагностика прогнозиста</h2><span class="pill">ОТДЕЛЬНО ОТ LONG / SHORT</span></div>
@@ -156,9 +156,12 @@ const RISK_REASON_LABELS={
  MIXED_OR_INCOMPLETE:'таймфреймы не согласованы',
  INDICATOR_DATA_UNAVAILABLE:'недостаточно индикаторов'
 };
-function riskLabel(q){
+function riskLabel(q,v2){
  if(!q||q.level==='UNAVAILABLE')return '⚪ Нет согласованного прогноза';
- if(q.level==='STRONG')return '🟣 Сильный (эвристика, не гарантия)';
+ if(q.level==='STRONG')return '🟣 Сильный (эвристика, не гарантия)' +
+  (v2?.status==='REVIEW_KEEP_STRONG'?' · 🧪 V2: оставлен':
+   v2?.status==='REVIEW_DOWNGRADE'?' · 🧪 V2: возможное опоздание':
+   ' · 🧪 V2: нет оценки');
  if(q.level==='STANDARD')return '🔵 Обычный';
  if(q.level==='CAUTION')return '🟡 Повышенный риск: '+
   (q.reasons||[]).slice(0,2).map(k=>RISK_REASON_LABELS[k]||k).join(', ');
@@ -170,6 +173,7 @@ function showDetail(){
   symbol:d.symbol,updatedAtBerlin:stamp(d.generatedAt),
   intervals:d.timeframes,marketStructure:d.primaryContext,
   forecastStrengthAndRisk:d.strengthRisk,
+  strongV2Review:d.strongV2Review,
   disclaimer:d.disclaimer
  },null,2):'Нет свежих данных выбранной монеты';
 }
@@ -187,7 +191,7 @@ function render(){
   if(filter!=='ALL'&&filter!==combined)continue;
   const frames=d?.available?d.timeframes:[];
   const m1=frames[0],ctx=d?.primaryContext;
-  const values=[symbol,riskLabel(d?.strengthRisk),
+  const values=[symbol,riskLabel(d?.strengthRisk,d?.strongV2Review),
    ...[0,1,2].map(i=>frames[i]?label(frames[i].direction):'Нет данных'),
    m1?'RSI '+m1.rsi14+' · Vol ×'+m1.relativeVolume:'—',
    m1?'BB '+m1.bollinger20.position+' · '+m1.bollinger20.widthPct+'%':'—',
