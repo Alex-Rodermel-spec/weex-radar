@@ -164,7 +164,7 @@ function render(data){
  if(full?.mode==='READ_ONLY_FULL_FORECAST_DIAGNOSTICS'&&Array.isArray(full.markets)){
   const allowed=full.phonePolicy;
   $('policy').textContent=allowed?.mode==='CONFIRMED_LONG_SHORT_ONLY'?
-   '🔕 Прогнозы — без уведомлений · 📱 Только подтверждённые LONG / SHORT':
+   '📱 Торговый канал: подтверждённые LONG / SHORT · 🔮 Прогнозы: отдельный ntfy':
    '⚠️ Режим телефонных уведомлений не подтверждён';
   for(const s of full.markets){
    const tr=document.createElement('tr');
