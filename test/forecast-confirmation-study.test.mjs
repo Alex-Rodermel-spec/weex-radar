@@ -72,6 +72,19 @@ test('each cohort counts only resolved TP/SL and separates LONG from SHORT',()=>
  assert.equal(w.comparison.status,'COLLECTING');
  assert.equal(w.comparison.agreedMinusNoPriorTpRatePp,null);
 });
+test('pre-rollout or after-coverage confirmations are not mistaken for no forecast',()=>{
+ const c=[alert('BTCUSDT','SHORT',T-10*MIN),
+  alert('BTCUSDT','SHORT',T+40*MIN)];
+ const f=[forecast('BTCUSDT','SHORT',T),
+  forecast('ETHUSDT','LONG',T+2*MIN)];
+ const links=linkPriorForecasts(c,f,NOW);
+ assert.deepEqual(links.map(x=>x.relationship),
+  ['OUT_OF_COVERAGE','OUT_OF_COVERAGE']);
+ const s=summarizeForecastConfirmationStudy(c,f,NOW).windows[30];
+ assert.equal(s.groups.OUT_OF_COVERAGE.total,2);
+ assert.equal(s.groups.NO_PRIOR.total,0);
+ assert.equal(s.comparison.readyForReview,false);
+});
 test('aggregates do not expose private alerts, topic, prices or individual times',()=>{
  const s=summarizeForecastConfirmationStudy([
   alert('XRPUSDT','SHORT',T,'TP')],
