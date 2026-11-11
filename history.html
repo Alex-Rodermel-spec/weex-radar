@@ -96,6 +96,13 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <div class="table-box"><table><thead><tr><th>Гипотеза</th><th>До 12.11</th><th>Новые прогнозы</th><th>Статус новых данных</th></tr></thead><tbody id="forecastHypotheses"></tbody></table></div>
 <p class="muted" id="forecastProtocol">Отдельная проверка на новых сигналах начнётся 12 ноября 2026 в 00:00 по Берлину. Пропуски свечей не считаются проигрышами.</p>
 </section>
+<section class="card" aria-labelledby="link-study-title">
+<h2 id="link-study-title">🔗 Ранний прогноз → подтверждённый сигнал</h2>
+<p class="muted">Новый тест связи двух независимых ntfy-уведомлений. Берём <b>последний опубликованный прогноз по этой же монете</b> за 30 минут <b>до</b> отправки подтверждённого LONG/SHORT. Никаких сигналов задним числом и никаких автоматических входов.</p>
+<div class="table-box"><table><thead><tr><th>Сигнал</th><th>Предыдущий прогноз</th><th>Всего</th><th>Проверено TP/SL</th><th>TP</th><th>SL</th><th>TP от проверенных</th></tr></thead><tbody id="linkStudyRows"></tbody></table></div>
+<p class="muted" id="linkStudySummary">Сопоставление только архивных уведомлений; ждём измеренных исходов.</p>
+<p class="muted">«Нет прогноза» означает, что за предыдущие 30 минут он <b>не найден в архиве отправленных сообщений</b>; это не ошибка прогноза. TP/SL — условные касания уровней на свечах, а не реальные сделки. Статус исследования не меняет фильтры, скорость, отправку сигналов и деньги.</p>
+</section>
 <h2>📈 Подтверждённые LONG / SHORT — фактическое движение на 5М</h2>
 <p class="muted">Независимая проверка направления только у реально отправленных подтверждённых торговых уведомлений. Это не статистика отдельного прогнозиста и не реальные сделки. Цель — проверить направление и своевременность без оценки целевых уровней.</p>
 <div class="metrics">
@@ -162,6 +169,33 @@ function display(){
   ' · подтверждения 5м в течение 30 минут: '+early.pairs.confirmedWithin30m+
   ' · счёт идёт только по доступным закрытым свечам; комиссии и задержка исполнения не учтены.':
   'Архив ранних предупреждений ещё не создан.';
+ const fcLink=report.forecastConfirmationStudy?.windows?.[days];
+ const fcRows=$('linkStudyRows');fcRows.replaceChildren();
+ for(const side of ['LONG','SHORT']){
+  for(const [type,label] of [
+   ['AGREED','✅ Совпал'],['CONFLICT','⚠️ Противоположный'],['NO_PRIOR','— Не найден']
+  ]){
+   const row=fcLink?.byDirection?.[side]?.[type]||{};
+   const tr=document.createElement('tr');
+   for(const value of [
+    side,label,showN(row.total),showN(row.resolved),showN(row.TP),
+    showN(row.SL),pct(row.tpRatePct)
+   ]){
+    const td=document.createElement('td');td.textContent=value;tr.appendChild(td);
+   }
+   fcRows.appendChild(tr);
+  }
+ }
+ const fcCompare=fcLink?.comparison;
+ $('linkStudySummary').textContent=fcLink?
+  'Всего подтверждений: '+fcLink.total+
+  ' · совпал прогноз: '+fcLink.groups.AGREED.total+
+  ' · противоположный: '+fcLink.groups.CONFLICT.total+
+  ' · не найден: '+fcLink.groups.NO_PRIOR.total+
+  '. Статус сравнения совпавших с отсутствующими: '+
+  (fcCompare?.readyForReview?'достаточно для исследовательского обзора':'выборку ещё собираем')+
+  '. Для обзора нужны минимум 50 измеренных TP/SL в каждой группе и 3 общие монеты. Не доказательство прибыльности.':
+  'Исследование ещё не загружено.';
  const confirmed=report.confirmedDirectionStudy?.windows?.[days];
  $('confirmedAuditTotal').textContent=showN(confirmed?.total);
  for(const [id,key] of [['confirmedAudit5m','first5mClose'],
