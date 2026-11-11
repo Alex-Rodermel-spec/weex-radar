@@ -58,7 +58,7 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
  <p class="legend">Не отправляй свою тему ntfy другим людям и не присылай её в чат. Доставка зависит от ntfy и разрешений Android.</p>
 </section>
 <section class="panel">
- <div class="heading"><h2>Прогнозный монитор · 16 монет</h2><span class="pill">WEEX PUBLIC · READ-ONLY</span></div>
+ <div class="heading"><h2>Прогнозный монитор · 32 инструмента</h2><span class="pill">WEEX PUBLIC · READ-ONLY</span></div>
  <div class="actions">
   <button class="primary" id="refresh" type="button">↻ Обновить прогнозы</button>
   <button id="toggle" type="button" aria-pressed="false">▶ Автообновление 3 минуты</button>
@@ -69,10 +69,10 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
   </select>
  </div>
  <div class="kpis">
-  <div class="kpi"><small>Данные получены</small><strong id="seen">0/16</strong></div>
+  <div class="kpi"><small>Данные получены</small><strong id="seen">0/32</strong></div>
   <div class="kpi"><small>Совпадение 1/5/10 · LONG</small><strong class="long" id="long">0</strong></div>
   <div class="kpi"><small>Совпадение 1/5/10 · SHORT</small><strong class="short" id="short">0</strong></div>
-  <div class="kpi"><small>Нейтрально / нет данных</small><strong id="mixed">16</strong></div>
+  <div class="kpi"><small>Нейтрально / нет данных</small><strong id="mixed">32</strong></div>
  </div>
  <div class="status" role="status" id="status">Запусти проверку. Прогнозы не отправляют торговые уведомления и не открывают ордера.</div>
  <div class="scroll"><table>
@@ -90,13 +90,19 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
   <pre id="detail-json">Диагностика ещё не загружена.</pre>
  </details>
 </section>
-<footer class="legend">Прогнозист WEEX RADAR · 1/5/10М · отдельный исследовательский модуль. Уведомления торгового радара остаются только подтверждёнными LONG/SHORT; прогнозист не пишет в ntfy.</footer>
+<footer class="legend">Прогнозист WEEX RADAR · 1/5/10М · отдельный исследовательский модуль. Уведомления торгового радара остаются только подтверждёнными LONG/SHORT; прогнозист публикует только отдельные наблюдательные прогнозы в ntfy.</footer>
 </main>
 <script>
 'use strict';
-const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT',
- '1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT',
- 'HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
+const SYMBOLS=[
+  'BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT', 'ALGOUSDT', 
+  '1000SHIBUSDT', 'DOGEUSDT', 'XAUTUSDT', 'ZECUSDT', '1000PEPEUSDT', 
+  'HYPEUSDT', 'BNBUSDT', 'ADAUSDT', 'LINKUSDT', 'SUIUSDT', 
+  'AVAXUSDT', 'TRXUSDT', 'XAUUSDT', 'XAGUSDT', 'AUDUSDT', 
+  'CADUSDT', 'JPYUSDT', 'GBPUSDT', 'CHFUSDT', 'EURUSDT', 
+  'GOOGLUSDT', 'MRNAUSDT', 'NVDAUSDT', 'AMDUSDT', 'MSFTUSDT', 
+  'CSCOUSDT', 'KOUSDT'
+ ];
 const $=id=>document.getElementById(id);
 const data=new Map();
 let checking=false,running=false,timer=null;
@@ -239,7 +245,7 @@ async function refresh(){
  if(checking)return;
  checking=true;$('refresh').disabled=true;
  const started=Date.now();
- $('status').textContent='Читаю закрытые 1М / 5М свечи WEEX для 16 монет...';
+ $('status').textContent='Читаю закрытые 1М / 5М свечи WEEX для '+SYMBOLS.length+' инструментов...';
  try{
   let cursor=0;
   async function worker(){
@@ -249,7 +255,7 @@ async function refresh(){
   render();
   const ok=[...data.values()].filter(x=>x.available).length;
   $('status').textContent='Прогноз обновлён '+stamp(Date.now())+
-   ' · данные '+ok+'/16 · '+((Date.now()-started)/1000).toFixed(1)+' сек. '+
+   ' · данные '+ok+'/'+SYMBOLS.length+' · '+((Date.now()-started)/1000).toFixed(1)+' сек. '+
    'LONG/SHORT сигналы от этого экрана не зависят.';
  }finally{checking=false;$('refresh').disabled=false}
 }
