@@ -48,24 +48,24 @@ test('only coherent fresh three-timeframe directional forecasts qualify',()=>{
 test('notification clearly separates forecast hypothesis from LONG/SHORT entry',()=>{
  const m=forecastMessage(fixture());
  assert.match(m.title,/^🔮 🟣 СИЛЬНЫЙ ПРОГНОЗ · BTCUSDT SHORT$/u);
- assert.match(m.message,/СИЛЬНЫЙ ПРОГНОЗ/);
+ assert.match(m.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./);
  assert.match(m.message,/1М \/ 5М \/ 10М/);
  assert.match(m.message,/НЕ сигнал входа/);
- assert.match(m.message,/Bollinger/);
+ assert.doesNotMatch(m.message,/Bollinger|EMA20|RSI14|Объём 1М/);
  assert.equal(m.priority,3);
  assert.equal(m.click,'https://weex-radar.vercel.app/forecast.html');
 });
 test('plain-language forecast action keeps ntfy title, V2 and encrypted journal parser compatible',()=>{
  const f=fixture();
  const m=forecastMessage(f);
- assert.match(m.message,/^👀 ЧТО ДЕЛАТЬ: СМОТРИМ\. НЕ ВХОДИМ\./u);
- assert.match(m.message,/📉 Прогноз: возможное ПАДЕНИЕ/);
- assert.match(m.message,/⏳ Жди отдельного подтверждённого LONG\/SHORT/);
+ assert.match(m.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./u);
+ assert.match(m.message,/📉 Возможное ПАДЕНИЕ/);
+ assert.match(m.message,/⏳ Жди подтверждения\./);
  assert.match(m.message,/Цена 1М: 99\.5000 USDT/);
  assert.match(m.message,/НЕ сигнал входа/);
  assert.doesNotMatch(m.message,/SL [0-9]|TP [0-9]|Прибыль \(TP\)/);
  assert.match(forecastMessage(fixture('XRPUSDT','LONG_BIAS')).message,
-  /📈 Прогноз: возможный РОСТ/);
+  /📈 Возможный РОСТ/);
  const record=(msg,id='a'.repeat(32))=>parsePublishedForecast({
   event:'message',topic:forecastTopic(env),
   sequence_id:id,time:Math.floor((now-1000)/1000),
@@ -86,7 +86,7 @@ test('plain-language forecast action keeps ntfy title, V2 and encrypted journal 
  risky.timeframes[2].rsi14=25;
  const unsafe=forecastMessage(risky);
  assert.match(unsafe.title,/ПОВЫШЕННЫЙ РИСК/);
- assert.match(unsafe.message,/^👀 ЧТО ДЕЛАТЬ: СМОТРИМ\. НЕ ВХОДИМ\./);
+ assert.match(unsafe.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./);
 });
 
 test('V2 timing line is informational and never changes forecast title or trade status',()=>{
@@ -122,6 +122,32 @@ test('V2 timing line is informational and never changes forecast title or trade 
  caution.strongV2Review={baselineLevel:'CAUTION',status:'REVIEW_DOWNGRADE',sampleReady:true,proposedLevel:'STANDARD'};
  assert.match(forecastMessage(caution).title,/ПОВЫШЕННЫЙ РИСК/);
  assert.doesNotMatch(forecastMessage(caution).message,/🧪 V2/);
+});
+
+test('both forecast directions and cautious warnings are concise and stay journal-compatible',()=>{
+ for(const side of ['LONG_BIAS','SHORT_BIAS']){
+  const d=fixture('XRPUSDT',side);
+  const m=forecastMessage(d);
+  assert.ok(m.message.split('\n').length<=7,'forecast text is short');
+  assert.match(m.message,/НЕ сигнал входа/);
+  assert.match(m.message,/Цена 1М: \d+\.\d+ USDT/);
+  assert.match(m.title,/^🔮 /);
+  assert.match(m.message,/1М \/ 5М \/ 10М/);
+  assert.doesNotMatch(m.message,/ЧТО ДЕЛАТЬ|RSI14|Bollinger/);
+  const record=parsePublishedForecast({
+   event:'message',topic:forecastTopic(env),time:Math.floor((now-1000)/1000),
+   sequence_id:(side==='LONG_BIAS'?'d':'e').repeat(32),
+   title:m.title,message:m.message
+  },forecastTopic(env),now);
+  assert.ok(record,'journal can still parse shortened forecast');
+  assert.equal(record.direction,side==='LONG_BIAS'?'LONG':'SHORT');
+ }
+ const risky=fixture();
+ risky.timeframes[2].rsi14=25;
+ const msg=forecastMessage(risky);
+ assert.match(msg.title,/ПОВЫШЕННЫЙ РИСК/);
+ assert.match(msg.message,/НЕ ВХОДИ/);
+ assert.ok(msg.message.split('\n').length<=6);
 });
 
 test('owner gets one onboarding message in old topic; forecasts go ONLY to derived topic, capped at 2',async()=>{
