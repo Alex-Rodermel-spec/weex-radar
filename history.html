@@ -66,6 +66,9 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <p class="muted">Только реально опубликованные отдельные ntfy-прогнозы (не старые EARLY WATCH и не подтверждённые входы). Сравнение с ценой из уведомления, по закрытым минутным свечам WEEX. Начинаем с появления этого исследования; предыдущие неполные данные не считаем успехом.</p>
 <div class="metrics"><div class="card"><small>Впервые ≥0,10% на 10–15-й минуте</small><strong id="forecastDelay">—</strong></div></div>
 <div class="table-box"><table><thead><tr><th>Интервал после прогноза</th><th>Проверено</th><th>В сторону прогноза</th><th>Среднее движение</th></tr></thead><tbody id="forecastHorizons"></tbody></table></div>
+<h2>📊 Гипотеза: SHORT-прогнозист против LONG-прогнозиста</h2>
+<p class="muted">Сравниваем только отдельные опубликованные прогнозы, а не подтверждённые торговые входы. Процент считается только по реально проверенным закрытым свечам. Если нет свечей — это «нет данных», а не ошибка прогноза. Наблюдение не означает прибыльность.</p>
+<div class="table-box"><table><thead><tr><th>Направление</th><th>Прогнозов</th><th>Оценено через 5м</th><th>В сторону через 5м</th><th>Через 10м</th><th>Через 15м</th><th>Без данных на 5м</th><th>Уже прошло ≥0,10% до сигнала</th></tr></thead><tbody id="forecastDirection"></tbody></table></div>
 <h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
 <p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
 <div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
@@ -166,6 +169,17 @@ function display(){
    v?.meanDirectionBps===null||v?.meanDirectionBps===undefined?'—':v.meanDirectionBps+' bps']){
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }horizons.appendChild(tr);
+ }
+ const forecastDirections=$('forecastDirection');forecastDirections.replaceChildren();
+ for(const [key,label] of [['LONG','📈 LONG'],['SHORT','📉 SHORT']]){
+  const v=forecast?.byDirection?.[key],tr=document.createElement('tr');
+  const before=v?.before15m,first=v?.at5m;
+  for(const value of [label,v?.total??0,first?.observed??0,
+   fmtAccuracy(first),fmtAccuracy(v?.at10m),fmtAccuracy(v?.at15m),
+   first?.noData??0,
+   before?.observed?pct(before.already10bpsPct)+' ('+before.observed+')':'—']){
+   const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
+  }forecastDirections.appendChild(tr);
  }
  const strength=$('forecastStrength');strength.replaceChildren();
  for(const [key,label] of [['STRONG','🟣 Сильный'],['STANDARD','🔵 Обычный'],['CAUTION','🟡 Риск']]){
