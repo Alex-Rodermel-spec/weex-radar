@@ -99,9 +99,9 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <section class="card" aria-labelledby="link-study-title">
 <h2 id="link-study-title">🔗 Ранний прогноз → подтверждённый сигнал</h2>
 <p class="muted">Новый тест связи двух независимых ntfy-уведомлений. Берём <b>последний опубликованный прогноз по этой же монете</b> за 30 минут <b>до</b> отправки подтверждённого LONG/SHORT. Никаких сигналов задним числом и никаких автоматических входов.</p>
-<div class="table-box"><table><thead><tr><th>Сигнал</th><th>Предыдущий прогноз</th><th>Всего</th><th>Проверено TP/SL</th><th>TP</th><th>SL</th><th>TP от проверенных</th></tr></thead><tbody id="linkStudyRows"></tbody></table></div>
+<div class="table-box"><table><thead><tr><th>Сигнал</th><th>Предыдущий прогноз</th><th>Всего</th><th>Опережение прогноза</th><th>Исходы изучены</th></tr></thead><tbody id="linkStudyRows"></tbody></table></div>
 <p class="muted" id="linkStudySummary">Сопоставление только архивных уведомлений; ждём измеренных исходов.</p>
-<p class="muted">«Нет прогноза» означает, что за предыдущие 30 минут он <b>не найден в архиве отправленных сообщений</b>; это не ошибка прогноза. TP/SL — условные касания уровней на свечах, а не реальные сделки. Статус исследования не меняет фильтры, скорость, отправку сигналов и деньги.</p>
+<p class="muted">«Нет прогноза» означает, что за предыдущие 30 минут он <b>не найден в архиве отправленных сообщений</b>; это не ошибка прогноза. Изученные исходы — наблюдения на закрытых свечах, не сделки и не доходность. Статус исследования не меняет фильтры, скорость или отправку сигналов.</p>
 </section>
 <h2>📈 Подтверждённые LONG / SHORT — фактическое движение на 5М</h2>
 <p class="muted">Независимая проверка направления только у реально отправленных подтверждённых торговых уведомлений. Это не статистика отдельного прогнозиста и не реальные сделки. Цель — проверить направление и своевременность без оценки целевых уровней.</p>
@@ -178,8 +178,9 @@ function display(){
    const row=fcLink?.byDirection?.[side]?.[type]||{};
    const tr=document.createElement('tr');
    for(const value of [
-    side,label,showN(row.total),showN(row.resolved),showN(row.TP),
-    showN(row.SL),pct(row.tpRatePct)
+    side,label,showN(row.total),
+    Number.isFinite(row.meanLeadMinutes)?row.meanLeadMinutes+' мин':'—',
+    showN(row.resolved)
    ]){
     const td=document.createElement('td');td.textContent=value;tr.appendChild(td);
    }
