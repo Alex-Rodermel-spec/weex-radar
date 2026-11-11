@@ -81,6 +81,29 @@ test('phone alerts give one simple action without changing calculation or title'
  assert.doesNotMatch(pre.message,/SL [0-9]|TP [0-9]/);
 });
 
+test('green CHECK explains already moved 5m candle without altering original notification status',()=>{
+ const fast=formatPhoneAlert({...base,retest,costReview:cost,closedFiveMinuteMoveBps:47.6});
+ assert.match(fast.title,/^🟢 ПРОВЕРИТЬ/);
+ assert.match(fast.message,/За закрытую 5М свечу: \+0,48% по прогнозу \(уже произошло\)/);
+ assert.match(fast.message,/Не догоняй цену — проверь, не поздно ли/);
+ assert.match(fast.message,/SL 4050.0042 · TP 4047.1116/);
+ const small=formatPhoneAlert({...base,retest,costReview:cost,closedFiveMinuteMoveBps:3});
+ assert.match(small.message,/За закрытую 5М свечу: \+0,03%/);
+ assert.doesNotMatch(small.message,/Движение уже было заметным/);
+ const against=formatPhoneAlert({...base,retest,costReview:cost,closedFiveMinuteMoveBps:-17});
+ assert.match(against.message,/За закрытую 5М свечу: -0,17% против прогноза/);
+ assert.doesNotMatch(against.message,/Движение уже было заметным/);
+ const original=formatPhoneAlert({...base,retest,costReview:cost});
+ assert.doesNotMatch(original.message,/За закрытую 5М свечу/);
+ const skip=formatPhoneAlert({...base,retest:{SHORT:{status:'FAILED'}},costReview:cost,
+  closedFiveMinuteMoveBps:90});
+ assert.equal(skip.status,'SKIP');
+ assert.doesNotMatch(skip.message,/За закрытую 5М свечу/);
+ const early=formatPhoneAlert({...base,level:'EARLY_WATCH',
+  closedFiveMinuteMoveBps:90},{early:true});
+ assert.doesNotMatch(early.message,/За закрытую 5М свечу/);
+});
+
 test('presentation does not modify live scanner, notification dedup, or cron',()=>{
  const f=readFileSync(new URL('../lib/alert-presentation.mjs',import.meta.url),'utf8');
  const n=readFileSync(new URL('../lib/ntfy-alerts.mjs',import.meta.url),'utf8');

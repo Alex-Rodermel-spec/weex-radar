@@ -1,6 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 const {SYMBOLS,normalizeRows,rsi,ema,atr,getAnalysis,breakoutQuality,currentPriceQuality,fetchCurrentQuote}=(await import('../api/signals.mjs'))._test;
+import {closedFiveMinuteMoveBps} from '../api/signals.mjs';
+test('closed 5m move is symmetric, only historical and does not create a signal',()=>{
+ assert.equal(closedFiveMinuteMoveBps('LONG',100,100.48),48);
+ assert.equal(closedFiveMinuteMoveBps('SHORT',100,99.52),48);
+ assert.equal(closedFiveMinuteMoveBps('LONG',100,99.95),-5);
+ assert.equal(closedFiveMinuteMoveBps('SHORT',100,100.05),-5);
+ assert.equal(closedFiveMinuteMoveBps('LONG',100,100),0);
+ assert.equal(closedFiveMinuteMoveBps('WAIT',100,101),null);
+ assert.equal(closedFiveMinuteMoveBps('LONG',0,101),null);
+});
 const step=300000;
 function sample(count=125,period=step){
  const end=Math.floor((Date.now()-1000)/period)*period-period;
