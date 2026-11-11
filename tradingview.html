@@ -55,7 +55,7 @@ code{background:#30283f;border-radius:5px;padding:2px 5px}
 </section>
 <section class="panel" aria-label="График TradingView">
 <div class="controls">
-<div><label for="symbol">Монета WEEX Futures</label><select id="symbol"></select></div>
+<div><label for="symbol">Инструмент WEEX Futures</label><select id="symbol"></select></div>
 <div><label>Таймфрейм</label><div class="periods" aria-label="Интервал графика"><button type="button" data-interval="1">1м</button><button type="button" data-interval="5">5м</button><button type="button" data-interval="15">15м</button></div></div>
 </div>
 <div class="bar"><span class="muted" id="tv-label">Загрузка TradingView…</span><a id="tv-open" href="https://www.tradingview.com/" rel="noopener noreferrer" target="_blank">Открыть в TradingView</a></div>
@@ -73,8 +73,8 @@ code{background:#30283f;border-radius:5px;padding:2px 5px}
 <p class="muted">Без регистрации TradingView и вставки кода. Раннее предупреждение появляется только при совпадении пробоя, объёма, тренда 15м и свежей котировки WEEX. Проверка на странице примерно каждые 20 секунд; отдельный ранний Push отправляется через существующий Cron и подписку Chrome, когда есть свежий сигнал. Push может приходить с задержкой и не гарантирован. Это не подтверждённая сделка.</p>
 </section>
 <section class="panel">
-<h2>⚡ TradingView: 16 наших монет на одном минутном графике</h2>
-<p>Наш новый <b>WEEX RADAR · Early 1m · 16 Coins</b> следит за всеми 16 выбранными контрактами WEEX, независимо от открытой монеты на графике. Показывает таблицу по всем 16 и может отправлять общее оповещение TradingView с названием монеты и LONG/SHORT. Это только <b>EARLY WATCH</b>, не подтверждённая сделка.</p><p class="muted">Открой любой график с таймфреймом <b>1m</b>, добавь код через Pine Editor и создай одно оповещение <b>Any alert() function call</b>. Не все тикеры WEEX обязательно доступны в TradingView: такие строки будут «NO DATA». Минутный сервер WEEX RADAR и ntfy продолжают работать отдельно, даже без TradingView.</p>
+<h2>⚡ TradingView: отдельный Pine-сканер первых 16 инструментов</h2>
+<p>Наш новый <b>WEEX RADAR · Early 1m · 16 Coins</b> следит за первыми 16 контрактами WEEX независимо от открытой монеты на графике. Наш серверный радар и выпадающий список графиков уже охватывают все 32 инструмента; Pine multi16 не расширяется автоматически. Показывает таблицу по всем 16 и может отправлять общее оповещение TradingView с названием монеты и LONG/SHORT. Это только <b>EARLY WATCH</b>, не подтверждённая сделка.</p><p class="muted">Открой любой график с таймфреймом <b>1m</b>, добавь код через Pine Editor и создай одно оповещение <b>Any alert() function call</b>. Не все тикеры WEEX обязательно доступны в TradingView: такие строки будут «NO DATA». Минутный сервер WEEX RADAR и ntfy продолжают работать отдельно, даже без TradingView.</p>
 <div class="actions">
 <button class="primary" type="button" id="copy-pine">📋 Скопировать сканер 16 монет</button>
 <a class="action" href="/tradingview/weex-radar-early-1m-multi16.pine" download>Скачать код 16 монет</a>
@@ -90,7 +90,7 @@ code{background:#30283f;border-radius:5px;padding:2px 5px}
 </main>
 <script>
 'use strict';
-const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
+const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT','TRXUSDT','XAUUSDT','XAGUSDT','AUDUSDT','CADUSDT','JPYUSDT','GBPUSDT','CHFUSDT','EURUSDT','GOOGLUSDT','MRNAUSDT','NVDAUSDT','AMDUSDT','MSFTUSDT','CSCOUSDT','KOUSDT'];
 const $=id=>document.getElementById(id);
 const qs=new URLSearchParams(location.search);
 let selected=SYMBOLS.includes(qs.get('symbol'))?qs.get('symbol'):'ALGOUSDT';

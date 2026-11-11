@@ -34,7 +34,7 @@ export default async function handler(req,res){
   if(!authenticatedTradeSession(req))return res.status(401).json({error:'Сессия RADAR истекла. Войди ещё раз.'});
   if(!configured()||!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Account or private store not configured'});
   const symbol=req.body?.symbol;
-  if(!_test.SYMBOLS.includes(symbol))return res.status(400).json({error:'Unsupported coin'});
+  if(!_test.TRADE_SYMBOLS.includes(symbol))return res.status(400).json({error:'Unsupported coin'});
   try{
     const plan=await createProposal(symbol);
     // Proposal and token are usable once, for at most 45 seconds.

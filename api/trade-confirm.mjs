@@ -56,7 +56,7 @@ export default async function handler(req,res){
       return res.status(409).json({error:'Proposal expired. Prepare a new one.'});
   }catch{return res.status(409).json({error:'Unable to read approved proposal'});}
   const plan=proposal.plan;
-  if(!_test.SYMBOLS.includes(plan.symbol)||plan.exchange!=='WEEX')
+  if(!_test.TRADE_SYMBOLS.includes(plan.symbol)||plan.exchange!=='WEEX')
     return res.status(409).json({error:'Unsafe proposal'});
   let locked=false,orderAttempted=false;
   const hash=fingerprint(req.body.proposal);

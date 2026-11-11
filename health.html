@@ -49,7 +49,7 @@ button:disabled{opacity:.6;cursor:wait}
   <p class="detail" id="cron-detail">Последняя контрольная отметка: —</p>
  </section>
  <section class="card" id="market-card">
-  <div class="eyebrow">📈 Рынок · 16 инструментов</div><h2 id="market-state">Проверяем…</h2>
+  <div class="eyebrow">📈 Рынок · 32 инструмента</div><h2 id="market-state">Проверяем…</h2>
   <p class="detail" id="market-detail">Проверка закрытых 5м/15м свечей.</p>
  </section>
  <section class="card" id="ntfy-card">
@@ -66,11 +66,11 @@ button:disabled{opacity:.6;cursor:wait}
  </section>
  <section class="card" id="filter-card">
   <div class="eyebrow">🔍 Почему молчит 5м?</div><h2 id="filter-state">Проверяем…</h2>
-  <p class="detail" id="filter-detail">Один текущий скан 16 рынков, а не история пропущенных сделок.</p>
+  <p class="detail" id="filter-detail">Один текущий скан 32 рынков, а не история пропущенных сделок.</p>
  </section>
 </div>
 <section class="card" aria-label="Полная диагностика направлений и индикаторов">
-  <div class="eyebrow">🔬 Прогнозист · все 16 основных монет</div>
+  <div class="eyebrow">🔬 Прогнозист · все 32 инструмента</div>
   <h2>Что видит наш радар</h2>
   <p id="policy">Проверяем политику сигналов…</p>
   <p class="compact">Тренд 5м/15м, RSI, ATR, объём, уровень, расчётные расходы и точная стадия отказа. Это анализ текущего среза, не прогноз гарантированной прибыли. Дополнительные 50 рынков находятся в отдельной PAPER V2.</p>
@@ -105,9 +105,9 @@ function render(data){
  const market=data.markets||{};
  if(market.reachable){
   const total=market.total||0,weex=market.weex||0,bybit=market.bybit||0,unavailable=market.unavailable||0;
-  const ok=total===16&&unavailable===0&&bybit===0;
+  const ok=total===32&&unavailable===0&&bybit===0;
   setCard('market',ok?'ok':unavailable?'bad':'warn',
-   ok?'● 16 / 16 · WEEX':(total-unavailable)+' / '+total+' · доступно',
+   ok?'● 32 / 32 · WEEX':(total-unavailable)+' / '+total+' · доступно',
    'WEEX: '+weex+' · Bybit (резерв): '+bybit+' · Ошибки: '+unavailable+'. '+(ok?'Свежие данные получены.':'Некоторые данные недоступны или поступают с резервной биржи.'));
  }else setCard('market','bad','● Нет данных','Проверка свечей не выполнилась.');
  const ntfy=data.ntfy||{};
@@ -141,8 +141,8 @@ function render(data){
   'Статус отдельного канала прогнозов пока неизвестен.');
  const e=cron.details?.early;
  if(e&&cron.lastSeenAt){
-  setCard('early',e.failedMarkets===0&&e.checked===16?'ok':'warn',
-   e.failedMarkets===0&&e.checked===16?'● 16 / 16 проверено':'● Не все данные доступны',
+  setCard('early',e.failedMarkets===0&&e.checked===32?'ok':'warn',
+   e.failedMarkets===0&&e.checked===32?'● 32 / 32 проверено':'● Не все данные доступны',
    'Последняя отметка: '+clock(cron.lastSeenAt)+'. Проверено: '+e.checked+
    '; ошибок WEEX: '+e.failedMarkets+'. Отсутствие сигнала не считается ошибкой.');
  }else setCard('early','warn','● Ожидаем данные','Данные о минутной проверке появятся с очередной служебной отметкой.');
@@ -155,7 +155,7 @@ function render(data){
    ' (свеча '+c.candle_quality+', свежая цена '+c.live_price+
    ', риск/уровни '+c.risk_reward+', боковик '+c.sideways+
    ', истекли '+c.expired+', нет котировки '+c.quote_unavailable+'). '+
-   'Нет данных: '+diag.unavailable+'. Это снимок 16 рынков, не подсчёт уникальных или прибыльных сделок.';
+   'Нет данных: '+diag.unavailable+'. Это снимок 32 рынков, не подсчёт уникальных или прибыльных сделок.';
   setCard('filter',diag.unavailable?'warn':'ok',
    '● '+diag.ready+' прошли · '+diag.candidatesBlocked+' отсечены',detail);
  }else setCard('filter','warn','● Нет диагностики','Повтори проверку. Данные сигналов не менялись.');

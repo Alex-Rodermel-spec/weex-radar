@@ -5,7 +5,7 @@ import {Script} from 'node:vm';
 const main=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const html=readFileSync(new URL('../tradingview.html',import.meta.url),'utf8');
 const pine=readFileSync(new URL('../tradingview/weex-radar-early-1m.pine',import.meta.url),'utf8');
-const market=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');
+import {_test as marketSafety} from '../api/signals.mjs';
 
 test('TradingView page is linked, secure and independent from order/push routes',()=>{
  assert.match(main,/href="\/tradingview\.html"/);
@@ -21,7 +21,7 @@ test('TradingView URL uses known symbols and 1m/5m/15m settings only',()=>{
  assert.match(html,/SYMBOLS\.includes\(qs\.get\('symbol'\)\)/);
  assert.match(html,/\['1','5','15'\]\.includes\(qs\.get\('interval'\)\)/);
  assert.match(html,/symbolSelect\.value=selected/);
- const codes=market.match(/const SYMBOLS=\[([^\]]+)\]/)[1].match(/'[^']+'/g).map(v=>v.slice(1,-1));
+ const codes=marketSafety.SYMBOLS;
  for(const code of codes)assert.match(html,new RegExp("'"+code+"'"));
  const script=html.match(/<script>([\s\S]*?)<\/script>/);
  assert.ok(script);
@@ -37,9 +37,9 @@ test('Pine indicator uses confirmed 15m values and only early alerts',()=>{
  assert.doesNotMatch(pine,/strategy\.entry|strategy\.order|request\.seed/);
 });
 
-test('16-market TradingView Early WATCH scanner follows the backend watchlist',()=>{
+test('legacy 16-market TradingView Pine stays separate from expanded 32-market server',()=>{
  const multi=readFileSync(new URL('../tradingview/weex-radar-early-1m-multi16.pine',import.meta.url),'utf8');
- const codes=market.match(/const SYMBOLS=\[([^\]]+)\]/)[1].match(/'[^']+'/g).map(v=>v.slice(1,-1));
+ const codes=marketSafety.TRADE_SYMBOLS;
  assert.equal(codes.length,16);
  for(const code of codes)assert.ok(multi.includes('"WEEX:'+code+'.P"'),code+' must be tracked');
  assert.equal((multi.match(/"WEEX:[A-Z0-9]+\.P"/g)||[]).length,16);
