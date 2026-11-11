@@ -110,7 +110,11 @@ test('new data-only writer cannot silently enable trading or publish plaintext',
  const index=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(writer,/weex-radar-journal/);
  assert.match(writer,/journal-data/);
- assert.match(writer,/journal-export/);
+  assert.match(writer,/journal-export/);
+  // Encrypted archives can exceed Linux's per-argument limit as they grow.
+  assert.match(writer,/jq -rj '\.contentBase64/);
+  assert.match(writer,/--rawfile content "\$\{datafile\}"/);
+  assert.doesNotMatch(writer,/--arg content/);
  assert.match(writer,/id-token: write/);
  assert.match(writer,/contents: write/);
  assert.match(writer,/cron: '7,27,47/);
@@ -123,7 +127,7 @@ test('new data-only writer cannot silently enable trading or publish plaintext',
  assert.match(site,/mode=journal/);
  assert.match(site,/goal-progress/);
  assert.match(site,/100 прогнозов/);
-  assert.doesNotMatch(site,/id="tp"|id="sl"|id="rate"|id="average"/);
+ assert.doesNotMatch(site,/id="tp"|id="sl"|id="rate"|id="average"/);
  assert.doesNotMatch(dispatch,/journal-export/);
  assert.doesNotMatch(early,/journal-export/);
  assert.doesNotMatch(route,/trade-confirm|\/capi\/v3\/order/);
