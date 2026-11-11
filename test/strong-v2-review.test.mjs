@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 import {reviewStrongV2} from '../lib/strong-v2-review.mjs';
 const now=Date.UTC(2026,10,11,10,0,0);
 function bars(change=0){
@@ -61,4 +62,18 @@ test('forecast API exposes shadow data without changing trade or alert modules',
  for(const forbidden of [/placeOrder/,/ntfy\.sh/,/process\.env/,/fetch\(/]){
   assert.doesNotMatch(shadow,forbidden);
  }
+});
+
+test('forecast dashboard visibly distinguishes normal and late STANDARD V2 reviews',()=>{
+ const page=readFileSync(new URL('../forecast.html',import.meta.url),'utf8');
+ const section=page.match(/function riskLabel\(q,v2\)\{[\s\S]*?\n\}\nfunction showDetail/);
+ assert.ok(section,'riskLabel function found in forecast dashboard');
+ const fn=section[0].replace(/\nfunction showDetail$/,'');
+ const label=v2=>runInNewContext(fn+'\nriskLabel({level:"STANDARD"},v2)',
+  {v2,RISK_REASON_LABELS:{}});
+ assert.match(label({status:'REVIEW_KEEP_STANDARD',baselineLevel:'STANDARD'}),/без признаков опоздания/);
+ assert.match(label({status:'REVIEW_DOWNGRADE',baselineLevel:'STANDARD'}),/возможное опоздание/);
+ assert.match(label({status:'UNAVAILABLE',baselineLevel:'STANDARD'}),/нет оценки/);
+ assert.match(label(null),/нет оценки/);
+ assert.doesNotMatch(label({status:'REVIEW_DOWNGRADE',baselineLevel:'STRONG'}),/возможное опоздание/);
 });
