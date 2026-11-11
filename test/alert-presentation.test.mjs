@@ -71,13 +71,13 @@ test('phone alerts give one simple action without changing calculation or title'
  assert.match(wait.title,/^🟡 ЖДАТЬ/);
  assert.match(wait.message,/^🟡 ПОДОЖДИ\. НЕ ВХОДИ\./);
  const early=formatPhoneAlert({...base,level:'EARLY_WATCH'},{early:true});
- assert.match(early.message,/^👀 ЖДИ подтверждения 5М\. НЕ ВХОДИ\./);
+ assert.match(early.message,/^🟡 ЖДАТЬ подтверждения 5м\. НЕ ВХОДИТЬ\./);
  assert.doesNotMatch(early.message,/SL [0-9]|TP [0-9]/);
  const pre=formatPhoneAlert({...base,watchType:'PRE_BREAK',forecast:{
   mode:'PRE_BREAK_SCENARIO',direction:'SHORT',horizonMinutes:5,
   triggerPrice:4047,invalidationPrice:4053,rsi1:42,volumeRatio:1.5
  }},{early:true});
- assert.match(pre.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./);
+ assert.match(pre.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИТЬ\./);
  assert.doesNotMatch(pre.message,/SL [0-9]|TP [0-9]/);
 });
 
