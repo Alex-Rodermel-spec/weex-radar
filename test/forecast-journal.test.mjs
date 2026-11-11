@@ -224,7 +224,7 @@ test('historical repair obtains only closed WEEX candles for archived NO_DATA fo
  assert.equal(recovery.rows[0].windows[30].status,'OBSERVED');
  assert.ok(recovery.rows[0].windows[15].moveBps>0);
  assert.equal(recovery.rows[0].preMove15mBps!==null,true);
- assert.match(urls[0],/\\/market\\/historyKlines\\?/);
+ assert.match(urls[0],/\/market\/historyKlines\?/);
  assert.match(urls[0],/priceType=LAST/);
  assert.ok(urls[0].includes('startTime='+(bound-17*MIN)));
  assert.ok(urls[0].includes('endTime='));
