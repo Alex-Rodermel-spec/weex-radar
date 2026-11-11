@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {
  normalizeOneMinute,evaluateOneMinuteDiscovery,evaluateOneMinuteBollingerVolume,
+ classifyEntryRejection,
  replayOneMinute,ONE_MINUTE_RESEARCH
 } from '../lib/one-minute-entry-research.mjs';
 import {handleOneMinuteResearch} from '../lib/one-minute-entry-research-route.mjs';
@@ -92,6 +93,13 @@ test('Bollinger+volume research detects fresh LONG and SHORT only with closed al
  assert.equal(evaluateOneMinuteBollingerVolume(gap,five,fifteen).stage,
   'INSUFFICIENT_CLOSED_DATA');
 });
+test('entry rejection audit uses current gate thresholds, never a new filter',()=>{
+ assert.equal(classifyEntryRejection({ok:true,rr:1.2,roomR:0.3}),null);
+ assert.equal(classifyEntryRejection({ok:false,rr:1.2,roomR:null}),'REWARD_RISK');
+ assert.equal(classifyEntryRejection({ok:false,rr:2.5,roomR:0.9}),'NEAR_PIVOT');
+ assert.equal(classifyEntryRejection({ok:false,rr:null}),'INVALID_LEVELS');
+ assert.equal(classifyEntryRejection({ok:false,rr:2.5,roomR:1.5}),'OTHER_LEVELS');
+});
 test('closed minute normalization rejects future and damaged candles',()=>{
  const now=ST+200*MIN+30_000;
  const raw=[
@@ -126,6 +134,13 @@ test('historical replay uses only 1m trigger and PREVIOUSLY closed 5m/15m candle
  assert.equal(res.results.setups,res.results.TP+res.results.SL+
   res.results.TIMEOUT+res.results.AMBIGUOUS);
  assert.equal(ONE_MINUTE_RESEARCH.minNetRR,1.3);
+ for(const study of Object.values(res.strategies)){
+  const f=study.filter;
+  assert.equal(f.skipLevels,
+   Object.values(f.levelRejections).reduce((sum,count)=>sum+count,0));
+  assert.equal(f.triggered,
+   study.results.setups+f.skipQuote+f.skipLevels+f.skipCosts+f.skipRisk+f.skipOther);
+ }
  assert.ok(res.strategies.bollingerVolume);
  assert.equal(res.strategies.bollingerVolume.filter.triggered,
   res.strategies.bollingerVolume.filter.stages.FOUND||0);
@@ -166,5 +181,7 @@ test('interactive 1m research dashboard JavaScript parses and does not expose ac
  assert.match(h,/mode=one-minute-research/);
  assert.match(h,/id="b-triggered"/);
  assert.match(h,/id="b-netr"/);
+ assert.match(h,/id="r-bollingerVolume-pivot"/);
+ assert.match(h,/levelRejections/);
  assert.doesNotMatch(h,/\/api\/trade-confirm|\/api\/trade-prepare|WEEX_API_SECRET/);
 });
