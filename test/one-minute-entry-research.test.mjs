@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {
  normalizeOneMinute,evaluateOneMinuteDiscovery,evaluateOneMinuteBollingerVolume,
- classifyEntryRejection,
+ classifyEntryRejection,simulateRejectedCandidate,
  replayOneMinute,ONE_MINUTE_RESEARCH
 } from '../lib/one-minute-entry-research.mjs';
 import {handleOneMinuteResearch} from '../lib/one-minute-entry-research-route.mjs';
@@ -100,6 +100,22 @@ test('entry rejection audit uses current gate thresholds, never a new filter',()
  assert.equal(classifyEntryRejection({ok:false,rr:null}),'INVALID_LEVELS');
  assert.equal(classifyEntryRejection({ok:false,rr:2.5,roomR:1.5}),'OTHER_LEVELS');
 });
+test('counterfactual requires complete 60m history and does not invent TP/SL ordering',()=>{
+ const bars=Array.from({length:60},(_,i)=>({
+  time:ST+i*MIN,closeTime:ST+(i+1)*MIN,
+  open:100,high:i===0?103.2:100.2,low:99.8,close:100
+ }));
+ const won=simulateRejectedCandidate('LONG',100,99,103,bars);
+ assert.equal(won.status,'TP');assert.ok(won.netR>0);
+ const ambiguous=bars.map(x=>({...x}));ambiguous[0].low=98.9;
+ assert.equal(simulateRejectedCandidate('LONG',100,99,103,ambiguous).status,'AMBIGUOUS');
+ assert.equal(simulateRejectedCandidate('LONG',100,99,103,bars.slice(0,59)).status,'NO_DATA');
+ const gap=bars.map(x=>({...x}));gap[24].time+=MIN;
+ assert.equal(simulateRejectedCandidate('LONG',100,99,103,gap).status,'NO_DATA');
+ assert.equal(simulateRejectedCandidate('SHORT',100,99,103,bars).status,'NO_DATA');
+ const loss=bars.map(x=>({...x,high:100.2,low:99.8}));loss[0].low=98.8;
+ assert.equal(simulateRejectedCandidate('LONG',100,99,103,loss).status,'SL');
+});
 test('closed minute normalization rejects future and damaged candles',()=>{
  const now=ST+200*MIN+30_000;
  const raw=[
@@ -140,6 +156,12 @@ test('historical replay uses only 1m trigger and PREVIOUSLY closed 5m/15m candle
    Object.values(f.levelRejections).reduce((sum,count)=>sum+count,0));
   assert.equal(f.triggered,
    study.results.setups+f.skipQuote+f.skipLevels+f.skipCosts+f.skipRisk+f.skipOther);
+  assert.equal(study.rejectedCounterfactual.nearPivot.setups,
+   f.levelRejections.NEAR_PIVOT||0);
+  assert.equal(study.rejectedCounterfactual.costRisk.setups,f.skipCosts);
+  const cf=study.rejectedCounterfactual.nearPivot;
+  assert.equal(cf.setups,cf.TP+cf.SL+cf.TIMEOUT+cf.AMBIGUOUS);
+
  }
  assert.ok(res.strategies.bollingerVolume);
  assert.equal(res.strategies.bollingerVolume.filter.triggered,
@@ -183,5 +205,7 @@ test('interactive 1m research dashboard JavaScript parses and does not expose ac
  assert.match(h,/id="b-netr"/);
  assert.match(h,/id="r-bollingerVolume-pivot"/);
  assert.match(h,/levelRejections/);
+ assert.match(h,/counterfactual-rows/);
+ assert.match(h,/rejectedCounterfactual/);
  assert.doesNotMatch(h,/\/api\/trade-confirm|\/api\/trade-prepare|WEEX_API_SECRET/);
 });

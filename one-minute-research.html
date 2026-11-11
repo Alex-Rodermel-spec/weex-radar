@@ -85,6 +85,13 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 <tr><td>Bollinger + объём</td><td id="r-bollingerVolume-quote">—</td><td id="r-bollingerVolume-rr">—</td><td id="r-bollingerVolume-pivot">—</td><td id="r-bollingerVolume-other">—</td><td id="r-bollingerVolume-costs">—</td><td id="r-bollingerVolume-risk">—</td></tr>
 </tbody></table></div>
 <p class="warn">Число проверенных минут — не число независимых сделок. Если прошедших кандидатов нет, нельзя оценить прибыльность варианта.</p>
+<h2>Что было после отклонённых кандидатов?</h2>
+<p>Отдельный исторический эксперимент: что условно получилось бы за следующие 60 минут, если бы уже отклонённый кандидат был исполнен по OPEN следующей минуты. <strong>Это не сделки и не предложение отключить защитные фильтры.</strong> Используем прежние SL/TP, модель комиссий и проскальзывания, не подглядывая в будущие свечи при выборе кандидата.</p>
+<div class="scroller"><table class="compare">
+<thead><tr><th>Модель / причина отказа</th><th>Кандидатов</th><th>TP / SL</th><th>Неоднозначных</th><th>Модельный средний R</th></tr></thead>
+<tbody id="counterfactual-rows"></tbody>
+</table></div>
+<p class="warn">Числа из короткой истории, возможны совпадающие сигналы разных моделей. Нулевой спред и отсутствие реальных задержек делают расчёт оптимистичным. Даже положительный R не доказывает, что отказ был ошибкой.</p>
 <h2>Почему не появлялись пробои 1М</h2>
 <ul id="reasons"></ul>
 <div class="info">
@@ -132,6 +139,29 @@ $('run').onclick=async()=>{
    show('r-'+key+'-costs',f.skipCosts||0);
    show('r-'+key+'-risk',f.skipRisk||0);
   }
+  const cfRows=[];
+  for(const [key,label] of [
+   ['breakout','Пробой 1М'],['pullback','Откат EMA20'],['bollingerVolume','Bollinger + объём']
+  ]){
+   const audit=d.strategies?.[key]?.rejectedCounterfactual||{};
+   for(const [reason,reasonLabel] of [
+    ['nearPivot','Близкий уровень'],['costRisk','Расходы / R/R']
+   ]){
+    const z=audit[reason]||{};
+    cfRows.push([
+     label+' — '+reasonLabel,z.setups??0,
+     (z.TP??0)+' / '+(z.SL??0),
+     z.AMBIGUOUS??0,
+     z.netMeanR===null||z.netMeanR===undefined?'Недостаточно данных':z.netMeanR
+    ]);
+   }
+  }
+  const tbody=$('counterfactual-rows');
+  tbody.replaceChildren(...cfRows.map(cells=>{
+   const tr=document.createElement('tr');
+   for(const value of cells){const td=document.createElement('td');td.textContent=String(value);tr.append(td)}
+   return tr;
+  }));
   const labels={
    TREND_MISMATCH:'Нет совпадения 5М и 15М',
    NO_BREAK:'Нет нового 1М пробоя',
