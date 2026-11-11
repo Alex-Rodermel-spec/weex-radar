@@ -85,11 +85,25 @@ tbody tr:last-child td{border-bottom:none}
 </div>
 <p class="fine" id="one-explain">Уровни, результат и расходы оцениваются на свечах, а не на исполненных ордерах.</p>
 </section>
+<section id="arrival-timing">
+<h2>⏱ Зелёный сигнал: успели или опоздали?</h2>
+<div class="info">
+ <p>Считаем на реальных <b>уже отправленных</b> ntfy и закрытых 1М свечах WEEX: движение за <b>последнюю закрытую 5М свечу до уведомления</b> и за <b>первые пять полностью закрытых 1М свечей после уведомления</b>. Точное время закрытия 5М извлекаем из исходного сообщения, а не угадываем.</p>
+ <p>Положительное число означает движение в сторону LONG/SHORT, отрицательное — против. <b>Это не прибыль и не время появления уведомления на телефоне.</b> Отсутствующие свечи исключаются, не считаются неудачей.</p>
+</div>
+<div class="cards">
+ <div class="card"><div class="label">Задержка от закрытия 5М</div><div class="number" id="timing-lag">—</div></div>
+ <div class="card"><div class="label">5М уже прошли ≥0,10% по направлению</div><div class="number" id="timing-pre">—</div></div>
+ <div class="card"><div class="label">После сигнала + за 5 полных 1М</div><div class="number" id="timing-plus">—</div></div>
+ <div class="card"><div class="label">После сигнала − за 5 полных 1М</div><div class="number" id="timing-minus">—</div></div>
+</div>
+<p class="fine" id="timing-explain">Проверяем исходные временные метки и свечи.</p>
+</section>
 <h2>История проверенных уведомлений</h2>
 <div id="empty" class="empty" hidden></div>
 <div class="table-wrap" id="table-wrap" hidden>
  <table>
-  <thead><tr><th>Время</th><th>Монета</th><th>Сигнал</th><th>Цена сигнала</th><th>Риск / награда</th><th>Тест фильтра</th><th>Исход</th><th>Решение при отправке</th><th>Чистый R/R сообщения</th><th>Теор. откат для maker</th><th>Проверка отката 1М</th><th>После касания 1М*</th></tr></thead>
+  <thead><tr><th>Время</th><th>Монета</th><th>Сигнал</th><th>Цена сигнала</th><th>Риск / награда</th><th>Тест фильтра</th><th>Исход</th><th>Решение при отправке</th><th>Чистый R/R сообщения</th><th>Теор. откат для maker</th><th>Проверка отката 1М</th><th>После касания 1М*</th><th>Задержка 5М</th><th>5М до сигнала</th><th>5М после сигнала</th></tr></thead>
   <tbody id="rows"></tbody>
  </table>
 </div>
@@ -142,6 +156,22 @@ function show(data){
    (onePost.NEITHER_TOUCHED??0)+(onePost.INSUFFICIENT_AFTER_TOUCH??0))+
   '. Это только порядок касаний на свечах, НЕ сделки и НЕ прибыль. '+
   'Отказ без данных или из-за старого сигнала не считается проигрышем.';
+ const t=data.arrivalTimingStudy||{};
+ $('timing-lag').textContent=t.lagMeasured?
+  String(t.lagMedianSeconds)+' сек (медиана)':'—';
+ $('timing-pre').textContent=t.pre5mMeasured?
+  String(t.pre5mAtLeast10Bps)+' / '+t.pre5mMeasured:'—';
+ $('timing-plus').textContent=t.after5mMeasured?
+  String(t.after5mFavorable)+' / '+t.after5mMeasured:'—';
+ $('timing-minus').textContent=t.after5mMeasured?
+  String(t.after5mAdverse)+' / '+t.after5mMeasured:'—';
+ $('timing-explain').textContent='Из '+(t.total||0)+' уведомлений: время свечи восстановлено для '+
+  (t.lagMeasured||0)+', движение до оценено для '+(t.pre5mMeasured||0)+
+  ', после для '+(t.after5mMeasured||0)+'. Макс. задержка от закрытия 5М: '+
+  (t.lagMaxSeconds===null||t.lagMaxSeconds===undefined?'—':t.lagMaxSeconds+' сек')+
+  '. Задержка доставки на Android неизвестна. Результаты не подтверждают прибыльности.';
+ const bps=value=>Number.isFinite(value)?
+  (value>0?'+':'')+value.toFixed(1)+' б.п.':'—';
  const rows=data.signals||[];
  $('rows').replaceChildren();
  $('table-wrap').hidden=!rows.length;
@@ -178,7 +208,12 @@ function show(data){
    item.rr+' : 1',shadow,statuses[item.status]||item.status,
    label[item.decisionAtAlert]||'—',
    item.netRRAtAlert===null||item.netRRAtAlert===undefined?'—':item.netRRAtAlert+':1',
-   pullback,oneStatus[one.status]||'—',postStatus[one.postTouchStatus]||'—'];
+   pullback,oneStatus[one.status]||'—',postStatus[one.postTouchStatus]||'—',
+   Number.isFinite(item.arrivalTiming?.lagSeconds)?
+    item.arrivalTiming.lagSeconds+' сек':'—',
+   bps(item.arrivalTiming?.pre5mMoveBps),
+   item.arrivalTiming?.after5mStatus==='PENDING'?'⏳ Ждём 5М':
+    bps(item.arrivalTiming?.after5mMoveBps)];
   fields.forEach((value,index)=>{
    const td=document.createElement('td');
    td.textContent=value;
