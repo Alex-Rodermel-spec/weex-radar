@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {
- normalizeOneMinute,evaluateOneMinuteDiscovery,replayOneMinute,ONE_MINUTE_RESEARCH
+ normalizeOneMinute,evaluateOneMinuteDiscovery,evaluateOneMinuteBollingerVolume,
+ replayOneMinute,ONE_MINUTE_RESEARCH
 } from '../lib/one-minute-entry-research.mjs';
 import {handleOneMinuteResearch} from '../lib/one-minute-entry-research-route.mjs';
 
@@ -51,6 +52,46 @@ test('one-minute candidate requires a new closed breakout and independent 5m AND
  const futureContext=five.map(x=>({...x,time:x.time+24*60*MIN,closeTime:x.closeTime+24*60*MIN}));
  assert.equal(evaluateOneMinuteDiscovery(minuteFixture(),futureContext,fifteen).stage,'FUTURE_CONTEXT');
 });
+
+function bollingerFixture(dir='LONG'){
+ const side=dir==='LONG'?1:-1;
+ const arr=Array.from({length:125},(_,i)=>{
+  const px=100+side*(0.018*Math.sin(.9*i)+.00008*i);
+  return {time:ST+i*MIN,closeTime:ST+(i+1)*MIN,
+   open:px-side*.001,high:px+.025,low:px-.025,close:px,volume:100};
+ });
+ // Calculate bands strictly on the 20 completed 1m closes BEFORE the trigger.
+ const prices=arr.slice(-21,-1).map(c=>c.close);
+ const mean=prices.reduce((sum,n)=>sum+n,0)/20;
+ const std=Math.sqrt(prices.reduce((sum,n)=>sum+(n-mean)**2,0)/20);
+ const last=arr.at(-1),prev=arr.at(-2);
+ const close=mean+side*(2*std+.002);
+ Object.assign(last,{open:prev.close,close,
+  high:Math.max(prev.close,close)+.003,low:Math.min(prev.close,close)-.003,
+  volume:160});
+ return arr;
+}
+test('Bollinger+volume research detects fresh LONG and SHORT only with closed aligned context',()=>{
+ const long=evaluateOneMinuteBollingerVolume(bollingerFixture(),five,fifteen);
+ assert.equal(long.stage,'FOUND');
+ assert.equal(long.direction,'LONG');
+ assert.ok(long.bandExtensionAtr>=0);
+ assert.equal(long.volumeRatio,1.6);
+ const down5=rows(100,FIVE,ST-100*FIVE,.035,false),
+  down15=rows(100,FIFTEEN,ST-100*FIFTEEN,.07,false);
+ const short=evaluateOneMinuteBollingerVolume(bollingerFixture('SHORT'),down5,down15);
+ assert.equal(short.stage,'FOUND');
+ assert.equal(short.direction,'SHORT');
+ const low=bollingerFixture();low.at(-1).volume=50;
+ assert.equal(evaluateOneMinuteBollingerVolume(low,five,fifteen).stage,'LOW_VOLUME');
+ const mismatch=evaluateOneMinuteBollingerVolume(bollingerFixture(),five,down15);
+ assert.equal(mismatch.stage,'TREND_MISMATCH');
+ const future=five.map(c=>({...c,closeTime:c.closeTime+2*FIFTEEN}));
+ assert.equal(evaluateOneMinuteBollingerVolume(bollingerFixture(),future,fifteen).stage,'FUTURE_CONTEXT');
+ const gap=bollingerFixture();gap[90].time+=MIN;
+ assert.equal(evaluateOneMinuteBollingerVolume(gap,five,fifteen).stage,
+  'INSUFFICIENT_CLOSED_DATA');
+});
 test('closed minute normalization rejects future and damaged candles',()=>{
  const now=ST+200*MIN+30_000;
  const raw=[
@@ -85,6 +126,16 @@ test('historical replay uses only 1m trigger and PREVIOUSLY closed 5m/15m candle
  assert.equal(res.results.setups,res.results.TP+res.results.SL+
   res.results.TIMEOUT+res.results.AMBIGUOUS);
  assert.equal(ONE_MINUTE_RESEARCH.minNetRR,1.3);
+ assert.ok(res.strategies.bollingerVolume);
+ assert.equal(res.strategies.bollingerVolume.filter.triggered,
+  res.strategies.bollingerVolume.filter.stages.FOUND||0);
+ assert.ok(res.strategies.bollingerVolume.results.setups<=
+  res.strategies.bollingerVolume.filter.triggered);
+ assert.equal(res.strategies.bollingerVolume.results.setups,
+  res.strategies.bollingerVolume.results.TP+
+  res.strategies.bollingerVolume.results.SL+
+  res.strategies.bollingerVolume.results.TIMEOUT+
+  res.strategies.bollingerVolume.results.AMBIGUOUS);
 });
 test('read-only research cannot modify real orders, cron, confirmed alerts or 5m trade eligibility',()=>{
  const scan=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');
@@ -113,5 +164,7 @@ test('interactive 1m research dashboard JavaScript parses and does not expose ac
  assert.ok(script);
  assert.doesNotThrow(()=>new Script(script[1]));
  assert.match(h,/mode=one-minute-research/);
+ assert.match(h,/id="b-triggered"/);
+ assert.match(h,/id="b-netr"/);
  assert.doesNotMatch(h,/\/api\/trade-confirm|\/api\/trade-prepare|WEEX_API_SECRET/);
 });
