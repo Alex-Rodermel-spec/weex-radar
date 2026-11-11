@@ -11,6 +11,11 @@ import {shadowIndicators} from '../lib/shadow-indicators.mjs';
 import {evaluateTrapRisk} from '../lib/trap-risk.mjs';
 import {classifyFilterStage} from '../lib/filter-diagnostics.mjs';
 const SYMBOLS=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','ALGOUSDT','1000SHIBUSDT','DOGEUSDT','XAUTUSDT','ZECUSDT','1000PEPEUSDT','HYPEUSDT','BNBUSDT','ADAUSDT','LINKUSDT','SUIUSDT','AVAXUSDT'];
+// Forecast watchlist only. The confirmed 5m radar, cron, entry gates and trade
+// routes continue to use the unchanged 16-symbol SYMBOLS array above.
+// An unavailable WEEX market is displayed as no-data; never invent a forecast.
+const FORECAST_EXTRA_SYMBOLS=['TRXUSDT','XAUUSDT','XAGUSDT','AUDUSDT','CADUSDT','JPYUSDT','GBPUSDT','CHFUSDT','EURUSDT','GOOGLUSDT','MRNAUSDT','NVDAUSDT','AMDUSDT','MSFTUSDT','CSCOUSDT','KOUSDT'];
+const FORECAST_SYMBOLS=[...SYMBOLS,...FORECAST_EXTRA_SYMBOLS];
 const DUR={'5m':300000,'15m':900000};
 function numeric(x){const n=Number(x);return Number.isFinite(n)?n:NaN;}
 function normalizeRows(rows,interval){
@@ -220,7 +225,7 @@ export default async function handler(req,res){
  if(req.query?.mode==='forecast'){
   // Observational 1/5/10m FORECAST is separate from actionable LONG/SHORT.
   const {handleStandaloneForecast}=await import('../lib/standalone-forecast.mjs');
-  return handleStandaloneForecast(req,res,SYMBOLS);
+  return handleStandaloneForecast(req,res,FORECAST_SYMBOLS);
  }
  if(req.query?.mode==='early'){
   const {handleEarlyWatch}=await import('../lib/early-watch.mjs');
@@ -265,4 +270,4 @@ export default async function handler(req,res){
   return res.status(200).json({generatedAt:now,interval:'5m',confirmationInterval:'15m',signalLifetimeMinutes:3,sourcePolicy:'WEEX first; Bybit if WEEX fails; never mix exchanges',notes:'Read-only indicative analysis. Not verified profitable.',advisorOverview,symbols});
  }catch(e){return res.status(502).json({error:'Market data unavailable',detail:String(e.message||e).slice(0,140)})}
 }
-export const _test={SYMBOLS,normalizeRows,ema,rsi,atr,getAnalysis,breakoutQuality,currentPriceQuality,fetchCurrentQuote,scanSymbol};
+export const _test={SYMBOLS,FORECAST_SYMBOLS,normalizeRows,ema,rsi,atr,getAnalysis,breakoutQuality,currentPriceQuality,fetchCurrentQuote,scanSymbol};
