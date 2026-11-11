@@ -16,15 +16,19 @@ const added=[
  'NVDAUSDT','AMDUSDT','MSFTUSDT','CSCOUSDT','KOUSDT'
 ];
 
-test('16 original confirmed markets stay untouched; expanded forecast is separate',()=>{
- assert.deepEqual(markets.SYMBOLS,original);
- assert.equal(markets.SYMBOLS.length,16);
+test('all 32 are confirmed-monitor markets; only original 16 retain manual order permission',()=>{
+ assert.deepEqual(markets.TRADE_SYMBOLS,original);
+ assert.equal(markets.TRADE_SYMBOLS.length,16);
+ assert.deepEqual(markets.SYMBOLS,[...original,...added]);
  assert.deepEqual(markets.FORECAST_SYMBOLS,[...original,...added]);
- assert.equal(new Set(markets.FORECAST_SYMBOLS).size,32);
- for(const symbol of added)assert.ok(!markets.SYMBOLS.includes(symbol));
+ assert.equal(new Set(markets.SYMBOLS).size,32);
+ for(const symbol of added){
+  assert.ok(markets.SYMBOLS.includes(symbol));
+  assert.ok(!markets.TRADE_SYMBOLS.includes(symbol));
+ }
  const api=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');
  assert.match(api,/return handleStandaloneForecast\(req,res,FORECAST_SYMBOLS\)/);
- assert.match(api,/for\(let i=0;i<SYMBOLS\.length;i\+=4\)/);
+ assert.match(api,/Math\.min\(4,SYMBOLS\.length\)/);
 });
 
 test('forecast dashboard and server use same 32 contract symbols',()=>{
