@@ -48,6 +48,30 @@ test('phone format has clear entry, profit, stop, and raw exact levels',()=>{
  assert.match(x.message,/17:58/);
  assert.equal(priceText(0.000012345678),'0,00001235');
 });
+test('phone alerts give one simple action without changing calculation or title',()=>{
+ const check=formatPhoneAlert({...base,retest,costReview:cost},{deadline:'17:58'});
+ assert.match(check.title,/^🟢 ПРОВЕРИТЬ/);
+ assert.match(check.message,/^🟢 ЧТО ДЕЛАТЬ: ПРОВЕРЬ ЦЕНУ И РИСК\. НЕ АВТОВХОД\./);
+ assert.match(check.message,/Сравни цену с входом, TP\/SL и расходами/);
+ assert.match(check.message,/SL 4050\.0042 · TP 4047\.1116/);
+ const skip=formatPhoneAlert({...base,retest:{SHORT:{status:'FAILED'}},costReview:cost});
+ assert.match(skip.title,/^🔴 ПРОПУСТИТЬ/);
+ assert.match(skip.message,/^🔴 ЧТО ДЕЛАТЬ: ПРОПУСТИ\. НЕ ВХОДИ\./);
+ assert.doesNotMatch(skip.message,/🟢 ЧТО ДЕЛАТЬ/);
+ const wait=formatPhoneAlert({...base,retest});
+ assert.match(wait.title,/^🟡 ЖДАТЬ/);
+ assert.match(wait.message,/^🟡 ЧТО ДЕЛАТЬ: ЖДИ ПОДТВЕРЖДЕНИЯ\. НЕ ВХОДИ\./);
+ const early=formatPhoneAlert({...base,level:'EARLY_WATCH'},{early:true});
+ assert.match(early.message,/^🟡 ЧТО ДЕЛАТЬ: ЖДИ ПОДТВЕРЖДЕНИЯ\. НЕ ВХОДИ\./);
+ assert.doesNotMatch(early.message,/SL [0-9]|TP [0-9]/);
+ const pre=formatPhoneAlert({...base,watchType:'PRE_BREAK',forecast:{
+  mode:'PRE_BREAK_SCENARIO',direction:'SHORT',horizonMinutes:5,
+  triggerPrice:4047,invalidationPrice:4053,rsi1:42,volumeRatio:1.5
+ }},{early:true});
+ assert.match(pre.message,/^👀 ЧТО ДЕЛАТЬ: СМОТРИМ\. НЕ ВХОДИМ\./);
+ assert.doesNotMatch(pre.message,/SL [0-9]|TP [0-9]/);
+});
+
 test('presentation does not modify live scanner, notification dedup, or cron',()=>{
  const f=readFileSync(new URL('../lib/alert-presentation.mjs',import.meta.url),'utf8');
  const n=readFileSync(new URL('../lib/ntfy-alerts.mjs',import.meta.url),'utf8');

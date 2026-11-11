@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {forecastTopic,forecastDue,forecastEligible,forecastMessage,
  forecastV2Line,runForecastNotifications} from '../lib/forecast-ntfy.mjs';
+import {parsePublishedForecast} from '../lib/forecast-journal.mjs';
 
 const now=Date.UTC(2026,10,10,10,0,30);
 const topic='wr-'+('a'.repeat(32)),env={NTFY_TOPIC:topic};
@@ -54,6 +55,40 @@ test('notification clearly separates forecast hypothesis from LONG/SHORT entry',
  assert.equal(m.priority,3);
  assert.equal(m.click,'https://weex-radar.vercel.app/forecast.html');
 });
+test('plain-language forecast action keeps ntfy title, V2 and encrypted journal parser compatible',()=>{
+ const f=fixture();
+ const m=forecastMessage(f);
+ assert.match(m.message,/^👀 ЧТО ДЕЛАТЬ: СМОТРИМ\. НЕ ВХОДИМ\./u);
+ assert.match(m.message,/📉 Прогноз: возможное ПАДЕНИЕ/);
+ assert.match(m.message,/⏳ Жди отдельного подтверждённого LONG\/SHORT/);
+ assert.match(m.message,/Цена 1М: 99\.5000 USDT/);
+ assert.match(m.message,/НЕ сигнал входа/);
+ assert.doesNotMatch(m.message,/SL [0-9]|TP [0-9]|Прибыль \(TP\)/);
+ assert.match(forecastMessage(fixture('XRPUSDT','LONG_BIAS')).message,
+  /📈 Прогноз: возможный РОСТ/);
+ const record=(msg,id='a'.repeat(32))=>parsePublishedForecast({
+  event:'message',topic:forecastTopic(env),
+  sequence_id:id,time:Math.floor((now-1000)/1000),
+  title:msg.title,message:msg.message
+ },forecastTopic(env),now);
+ const old=record(m);
+ assert.equal(old.strength,'STRONG');
+ assert.equal(old.direction,'SHORT');
+ assert.equal(old.reference,99.5);
+ assert.equal(old.v2Timing,'UNKNOWN');
+ f.strongV2Review={baselineLevel:'STRONG',sampleReady:true,
+  status:'REVIEW_DOWNGRADE',proposedLevel:'STANDARD'};
+ assert.equal(record(forecastMessage(f),'b'.repeat(32)).v2Timing,'LATE');
+ f.strongV2Review.status='REVIEW_KEEP_STRONG';
+ f.strongV2Review.proposedLevel='STRONG';
+ assert.equal(record(forecastMessage(f),'c'.repeat(32)).v2Timing,'CLEAR');
+ const risky=fixture();
+ risky.timeframes[2].rsi14=25;
+ const unsafe=forecastMessage(risky);
+ assert.match(unsafe.title,/ПОВЫШЕННЫЙ РИСК/);
+ assert.match(unsafe.message,/^👀 ЧТО ДЕЛАТЬ: СМОТРИМ\. НЕ ВХОДИМ\./);
+});
+
 test('V2 timing line is informational and never changes forecast title or trade status',()=>{
  const strong=fixture();
  strong.strongV2Review={baselineLevel:'STRONG',sampleReady:true,
