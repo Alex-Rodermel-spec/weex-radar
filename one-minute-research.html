@@ -28,7 +28,7 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
 <h1>🔬 Вход раньше: 1М + 5М + 15М</h1>
 <div class="info">
  <strong>Исследование, не торговля.</strong>
- <p>Сравниваем свежий пробой и вход после отката EMA20 на закрытой 1М свече при совпадении тенденции по двум <em>уже закрытым</em> таймфреймам 5М/15М. Рассчитываем 1,2 ATR(5М) для SL и 3,0 ATR(5М) для TP. Учитываем условные taker-комиссии 0,08% и проскальзывание 0,03% с каждой стороны; до R/R 1,3 и риска ≤10 USDT при номинале 500 USDT.</p>
+ <p>Сравниваем свежий пробой, вход после отката EMA20 и пробой полос Боллинджера (20,2) с повышенным объёмом на закрытой 1М свече при совпадении тенденции по двум <em>уже закрытым</em> таймфреймам 5М/15М. Рассчитываем 1,2 ATR(5М) для SL и 3,0 ATR(5М) для TP. Учитываем условные taker-комиссии 0,08% и проскальзывание 0,03% с каждой стороны; до R/R 1,3 и риска ≤10 USDT при номинале 500 USDT.</p>
  <p>Проверяем следующие 60 минут, используя цену OPEN следующей 1М свечи как приближение входа. Нет данных реального спреда, исполнения, funding или задержки. <strong>Здесь не создаются заявки, и результат не включает этот алгоритм в реальную торговлю.</strong></p>
 </div>
 <div class="row">
@@ -60,6 +60,15 @@ footer{font-size:12px;color:#9296aa;margin-top:24px}
  <div class="tile"><small>TP / SL после отката</small><strong id="p-tpsl">—</strong></div>
  <div class="tile"><small>Средний R после расходов</small><strong id="p-netr">—</strong></div>
 </div>
+<h2>Третий вариант — Bollinger + объём (1М)</h2>
+<p>Ждём закрытия минуты за предыдущей полосой Боллинджера (20,2), объём не ниже 1,15 от предыдущих 20 свечей и совпадение тренда 5М/15М. Если цена уже слишком далеко ушла от полосы, экспериментальный сигнал пропускается. Это только ретроспективная модель: тех же реальных сделок и уведомлений нет.</p>
+<div class="grid">
+ <div class="tile"><small>Сигналов Bollinger + объём</small><strong id="b-triggered">—</strong></div>
+ <div class="tile"><small>Допустимых по модели</small><strong id="b-setups">—</strong></div>
+ <div class="tile"><small>TP / SL по свечам</small><strong id="b-tpsl">—</strong></div>
+ <div class="tile"><small>Средний R после расходов</small><strong id="b-netr">—</strong></div>
+</div>
+<p class="warn">Маленькое количество сигналов не доказывает преимущество. Bollinger и пробой могут находить одни и те же движения, поэтому статистика вариантов не независима.</p>
 <p class="warn">Сравнение вариантов на одной истории — не независимое подтверждение прибыльности.</p>
 <h2>Почему были отказы при пробое</h2>
 <ul id="reasons"></ul>
@@ -93,6 +102,11 @@ $('run').onclick=async()=>{
   show('p-setups',pr.results?.setups);
   show('p-tpsl',(pr.results?.TP??0)+' / '+(pr.results?.SL??0));
   show('p-netr',pr.results?.netMeanR===null?'Недостаточно данных':pr.results?.netMeanR);
+  const bv=d.strategies?.bollingerVolume||{};
+  show('b-triggered',bv.filter?.triggered);
+  show('b-setups',bv.results?.setups);
+  show('b-tpsl',(bv.results?.TP??0)+' / '+(bv.results?.SL??0));
+  show('b-netr',bv.results?.netMeanR===null?'Недостаточно данных':bv.results?.netMeanR);
   const labels={
    TREND_MISMATCH:'Нет совпадения 5М и 15М',
    NO_BREAK:'Нет нового 1М пробоя',
