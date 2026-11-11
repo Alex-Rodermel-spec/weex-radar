@@ -43,6 +43,57 @@ test('parse only genuine sent private forecast notices (not trading alerts)',()=
  assert.ok(backfill,'genuine overnight notices remain recoverable');
  assert.equal(parsePublishedForecast({...notice,time:Math.floor((now-13*60*MIN)/1000)},topic,now),null);
 });
+test('message-time V2 timing is parsed without inventing labels for old notices',()=>{
+ const late=parsePublishedForecast({...notice,message:notice.message+
+  '\n🧪 V2: возможное опоздание — не догоняй цену'},topic,now);
+ const clear=parsePublishedForecast({...notice,message:notice.message+
+  '\n🧪 V2: явных признаков опоздания не найдено (не гарантия)'},topic,now);
+ const unknown=parsePublishedForecast({...notice,message:notice.message+
+  '\n🧪 V2: недостаточно данных для оценки опоздания'},topic,now);
+ assert.equal(emitted.v2Timing,null);
+ assert.equal(late.v2Timing,'LATE');
+ assert.equal(clear.v2Timing,'CLEAR');
+ assert.equal(unknown.v2Timing,'UNKNOWN');
+ const forged=parsePublishedForecast({...notice,message:notice.message+
+  '\n🧪 V2: 100% точный'},topic,now);
+ assert.equal(forged.v2Timing,null);
+ const caution=parsePublishedForecast({...notice,title:
+  '🔮 🟡 ПОВЫШЕННЫЙ РИСК · BTCUSDT SHORT',
+  message:notice.message+'\n🧪 V2: возможное опоздание — не догоняй цену'},topic,now);
+ assert.equal(caution.v2Timing,null);
+});
+test('V2 cohorts survive archive merge/encryption, keep legacy separate and exclude missing bars',()=>{
+ const raw=normalizeForecastMinutes(futureRaw(),now);
+ const messages=[
+  {...emitted,id:'1'.repeat(32),v2Timing:'LATE'},
+  {...emitted,id:'2'.repeat(32),v2Timing:'CLEAR'},
+  {...emitted,id:'3'.repeat(32),v2Timing:'UNKNOWN'},
+  {...emitted,id:'4'.repeat(32),v2Timing:null},
+  {...emitted,id:'5'.repeat(32),v2Timing:'LATE',strength:'STRONG'}
+ ];
+ const rows=messages.map((m,i)=>evaluatePublishedForecast(m,i===2?[]:raw,now));
+ const first=mergeForecastArchive([],rows,now);
+ const restored=decryptJournalArchive(encryptJournal([],env,[],first.rows),env).forecastRows;
+ const groups=summarizeForecastArchive(restored,now).windows[30].byV2Timing;
+ assert.equal(groups.LATE.total,2);
+ assert.equal(groups.CLEAR.total,1);
+ assert.equal(groups.UNKNOWN.total,1);
+ assert.equal(groups.NOT_RECORDED.total,1);
+ assert.equal(groups.UNKNOWN.at5m.noData,1);
+ assert.equal(groups.UNKNOWN.at5m.observed,0);
+ assert.equal(groups.LATE.byStrength.STRONG.total,1);
+ assert.equal(groups.LATE.byStrength.STANDARD.total,1);
+ assert.equal(groups.CLEAR.at15m.observed,1);
+ const replay=mergeForecastArchive(first.rows,
+  [evaluatePublishedForecast({...messages[0],v2Timing:null},raw,now)],now);
+ assert.equal(replay.rows.find(x=>x.id===messages[0].id).v2Timing,'LATE');
+ const upgrade=mergeForecastArchive(
+  [evaluatePublishedForecast({...messages[3],v2Timing:null},raw,now)],
+  [evaluatePublishedForecast({...messages[3],v2Timing:'CLEAR'},raw,now)],now);
+ assert.equal(upgrade.rows[0].v2Timing,'CLEAR');
+ assert.equal(upgrade.updated,1);
+});
+
 test('later move begins on 10th closed 1m candle, not assumed immediately',()=>{
  const bars=normalizeForecastMinutes(futureRaw(),now);
  const outcome=evaluatePublishedForecast(emitted,bars,now);
