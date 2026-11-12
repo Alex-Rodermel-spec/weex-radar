@@ -33,6 +33,15 @@ test('uses ONLY four completed consecutive 1m bars, direction-aware LONG/SHORT',
  assert.equal(early.lateRisk,false);
  assert.equal(FORECAST_ARRIVAL_POLICY.maxExtraQueries,0);
 });
+test('very small 1000SHIB prices rounded to 8 decimals remain sample-ready',()=>{
+ const small={combinedDirection:'SHORT_BIAS',timeframes:[{
+  closedAt:t,price:0.0045601}]};
+ const prices=[0.004570056,0.00456995,0.0045612,0.004560095];
+ const b=prices.map((close,i)=>({close,closeTime:t-(3-i)*MIN}));
+ const result=forecastShortPreMove(small,b);
+ assert.equal(result.sampleReady,true);
+ assert.ok(result.preMove3mBps>0);
+});
 test('missing/gapped/future/mismatched bars are UNKNOWN not safely early',()=>{
  const source=bars();
  assert.equal(forecastShortPreMove(down,source.slice(1)).sampleReady,false);
