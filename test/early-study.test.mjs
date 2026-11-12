@@ -97,3 +97,33 @@ test('research route cannot write, place trades, send notifications, or reveal n
  assert.doesNotMatch(route,/trade-confirm|placeOrder|@vercel\/blob|publishNtfy|\/capi\/v3\/order/);
  assert.doesNotMatch(core,/fetch\(|placeOrder|@vercel\/blob/);
 });
+
+
+test('V108 real ordinary PRE_BREAK format is parsed with published WEEX levels',()=>{
+ const old=notify({kind:'PRE_BREAK'});
+ const modern={...old,
+  title:'🔮 ПРОГНОЗ · BTCUSDT SHORT · 🔵 ОБЫЧНЫЙ · 🟡 ЖДАТЬ',
+  message:'👀 НАБЛЮДАЙ. НЕ ВХОДИТЬ.\\n📉 Возможное ПАДЕНИЕ · WEEX\\n'+
+   'WEEX · 📍 Сейчас: 100 USDT\\n'+
+   '🔑 Подтверждение: ниже 99,5\\n'+
+   '❌ Отмена сценария: выше 101,25\\n'+
+   '⏳ Жди отдельного подтверждения 5М.'
+ };
+ const parsed=parseEarlyNotification(modern);
+ assert.equal(parsed.watchType,'PRE_BREAK');
+ assert.equal(parsed.direction,'SHORT');
+ assert.equal(parsed.entry,100);
+ assert.equal(parsed.trigger,99.5);
+ assert.equal(parsed.invalidation,101.25);
+ const previous=parseEarlyNotification(old);
+ assert.equal(previous.watchType,'PRE_BREAK');
+ assert.equal(previous.trigger,null);
+ assert.equal(previous.invalidation,null);
+ const wrong={...modern,message:modern.message.replace('ниже 99,5','выше 99,5')};
+ const wrongParsed=parseEarlyNotification(wrong);
+ assert.equal(wrongParsed.watchType,'PRE_BREAK');
+ assert.equal(wrongParsed.trigger,null,'mismatched trigger direction cannot be reconstructed');
+ assert.equal(wrongParsed.invalidation,null);
+ const bybit={...modern,message:modern.message.replace('WEEX · 📍 Сейчас','Bybit · 📍 Сейчас')};
+ assert.equal(parseEarlyNotification(bybit),null);
+});
