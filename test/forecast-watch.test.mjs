@@ -107,5 +107,5 @@ test('new V110 1m diagnostics preserve exactly the original pre-break candidate'
    high:c.high-i*.2,low:c.low-i*.2
  }));
  assert.equal(preBreakCandidate(one,invertedFifteen,now,trendMismatch),null);
- assert.equal(trendMismatch.reason,'EMA_1M_15M_OR_RSI_MISMATCH');
+ assert.equal(trendMismatch.reason,'EMA_1M_15M_TRENDS_DISAGREE');
 });
