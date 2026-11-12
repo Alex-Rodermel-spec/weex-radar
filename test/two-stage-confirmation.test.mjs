@@ -14,7 +14,13 @@ function signal(patch={}){
  return {symbol:'XRPUSDT',exchange:'WEEX',status:'ok',
   level:'STRONG',direction:'SHORT',candleCloseTime:CLOSE,
   expiresAt:CLOSE+180_000,indicators:{volumeRatio:1.6},
-  closedFiveMinuteMoveBps:18,entryQuality:{ok:true},
+  closedFiveMinuteMoveBps:18,
+  livePrice:99.5,stop:100.5,take:97.5,
+  entryQuality:{ok:true,nearestLevel:null,roomR:null},
+  levelReview:{mode:'CLOSED_5M_OBSERVATION',interval:'5m',lookback:12,
+    candleCloseTime:CLOSE,support:100,resistance:103,
+    breakoutDirection:'SHORT',candleState:'BREAK_DOWN',
+    closeQuality:'SUPPORTED',recentFakeouts:{LONG:null,SHORT:null}},
   advisor:{status:'REVIEW'},costReview:{status:'PASS_ESTIMATE'},
   retest:{SHORT:{status:'UNKNOWN'}},...patch};
 }
