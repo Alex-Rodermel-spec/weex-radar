@@ -3,6 +3,8 @@
 // The market quote is approximated by the latest completed 1m close, not a
 // replay of the live bid/ask or actual ntfy delivered notices. No live change.
 import {preBreakCandidate,forecastPreBreak} from '../lib/forecast-watch.mjs';
+import {_test as radar} from './signals.mjs';
+import {validateV110MinuteContinuation} from '../lib/v110-minute-continuation.mjs';
 import {earlyLevelShadow,EARLY_LEVEL_SHADOW_POLICY} from '../lib/early-level-shadow.mjs';
 import {marketForecastProfile} from '../lib/market-forecast-profiles.mjs';
 const MIN=60_000,MAX_BODY=1_000_000,DATA_ENDPOINT=
@@ -13,7 +15,7 @@ const rounded=(v,d=2)=>num(v)?Number(v.toFixed(d)):null;
 const pct=(n,d)=>d?rounded(100*n/d,1):null;
 const sign=s=>s==='LONG'?1:-1;
 export const EARLY_REPLAY_POLICY=Object.freeze({
- version:'2026-11-12-v110-early-shadow-v1',
+ version:'2026-11-12-v110-early-shadow-v2',
  oldestMinutesLimit:1000,sampleEveryMinutes:1,
  sameSymbolTenMinuteDedup:true,
  futureMinuteHorizons:[5,15],
@@ -78,6 +80,10 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
   one.length<140||five.length<80||fifteen.length<80)
   return {available:false,reason:'INSUFFICIENT_CLOSED_WEEX_HISTORY',symbol};
  const baseline=[],clear=[],caution=[],unknown=[];
+ const v110Shadow={scenarios:0,minutePass:0,minuteRejected:0,
+  skippedTooNear5mClose:0,strong5mSameSide:0,joined5mAnd1m:0,
+  joinedObservedNext5m:0,joinedFavorableNext5m:0,
+  rejectedReasons:{},actualPublishedEarlyReplayed:false};
  const recentBySymbolDirectionBucket=new Set();
  const lookup=new Map(one.map((row,i)=>[row.closeTime,i]));
  let candidateCount=0,fullCount=0,missingOutcome=0,continuitySkipped=0;
@@ -123,6 +129,48 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
   const shadow=earlyLevelShadow(
     {...pre,triggerPrice:f.triggerPrice},old5,symbol);
   item.shadow=shadow.status;item.reason=shadow.reason;
+  // Separate experimental V110 evidence: simulate an early notice at
+  // CLOSED 1m time + 1 second, then re-evaluate at NEXT closed 5m bar.
+  // This is NOT a reconstruction of ntfy history, quote or live order.
+  const next5Close=Math.floor(asOf/(5*MIN))*(5*MIN)+5*MIN;
+  if(next5Close-asOf<3*MIN){
+   v110Shadow.skippedTooNear5mClose++;
+  }else{
+   const nextBar=five.find(c=>c.closeTime===next5Close);
+   const closingOne=one.find(c=>c.closeTime===next5Close);
+   const newFive=five.filter(c=>c.closeTime<=next5Close).slice(-125);
+   const newFifteen=fifteen.filter(c=>c.closeTime<=next5Close).slice(-125);
+   if(nextBar&&closingOne&&newFive.length>=60&&newFifteen.length>=60){
+    v110Shadow.scenarios++;
+    const postAlertMinutes=one.filter(c=>c.time>=asOf+MIN&&
+      c.closeTime<=next5Close);
+    const hypothetical={
+     direction:f.direction,candleCloseTime:next5Close,price:nextBar.close};
+    const minuteCheck=validateV110MinuteContinuation(hypothetical,{
+     sentAt:asOf+1000,trigger:f.triggerPrice,
+     invalidation:f.invalidationPrice},postAlertMinutes);
+    if(minuteCheck.ok)v110Shadow.minutePass++;
+    else{
+     v110Shadow.minuteRejected++;
+     v110Shadow.rejectedReasons[minuteCheck.reason]=
+       (v110Shadow.rejectedReasons[minuteCheck.reason]||0)+1;
+    }
+    const confirmed=radar.getAnalysis(newFive,newFifteen,
+      closingOne.close,next5Close+1000);
+    const matchedStrong=confirmed.direction===f.direction&&
+      confirmed.level==='STRONG';
+    if(matchedStrong)v110Shadow.strong5mSameSide++;
+    if(minuteCheck.ok&&matchedStrong){
+     v110Shadow.joined5mAnd1m++;
+     const nextPrice=one.find(c=>c.closeTime===next5Close+5*MIN)?.close;
+     if(num(nextPrice)){
+      v110Shadow.joinedObservedNext5m++;
+      if(sign(f.direction)*(nextPrice-nextBar.close)>0)
+       v110Shadow.joinedFavorableNext5m++;
+     }
+    }
+   }
+  }
   baseline.push(item);
   if(shadow.status==='CAUTION')caution.push(item);
   else if(shadow.status==='CLEAR')clear.push(item);
@@ -133,6 +181,7 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
   priorClosedBars:{one:one.length,five:five.length,fifteen:fifteen.length},
   earlyCheapCandidates:candidateCount,fullPrebreakCandidates:fullCount,
   continuitySkipped,missingOutcome,
+  v110HypotheticalConfirmation:v110Shadow,
   baseline:aggregate(baseline),noObstacleOrRejection:aggregate(clear),
   obstacleOrRejection:aggregate(caution),uncertainEvidence:aggregate(unknown),
   cautionReasons:Object.fromEntries([...new Set(caution.map(x=>x.reason))].map(
