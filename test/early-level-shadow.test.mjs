@@ -54,7 +54,7 @@ test('last closed 5m rejection wick on bearish candle cautions LONG',()=>{
 });
 test('missing, partial, stale, gapped and future bars never become clear',()=>{
  const ok=bars();
- const variants=[[],ok.slice(8),ok.map((x,i)=>i===4?{...x,time:x.time+MIN}:x),
+ const variants=[[],ok.slice(8),ok.map((x,i)=>i===8?{...x,time:x.time+MIN}:x),
   ok.map((x,i)=>i===29?{...x,closeTime:x.closeTime+FIVE}:x),
   ok.map((x,i)=>i===7?{...x,low:-4}:x)];
  for(const v of variants)assert.equal(
