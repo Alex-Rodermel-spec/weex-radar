@@ -32,14 +32,15 @@ test('moderate profile changes reward target and cost acceptance, never the loss
   maxConcurrent:2,maxRiskUsdt:10});
  assert.equal(ACTIVE_STRATEGY.phase,'EXPERIMENTAL');
 });
-test('cost-passing normal fresh breakout is visible as manual check even without a completed retest',()=>{
+test('cost-passing normal fresh breakout stays observational, and strong can be reviewed',()=>{
  assert.ok(cost.netRR>=1.3&&cost.netRR<1.5);
  assert.equal(cost.status,'PASS_ESTIMATE');
  const prepared={...signal,costReview:cost,retest:{LONG:null}};
  const message=alertPresentation(prepared);
- assert.equal(message.status,'CHECK');
- assert.match(message.reason,/ретест ещё не подтверждён/);
- assert.equal(adviseSymbol(prepared,now).status,'REVIEW');
+ assert.equal(message.status,'WAIT');
+ assert.match(message.reason,/Обычный прогноз/);
+ assert.equal(adviseSymbol(prepared,now).status,'WAIT');
+ assert.equal(adviseSymbol({...prepared,level:'STRONG'},now).status,'REVIEW');
  assert.equal(adviseSymbol({...prepared,retest:{LONG:{status:'FAILED'}}},now).status,'SKIP');
  assert.equal(adviseSymbol({...prepared,expiresAt:now+9000},now).status,'SKIP');
 });
