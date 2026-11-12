@@ -5,6 +5,7 @@
 import {preBreakCandidate,forecastPreBreak} from '../lib/forecast-watch.mjs';
 import {_test as radar} from './signals.mjs';
 import {validateV110MinuteContinuation} from '../lib/v110-minute-continuation.mjs';
+import {evaluateAnchored5mConfirmation} from '../lib/v110-anchored-5m-shadow.mjs';
 import {earlyLevelShadow,EARLY_LEVEL_SHADOW_POLICY} from '../lib/early-level-shadow.mjs';
 import {marketForecastProfile} from '../lib/market-forecast-profiles.mjs';
 const MIN=60_000,MAX_BODY=1_000_000,DATA_ENDPOINT=
@@ -15,7 +16,7 @@ const rounded=(v,d=2)=>num(v)?Number(v.toFixed(d)):null;
 const pct=(n,d)=>d?rounded(100*n/d,1):null;
 const sign=s=>s==='LONG'?1:-1;
 export const EARLY_REPLAY_POLICY=Object.freeze({
- version:'2026-11-12-v110-early-shadow-v3',
+ version:'2026-11-12-v110-early-shadow-v4',
  oldestMinutesLimit:1000,sampleEveryMinutes:1,
  sameSymbolTenMinuteDedup:true,
  futureMinuteHorizons:[5,15],
@@ -80,6 +81,10 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
   one.length<140||five.length<80||fifteen.length<80)
   return {available:false,reason:'INSUFFICIENT_CLOSED_WEEX_HISTORY',symbol};
  const baseline=[],clear=[],caution=[],unknown=[];
+ const anchoredWithin15m={scenarios:0,matched:0,matchedObservedNext5m:0,
+  matchedFavorableNext5m:0,matchedAdverseNext5m:0,
+  noMatchReasons:{},firstMatchedAtMinutes:{},
+  simulatedNotices:true,ordersSent:0};
  const v110Within15m={scenarios:0,any5mStrongSameSide:0,
   anyValidMinutePath:0,linkedStrongWithMinute:0,
   firstLinkedAtMinutes:{},noOrders:true,
@@ -179,8 +184,10 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
   // just the first. This is a COUNTERFACTUAL based on an invented one-second
   // notice arrival, with no claim that ntfy actually published this scenario.
   v110Within15m.scenarios++;
+  anchoredWithin15m.scenarios++;
   const firstClose=Math.floor(asOf/(5*MIN))*(5*MIN)+5*MIN;
   let seenStrong=false,seenMinute=false,seenLinked=false;
+  let anchoredMatched=false,lastAnchoredReason='NO_COMPLETED_5M_WINDOW';
   for(let step=0;step<3;step++){
    const target=firstClose+step*5*MIN;
    if(target>asOf+15*MIN||target-asOf<3*MIN)continue;
@@ -196,6 +203,29 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
       invalidation:f.invalidationPrice},
      one.filter(c=>c.time>=asOf+MIN&&c.closeTime<=target));
    if(check.ok)seenMinute=true;
+   if(!anchoredMatched){
+    const anchored=evaluateAnchored5mConfirmation({
+     symbol,scenario:{direction:f.direction,sentAt:asOf+1000,
+       trigger:f.triggerPrice,invalidation:f.invalidationPrice},
+     five:fiveHist,fifteen:fifteenHist,
+     one:one.filter(c=>c.time>=asOf+MIN&&c.closeTime<=target),
+     quote:quote.close,asOf:target
+    });
+    lastAnchoredReason=anchored.reason;
+    if(anchored.status==='ANCHOR_CONFIRMED_RESEARCH_ONLY'){
+      anchoredMatched=true;
+      const lag=Math.round((target-asOf)/MIN);
+      anchoredWithin15m.firstMatchedAtMinutes[lag]=
+       (anchoredWithin15m.firstMatchedAtMinutes[lag]||0)+1;
+      const nextPrice=one.find(c=>c.closeTime===target+5*MIN)?.close;
+      if(num(nextPrice)){
+       anchoredWithin15m.matchedObservedNext5m++;
+       const delta=sign(f.direction)*(nextPrice-last5.close);
+       if(delta>0)anchoredWithin15m.matchedFavorableNext5m++;
+       if(delta<0)anchoredWithin15m.matchedAdverseNext5m++;
+      }
+    }
+   }
    const radar5=radar.getAnalysis(fiveHist,fifteenHist,quote.close,
      target+1000);
    const strong=radar5.direction===f.direction&&radar5.level==='STRONG';
@@ -208,6 +238,9 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
     break;
    }
   }
+  if(anchoredMatched)anchoredWithin15m.matched++;
+  else anchoredWithin15m.noMatchReasons[lastAnchoredReason]=
+   (anchoredWithin15m.noMatchReasons[lastAnchoredReason]||0)+1;
   if(seenStrong)v110Within15m.any5mStrongSameSide++;
   if(seenMinute)v110Within15m.anyValidMinutePath++;
   if(seenLinked)v110Within15m.linkedStrongWithMinute++;
@@ -223,6 +256,7 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
   continuitySkipped,missingOutcome,
   v110HypotheticalConfirmation:v110Shadow,
   v110Within15m,
+  anchoredWithin15m,
   baseline:aggregate(baseline),noObstacleOrRejection:aggregate(clear),
   obstacleOrRejection:aggregate(caution),uncertainEvidence:aggregate(unknown),
   cautionReasons:Object.fromEntries([...new Set(caution.map(x=>x.reason))].map(
