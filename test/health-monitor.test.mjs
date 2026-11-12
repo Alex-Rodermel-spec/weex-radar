@@ -8,10 +8,10 @@ import {HEARTBEAT_MS,STALE_MS,ALERT_COOLDOWN_MS,monitorTopic,
 const env={NTFY_TOPIC:'wr-'+'a'.repeat(32),PUSH_CRON_KEY:'B'.repeat(42)};
 const healthTopic=monitorTopic(env);
 const now=HEARTBEAT_MS*100000+30_000;
-const sample={total:16,weex:16,bybit:0,unavailable:0};
-const activeEarly={checked:16,failedMarkets:0,ntfy:{failed:0}};
+const sample={total:32,weex:32,bybit:0,unavailable:0};
+const activeEarly={checked:32,failedMarkets:0,ntfy:{failed:0}};
 const data=(at,overrides={})=>({v:1,source:'cron',at,bucket:Math.floor(at/HEARTBEAT_MS),
- http:200,five:sample,early:{checked:16,failedMarkets:0},ntfyFailed:false,
+ http:200,five:sample,early:{checked:32,failedMarkets:0},ntfyFailed:false,
  healthy:true,...overrides});
 const ndjson=(topic,messages=[])=>messages.map(message=>
  JSON.stringify({event:'message',topic,...message})).join('\n');
@@ -75,6 +75,30 @@ test('zero trading signals do not mark a successful scanner unhealthy',async()=>
   now,fetchImpl:mock,env});
  assert.equal(status.healthy,true);
  assert.equal(JSON.parse(posted.message).ntfyFailed,false);
+});
+
+test('32-market cron health rejects silently truncated early/five scans',async()=>{
+ let posted=[];
+ const mock=async(_,init)=>{
+  if(init.method==='POST'){
+   posted.push(JSON.parse(init.body));return {ok:true};
+  }
+  return {ok:true,text:async()=>''};
+ };
+ const oldMarkets={total:16,weex:16,bybit:0,unavailable:0};
+ const truncated=await monitorDispatch({
+  source:'cron',http:200,markets:oldMarkets,
+  early:{checked:16,failedMarkets:0,ntfy:{failed:0}},ntfy:{failed:0},
+  now,fetchImpl:mock,env
+ });
+ assert.equal(truncated.healthy,false);
+ const shortEarly=await monitorDispatch({
+  source:'cron',http:200,markets:sample,
+  early:{checked:16,failedMarkets:0,ntfy:{failed:0}},ntfy:{failed:0},
+  now,fetchImpl:mock,env
+ });
+ assert.equal(shortEarly.healthy,false);
+ assert.equal(posted.length,2);
 });
 
 test('GitHub backup records stale cron in diagnostics but suppresses non-directional phone alerts',async()=>{
