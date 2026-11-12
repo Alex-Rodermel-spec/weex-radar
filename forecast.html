@@ -79,7 +79,7 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
   <thead><tr><th>Пара</th><th>Оценка силы / риска</th><th>1М</th><th>5М</th><th>10М</th><th>RSI · объём 1М</th><th>Bollinger</th><th>Структура 5М</th><th>Обновлено</th></tr></thead>
   <tbody id="rows"><tr><td colspan="9">Нет проверки</td></tr></tbody>
  </table></div>
- <p class="legend">🟣 «Сильный» означает согласованные RSI, EMA, Bollinger, структуру и объём без обнаруженных предупреждений. 🟡 «Повышенный риск» отмечает перепроданность/перекупленность, слабый объём или возможность позднего входа. Оценки эвристические, не вероятность прибыли. Нет сигнала входа, торговых ордеров, маржи, плеча или автоторговли. Будущие свечи не используются. Теневая V2 проверяет движение за 15 минут, удалённость от EMA20 и всплеск объёма; Сценарии с уже пройденным движением ≥0,10% по закрытым свечам 1М/3М или предупреждением V2 об опоздании не занимают 2 слота ntfy-прогнозов каждые 10 минут. Это не гарантия раннего входа или прибыли.</p>
+ <p class="legend">🟣 «Сильный» означает согласованные RSI, EMA, Bollinger, структуру и объём без обнаруженных предупреждений. 🟡 «Повышенный риск» отмечает перепроданность/перекупленность, слабый объём или возможность позднего входа. Оценки эвристические, не вероятность прибыли. Нет сигнала входа, торговых ордеров, маржи, плеча или автоторговли. Будущие свечи не используются. Теневая V2 проверяет движение за 15 минут, удалённость от EMA20 и всплеск объёма; Шесть рыночных профилей для 32 инструментов: BTC/ETH, альткоины, мемкоины, металлы, валютные и акции WEEX. Теперь порог опоздания за 1М/3М адаптируется к 60 ранее закрытым минутам КАЖДОГО инструмента; если история неполная, остаётся прежний порог 0,10% (не означает, что прогноз ранний). V2 продолжает предупреждать об опоздании. Это экспериментальная защита от догоняющих уведомлений, а не подтверждённая торговая стратегия. Это не гарантия раннего входа или прибыли.</p>
 </section>
 <section class="panel">
  <div class="heading"><h2>Диагностика прогнозиста</h2><span class="pill">ОТДЕЛЬНО ОТ LONG / SHORT</span></div>
@@ -173,6 +173,15 @@ const RISK_REASON_LABELS={
  MIXED_OR_INCOMPLETE:'таймфреймы не согласованы',
  INDICATOR_DATA_UNAVAILABLE:'недостаточно индикаторов'
 };
+function profileLine(arrival){
+ const group=arrival?.assetProfile?.label;
+ if(!group)return '';
+ if(arrival.adaptiveReady&&Number.isFinite(arrival.threshold1mBps)&&
+    Number.isFinite(arrival.threshold3mBps))
+  return ' · ⚙️ '+group+' · порог опоздания 1М '+arrival.threshold1mBps+
+   ' / 3М '+arrival.threshold3mBps+' bps';
+ return ' · ⚙️ '+group+' · запасной порог 10 bps';
+}
 function riskLabel(q,v2,arrival){
  if(!q||q.level==='UNAVAILABLE')return '⚪ Нет согласованного прогноза';
  if(v2?.status==='REVIEW_DOWNGRADE'&&
@@ -217,7 +226,7 @@ function render(){
   if(filter!=='ALL'&&filter!==combined)continue;
   const frames=d?.available?d.timeframes:[];
   const m1=frames[0],ctx=d?.primaryContext;
-  const values=[symbol,riskLabel(d?.strengthRisk,d?.strongV2Review,d?.arrivalTiming),
+  const values=[symbol,riskLabel(d?.strengthRisk,d?.strongV2Review,d?.arrivalTiming)+profileLine(d?.arrivalTiming),
    ...[0,1,2].map(i=>frames[i]?label(frames[i].direction):'Нет данных'),
    m1?'RSI '+m1.rsi14+' · Vol ×'+m1.relativeVolume:'—',
    m1?'BB '+m1.bollinger20.position+' · '+m1.bollinger20.widthPct+'%':'—',
