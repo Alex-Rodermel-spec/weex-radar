@@ -47,8 +47,8 @@ test('invalidate if after-alert candle touches cancellation level, even if final
 });
 test('reject last-minute reversal, missing history, stale 5m close, or unbroken trigger',()=>{
  const reversed=raw();
- reversed[4]=[CLOSE-MIN,99.60,99.75,99.38,99.70,100];
- assert.equal(validateV110MinuteContinuation({...signal,price:99.70},early,
+ reversed[4]=[CLOSE-MIN,99.60,99.82,99.38,99.80,100];
+ assert.equal(validateV110MinuteContinuation({...signal,price:99.80},early,
   normalizeV110Minutes(reversed,CLOSE)).reason,'LAST_MINUTE_REVERSAL');
  assert.equal(validateV110MinuteContinuation(signal,early,null).ok,false);
  assert.equal(validateV110MinuteContinuation(signal,early,bars().slice(0,-1)).reason,
