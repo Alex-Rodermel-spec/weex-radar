@@ -104,6 +104,16 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <div class="table-box"><table><thead><tr><th>Группа</th><th>Прогнозов</th><th>5М: в сторону</th><th>15М: в сторону</th><th>Новые после 12.11 · 5М</th></tr></thead><tbody id="qualityShadowRows"></tbody></table></div>
 <p class="muted" id="qualityShadowStatus">Сравнение на новой независимой выборке с 12 ноября. Для проверки нужны минимум 50 измеренных PASS и 50 SKIP, ≥80% данных, ≥3 общие монеты. Это направление цены, а не прибыль.</p>
 </section>
+<section class="card" aria-labelledby="forecast-hours-title">
+ <h2 id="forecast-hours-title">🕒 В какие часы прогнозист работает лучше?</h2>
+ <p class="muted">Время <strong>реальной публикации прогноза ntfy</strong> по Берлину (CET/CEST), а не время открытия графика. Только закрытые свечи WEEX: 6 интервалов по четыре часа и отдельно все 24 часа. Период 30/90 дней выбирается сверху страницы.</p>
+ <p id="forecastHourStatus" role="status" class="muted">Изучаем архив; «лучший час» ещё не подтверждён.</p>
+ <div class="table-box"><table><thead><tr><th>Время Берлина</th><th>Прогнозов</th><th>Разных дней</th><th>5м · направление</th><th>15м · направление</th><th>20м · направление</th><th>LONG 5м</th><th>SHORT 5м</th><th>Оценка</th></tr></thead><tbody id="forecastSessions"></tbody></table></div>
+ <details><summary>Посмотреть каждый из 24 часов</summary>
+ <div class="table-box"><table><thead><tr><th>Часы Берлина</th><th>Прогнозов</th><th>Разных дней</th><th>5м</th><th>15м</th><th>20м</th><th>Статус</th></tr></thead><tbody id="forecastHours"></tbody></table></div>
+ </details>
+ <p class="muted">Минимум <b>50 измеренных прогнозов на четырёхчасовой интервал</b> либо <b>30 на отдельный час</b>, минимум 5 разных берлинских дней и ≥80% покрытия на 5М/15М. Это только кандидаты: среди 24 часов случайный лидер возможен даже без преимущества. Позже перепроверим на новых данных. LONG и SHORT показаны отдельно. <b>Проценты — направление цены, не прибыль после комиссий.</b> Ни V3, ни греки, ни уведомления не меняются.</p>
+</section>
 <section class="card" aria-labelledby="link-study-title">
 <h2 id="link-study-title">🔗 Ранний прогноз → подтверждённый сигнал</h2>
 <p class="muted">Новый тест связи двух независимых ntfy-уведомлений. Берём <b>последний опубликованный прогноз по этой же монете</b> за 30 минут <b>до</b> отправки подтверждённого LONG/SHORT. Никаких сигналов задним числом и никаких автоматических входов.</p>
@@ -327,6 +337,46 @@ function display(){
   'Идёт сбор независимой выборки с 12.11.2026 в 00:00 по Берлину. '+
    'PASS/SKIP пока не разрешают сделки и не меняют отправку прогнозов; '+
    'требуются 50 измеренных в каждой группе, ≥80% закрытых свечей и ≥3 общие монеты.';
+ const hourly=forecast?.berlinTimeOfDay;
+ const fmtTimeMetric=v=>v?.observed?
+  pct(v.favorablePct)+' ('+v.favorable+'/'+v.observed+')':'—';
+ function renderTimeTable(id,groups,session){
+  const tbody=$(id);tbody.replaceChildren();
+  for(const group of groups||[]){
+   const tr=document.createElement('tr');
+   const vals=session?[
+    group.label,group.total,group.distinctBerlinDays,
+    fmtTimeMetric(group.at5m),fmtTimeMetric(group.at15m),
+    fmtTimeMetric(group.at20m),
+    fmtTimeMetric(group.byDirection?.LONG?.at5m),
+    fmtTimeMetric(group.byDirection?.SHORT?.at5m),
+    group.reviewEligible?'Можно изучать':'Мало данных'
+   ]:[
+    group.label,group.total,group.distinctBerlinDays,
+    fmtTimeMetric(group.at5m),fmtTimeMetric(group.at15m),
+    fmtTimeMetric(group.at20m),
+    group.reviewEligible?'Можно изучать':'Мало данных'
+   ];
+   for(const value of vals){
+    const td=document.createElement('td');
+    td.textContent=String(value??'—');tr.appendChild(td)
+   }
+   tbody.appendChild(tr);
+  }
+ }
+ renderTimeTable('forecastSessions',hourly?.sessions,true);
+ renderTimeTable('forecastHours',hourly?.hours,false);
+ const bestSessions=hourly?.reviewCandidates?.sessions||[];
+ const bestHours=hourly?.reviewCandidates?.hourly||[];
+ $('forecastHourStatus').textContent=!hourly?
+  'Почасовая статистика недоступна; остальные данные журнала сохранены.':
+  bestSessions.length===0||bestHours.length===0?
+   'Пока недостаточно данных для определения лучшего часа. '+hourly.archived+
+    ' опубликованных прогнозов за период. Интервалы показаны для наблюдения, не как рекомендация торговать.':
+   'Предварительные кандидаты для изучения: интервал '+
+    hourly.sessions[bestSessions[0]].label+
+    ', час '+hourly.hours[bestHours[0]].label+
+    ' по Берлину. Это максимум внутри изученной истории, НЕ доказательство устойчивого преимущества. Сигналы не меняются.';
  const audit=forecast?.hypothesisAudit;
  const hypothesisTable=$('forecastHypotheses');hypothesisTable.replaceChildren();
  const fmtCompare=(c,key='differencePp')=>{
