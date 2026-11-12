@@ -82,9 +82,30 @@ test('forecast uses closed 1m/5m/15m only; original breakout strategy is not cha
  assert.doesNotMatch(forecastSource,/fetch\(|\/capi\/v3\/order|trade-confirm|trade-prepare|process\.env/);
  assert.match(forecastSource,/evaluateStructure\(five,atr5/);
  assert.match(forecastSource,/evaluateRetestBoth\(five,atr5/);
- assert.match(earlySource,/preBreakCandidate\(one,fifteen,now\)/);
+ assert.match(earlySource,/preBreakCandidate\(one,fifteen,now,preBreakTrace\)/);
  assert.match(earlySource,/forecastPreBreak\(one,five,fifteen,quote\.price,Date\.now\(\)\)/);
  assert.match(earlySource,/fetchCandles\(symbol,'5m'\)/);
  assert.match(dispatch,/ntfySend\('confirmed',signals\)/);
  assert.match(ntfySource,/candidates\.filter\(s=>s\.watchType==='PRE_BREAK'\)\.slice\(0,2\)/);
+});
+
+test('new V110 1m diagnostics preserve exactly the original pre-break candidate',()=>{
+ const prior=preBreakCandidate(one,fifteen,now);
+ const trace={};
+ const instrumented=preBreakCandidate(one,fifteen,now,trace);
+ assert.deepEqual(instrumented,prior);
+ assert.equal(trace.reason,'CANDIDATE');
+ const stale={};
+ assert.equal(preBreakCandidate(one,fifteen,now+50000,stale),null);
+ assert.equal(stale.reason,'STALE_1M');
+ const corrupted={};
+ assert.equal(preBreakCandidate([],fifteen,now,corrupted),null);
+ assert.equal(corrupted.reason,'MISSING_VALID_CANDLES');
+ const trendMismatch={};
+ const invertedFifteen=fifteen.map((c,i)=>({
+   ...c,open:c.open-i*.2,close:c.close-i*.2,
+   high:c.high-i*.2,low:c.low-i*.2
+ }));
+ assert.equal(preBreakCandidate(one,invertedFifteen,now,trendMismatch),null);
+ assert.equal(trendMismatch.reason,'EMA_1M_15M_OR_RSI_MISMATCH');
 });
