@@ -90,6 +90,17 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
   <pre id="detail-json">Диагностика ещё не загружена.</pre>
  </details>
 </section>
+<section class="panel" aria-label="Опционные греки исследование">
+ <div class="heading"><h2>🧮 Greeks Lab · BTC / ETH</h2><span class="pill">DERIBIT OPTIONS · RESEARCH-ONLY</span></div>
+ <p class="lead">Настоящие Delta, Gamma, Vega, Theta и Rho по отдельным опционам CALL/PUT Deribit, выбранным близко к текущей цене базового актива и к сроку 14 дней. <strong>Это не греки фьючерсов WEEX</strong>, не общая экспозиция GEX и не прогноз направления. Для остальных 30 инструментов сопоставимых проверенных опционных данных пока нет.</p>
+ <div class="actions">
+  <label for="greeks-symbol">Опционный рынок</label>
+  <select id="greeks-symbol"><option value="BTCUSDT">BTC · Deribit</option><option value="ETHUSDT">ETH · Deribit</option></select>
+  <button type="button" id="greeks-load">🧪 Проверить греки (вручную)</button>
+ </div>
+ <pre class="status" id="greeks-output" role="status">Данные не запрашивались. Нажми кнопку, чтобы проверить публичные опционные котировки.</pre>
+ <p class="legend">V3 PASS/SKIP продолжает независимый PAPER-тест на <a href="/history.html">странице статистики</a>. Greeks Lab не влияет на V3, прогнозы ntfy, сигналы входа и разрешения реальных сделок. Единицы измерения греков — исходные, как в API Deribit.</p>
+</section>
 <footer class="legend">Прогнозист WEEX RADAR · 1/5/10М · отдельный исследовательский модуль. Уведомления торгового радара остаются только подтверждёнными LONG/SHORT; прогнозист публикует только отдельные наблюдательные прогнозы в ntfy.</footer>
 </main>
 <script>
@@ -264,6 +275,34 @@ function schedule(){
  if(!running||document.visibilityState==='hidden')return;
  timer=setTimeout(async()=>{timer=null;await refresh();schedule()},180000);
 }
+$('greeks-load').onclick=async()=>{
+ const symbol=$('greeks-symbol').value;
+ const output=$('greeks-output'),button=$('greeks-load');
+ button.disabled=true;output.textContent='Получаю публичные опционы Deribit для '+symbol+'…';
+ const ctl=new AbortController(),kill=setTimeout(()=>ctl.abort(),20000);
+ try{
+  const r=await fetch('/api/signals?mode=greeks&symbol='+encodeURIComponent(symbol),
+   {cache:'no-store',signal:ctl.signal});
+  const d=await r.json();
+  if(!r.ok||d.mode!=='OPTIONS_GREEKS_SHADOW_V1'||!d.available||
+   d.source!=='DERIBIT_PUBLIC_OPTIONS'||d.externalToWEEX!==true||
+   d.notTrade!==true||d.ordersSent!==0||d.signalPermission!==false||
+   d.affectsForecast!==false||!d.contracts?.call||!d.contracts?.put)
+   throw Error('Нет свежих и сопоставимых опционных данных Deribit.');
+  const digits=x=>Number.isFinite(x)?Number(x).toPrecision(5):'—';
+  const contract=g=>g.optionType+' '+g.instrument+
+   '\nDelta '+digits(g.delta)+' · Gamma '+digits(g.gamma)+
+   ' · Vega '+digits(g.vega)+' · Theta '+digits(g.theta)+
+   ' · Rho '+digits(g.rho)+'\nIV '+digits(g.markIvPct)+'% · Deribit: '+
+   stamp(g.timestamp);
+  output.textContent='🧪 ВНЕШНИЙ ОПЦИОННЫЙ РЫНОК · '+d.currency+
+   '\nСтрайк '+d.strike+' · до экспирации '+d.daysToExpiry+' дн.'+
+   '\n\n'+contract(d.contracts.call)+'\n\n'+contract(d.contracts.put)+
+   '\n\nНе оценка вероятности LONG/SHORT и не греческие показатели WEEX.';
+ }catch(e){output.textContent='⚪ '+String(e.message||e)+
+  ' Существующие прогнозы WEEX продолжают работать независимо.'}
+ finally{clearTimeout(kill);button.disabled=false}
+};
 $('refresh').onclick=refresh;
 $('filter').onchange=render;
 $('details-symbol').onchange=showDetail;
