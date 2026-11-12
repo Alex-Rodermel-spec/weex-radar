@@ -104,6 +104,13 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <div class="table-box"><table><thead><tr><th>Группа</th><th>Прогнозов</th><th>5М: в сторону</th><th>15М: в сторону</th><th>Новые после 12.11 · 5М</th></tr></thead><tbody id="qualityShadowRows"></tbody></table></div>
 <p class="muted" id="qualityShadowStatus">Сравнение на новой независимой выборке с 12 ноября. Для проверки нужны минимум 50 измеренных PASS и 50 SKIP, ≥80% данных, ≥3 общие монеты. Это направление цены, а не прибыль.</p>
 </section>
+<section class="card" aria-labelledby="strong-arrival-title">
+ <h2 id="strong-arrival-title">🛡️ STRONG: ранний прогноз или уже поздно? · тестовый фильтр</h2>
+ <p class="muted">Принцип: <strong>STRONG означает согласованное направление, а не удачный момент входа.</strong> Проверяем старую надпись V2 и фактическое движение за 1/3/5/15 минут до уведомления. Порог 0,10% определён заранее. Реальные сигналы пока НЕ меняются.</p>
+ <p class="muted" id="strongArrivalSummary">Собираем независимую выборку после 12 ноября 13:00 по Берлину. Старые результаты — только предварительное исследование.</p>
+ <div class="table-box"><table><thead><tr><th>Группа STRONG</th><th>Старых</th><th>5м · раньше</th><th>5м · новая выборка</th><th>15м · новая выборка</th><th>Сначала против ≥0,10%</th></tr></thead><tbody id="strongArrivalRows"></tbody></table></div>
+ <p class="muted">«Сначала против» — проверка по последующим закрытым минутным свечам, НЕ условие выбора группы. Новая выборка начнётся только после фиксации правил; количество совпадений направления ≠ доходность. Отсутствие истории 1–3 минут отмечаем как «неизвестно», не подставляем удачные сигналы. Для вывода нужны разные дни и сопоставимые LONG/SHORT на одних инструментах. V3/Greeks, ntfy, основной радар и реальные ордера не меняются.</p>
+</section>
 <section class="card" aria-labelledby="fast-timing-title">
  <h2 id="fast-timing-title">⏱️ Ловим опоздания прогнозиста: 1 / 3 / 5 / 15 минут</h2>
  <p class="muted">Смотрим <strong>только закрытые свечи ДО публикации</strong> уведомления ntfy по WEEX. Считаем, прошла ли цена уже ≥0,10% в сторону прогноза за 1, 3, 5 или 15 минут. Не смешиваем это с результатом после уведомления. Время на телефоне и начало рыночного импульса нельзя восстановить точно по минутным свечам.</p>
@@ -353,6 +360,41 @@ function display(){
   'Идёт сбор независимой выборки с 12.11.2026 в 00:00 по Берлину. '+
    'PASS/SKIP пока не разрешают сделки и не меняют отправку прогнозов; '+
    'требуются 50 измеренных в каждой группе, ≥80% закрытых свечей и ≥3 общие монеты.';
+ const strongTiming=forecast?.strongTimingShadow;
+ const oldStrong=strongTiming?.historicalExploration;
+ const newStrong=strongTiming?.prospectiveValidation;
+ const strongRows=$('strongArrivalRows');strongRows.replaceChildren();
+ for(const [code,label] of [
+  ['V2_LATE','V2 LATE · потенциально поздно'],
+  ['V2_CLEAR_FAST_EXTENDED','V2 CLEAR · уже ≥0,10% за 1–3м'],
+  ['V2_CLEAR_SLOW_EXTENDED','V2 CLEAR · уже ≥0,10% за 5–15м'],
+  ['V2_CLEAR_EARLY_CANDIDATE','V2 CLEAR · ранний кандидат'],
+  ['UNKNOWN_PREHISTORY','V2 CLEAR · нет ранних свечей'],
+  ['UNKNOWN_V2','V2 неизвестно']
+ ]){
+  const past=oldStrong?.groups?.[code],future=newStrong?.groups?.[code];
+  const tr=document.createElement('tr');
+  for(const val of [label,past?.total??0,fmtAccuracy(past?.at5m),
+   fmtAccuracy(future?.at5m),fmtAccuracy(future?.at15m),
+   future?.first10bps?.complete30m?
+    future.first10bps.adverseFirst+' из '+future.first10bps.complete30m:'—']){
+    const td=document.createElement('td');td.textContent=String(val);tr.appendChild(td);
+  }
+  strongRows.appendChild(tr);
+ }
+ const comparison=newStrong?.comparison;
+ $('strongArrivalSummary').textContent=strongTiming?
+  'До начала независимой проверки: '+(oldStrong?.total??0)+
+  ' STRONG-прогнозов. С 13:00 по Берлину: '+(newStrong?.total??0)+
+  '. Предварительно отобранных ранних: '+
+  (newStrong?.counterfactual?.KEEP_EARLY?.total??0)+
+  ', отмеченных как поздние: '+
+  (newStrong?.counterfactual?.FLAGGED_LATE?.total??0)+
+  ', неизвестных: '+(newStrong?.counterfactual?.UNKNOWN?.total??0)+
+  '. Статус: '+(comparison?.readyForResearchReview?
+    'сопоставимая выборка набрана — только исследование.':
+    'мало данных, фильтр не включён.') :
+  'Нет статистики нового исследования. Прогнозист продолжает работать.';
  const timing=forecast?.timingAudit;
  const forwardTiming=timing?.forward;
  const allPrior=forwardTiming?.all?.prior||{};
