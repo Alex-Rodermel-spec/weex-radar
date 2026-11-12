@@ -58,11 +58,11 @@ test('incomplete recent signals stay PENDING, missing old future candles stay NO
  const a=alert();
  assert.equal(evaluatePublishedPreBreak(a,success(),START+10*MIN).status,'PENDING');
  assert.equal(evaluatePublishedPreBreak(a,null,NOW).status,'NO_DATA');
- assert.equal(evaluatePublishedPreBreak(a,success().slice(1),NOW).status,'NO_DATA');
+ assert.equal(evaluatePublishedPreBreak(a,success().filter((_,i)=>i!==8),NOW).status,'NO_DATA');
  assert.equal(evaluatePublishedPreBreak({...a,trigger:null},success(),NOW).status,'NO_PUBLISHED_LEVELS');
 });
 test('full 5m boundaries require all five closed 1m bars',()=>{
- const r=evaluatePublishedPreBreak(alert(),success().filter((_,i)=>i!==8),NOW);
+ const r=evaluatePublishedPreBreak(alert(),success().slice(1),NOW);
  assert.equal(r.status,'TRIGGER_FIRST');
  assert.equal(r.first5m,'NO_DATA');
  assert.equal(r.following5m,'NO_DATA');
