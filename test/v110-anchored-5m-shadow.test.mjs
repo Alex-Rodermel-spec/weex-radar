@@ -72,9 +72,11 @@ test('missing closed 5m, stale fifteen, gapped history, or late quote do not pas
  const x=fixture();
  const trials=[
   {five:x.five.slice(0,-1)},
-  {fifteen:x.fifteen.slice(0,-2)},
+  {fifteen:x.fifteen.slice(0,-3)},
   {five:x.five.map((v,i)=>i===50?{...v,time:v.time+MIN}:v)},
-  {quote:x.quote+10}
+  {quote:x.quote+10},
+  {fifteen:x.fifteen.map(v=>({...v,open:v.open+10,
+    close:v.close+10,high:v.high+10,low:v.low+10}))}
  ];
  for(const changed of trials){
   const r=evaluateAnchored5mConfirmation({...x,...changed});
