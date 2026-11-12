@@ -7,6 +7,7 @@ import {_test as radar} from './signals.mjs';
 import {validateV110MinuteContinuation} from '../lib/v110-minute-continuation.mjs';
 import {evaluateAnchored5mConfirmation} from '../lib/v110-anchored-5m-shadow.mjs';
 import {earlyLevelShadow,EARLY_LEVEL_SHADOW_POLICY} from '../lib/early-level-shadow.mjs';
+import {outcomeOfEarlyScenario,summarizeEarlyOutcomes,EARLY_OUTCOME_POLICY} from '../lib/early-scenario-outcome.mjs';
 import {marketForecastProfile} from '../lib/market-forecast-profiles.mjs';
 const MIN=60_000,MAX_BODY=1_000_000,DATA_ENDPOINT=
  'https://api-contract.weex.com/capi/v3/market/klines';
@@ -16,7 +17,7 @@ const rounded=(v,d=2)=>num(v)?Number(v.toFixed(d)):null;
 const pct=(n,d)=>d?rounded(100*n/d,1):null;
 const sign=s=>s==='LONG'?1:-1;
 export const EARLY_REPLAY_POLICY=Object.freeze({
- version:'2026-11-12-v110-early-shadow-v4',
+ version:'2026-11-12-v110-early-shadow-v5',
  oldestMinutesLimit:1000,sampleEveryMinutes:1,
  sameSymbolTenMinuteDedup:true,
  futureMinuteHorizons:[5,15],
@@ -129,6 +130,10 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
      (one[index].close-reference)/reference);
   }
   if(item.m15===null){missingOutcome++;continue;}
+  item.scenarioOutcome=outcomeOfEarlyScenario(
+    {direction:f.direction,trigger:f.triggerPrice,
+     invalidation:f.invalidationPrice},
+    one.slice(i+1,i+16),asOf);
   item.firstFavorable10=null;item.firstAdverse10=null;
   for(let k=1;k<=15;k++){
    const move=10000*signed*(one[i+k].close-reference)/reference;
@@ -257,6 +262,13 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
   v110HypotheticalConfirmation:v110Shadow,
   v110Within15m,
   anchoredWithin15m,
+  triggerBeforeCancellation:{
+   mode:EARLY_OUTCOME_POLICY.version,
+   baseline:summarizeEarlyOutcomes(baseline.map(x=>x.scenarioOutcome)),
+   noObstacleOrRejection:summarizeEarlyOutcomes(clear.map(x=>x.scenarioOutcome)),
+   obstacleOrRejection:summarizeEarlyOutcomes(caution.map(x=>x.scenarioOutcome)),
+   uncertain:summarizeEarlyOutcomes(unknown.map(x=>x.scenarioOutcome))
+  },
   baseline:aggregate(baseline),noObstacleOrRejection:aggregate(clear),
   obstacleOrRejection:aggregate(caution),uncertainEvidence:aggregate(unknown),
   cautionReasons:Object.fromEntries([...new Set(caution.map(x=>x.reason))].map(
