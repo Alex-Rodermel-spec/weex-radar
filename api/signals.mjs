@@ -244,6 +244,12 @@ export default async function handler(req,res){
   const {handleStandaloneForecast}=await import('../lib/standalone-forecast.mjs');
   return handleStandaloneForecast(req,res,FORECAST_SYMBOLS);
  }
+ if(req.query?.mode==='forecast-filter-replay'){
+  // On-demand, per-symbol, read-only replay on closed public WEEX candles.
+  // Does not run in the forecast cron or alter delivery/trading decisions.
+  const {handleForecastFilterReplay}=await import('../lib/forecast-filter-replay.mjs');
+  return handleForecastFilterReplay(req,res,FORECAST_SYMBOLS);
+ }
  if(req.query?.mode==='early'){
   const {handleEarlyWatch}=await import('../lib/early-watch.mjs');
   return handleEarlyWatch(req,res);
