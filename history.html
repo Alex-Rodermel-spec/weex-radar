@@ -113,6 +113,13 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <div class="table-box"><table><thead><tr><th>Новые прогнозы с 12.11</th><th>Прогнозов</th><th>5м после</th><th>15м после</th><th>Можно сравнивать?</th></tr></thead><tbody id="fastTimingGroups"></tbody></table></div>
  <p class="muted">Тестируем также, пропускает ли V3 PASS быстрое движение до уведомления. «Уже прошло» означает движение от более ранней закрытой цены до округлённой цены прогноза — это <b>возможное опоздание</b>, а не точное время начала тренда. Сильный сигнал не считается ранним автоматически. Данных для включения нового фильтра пока недостаточно; нужны проверка на одинаковых монетах и направлениях и новая независимая выборка. Никаких автосделок.</p>
 </section>
+<section class="card" aria-labelledby="forecast-lead-title">
+ <h2 id="forecast-lead-title">🔎 Наша гипотеза: прогноз за 15–19 минут до движения?</h2>
+ <p class="muted">Только реально отправленные прогнозы ntfy, <b>все 30 минут последующих закрытых свечей</b>, первое достижение +0,10% в указанном направлении. Сравниваем разные периоды БЕЗ двойного подсчёта 15-й минуты. Важно: первое достижение уровня — не доказательство начала движения и не цена сделки.</p>
+ <p id="forecastLeadSummary" role="status" class="muted">Считаем независимый тест с 12 ноября 2026.</p>
+ <div class="table-box"><table><thead><tr><th>Первое достижение +0,10% после прогноза</th><th>Новых прогнозов</th><th>Исторически</th></tr></thead><tbody id="forecastLeadBuckets"></tbody></table></div>
+ <p id="forecastLeadCaveat" class="muted">Для честной проверки дополнительно исключаем случаи, где движение уже прошло до уведомления или сначала произошёл противоположный импульс. Отсутствующие исторические свечи не засчитываются как успех или поражение.</p>
+</section>
 <section class="card" aria-labelledby="forecast-hours-title">
  <h2 id="forecast-hours-title">🕒 В какие часы прогнозист работает лучше?</h2>
  <p class="muted">Время <strong>реальной публикации прогноза ntfy</strong> по Берлину (CET/CEST), а не время открытия графика. Только закрытые свечи WEEX: 6 интервалов по четыре часа и отдельно все 24 часа. Период 30/90 дней выбирается сверху страницы.</p>
@@ -386,6 +393,43 @@ function display(){
    (forwardTiming.v2Clear.readyForResearchReview?'можно изучать, пока не боевой фильтр':'ещё мало сопоставимых данных')+
    '. Исходные уведомления и работа V3 не изменены.':
   'Исследование пока не загружено; уведомления WEEX продолжают работать.';
+ const lead=forecast?.leadWindowAudit;
+ const fw=lead?.forwardValidation;
+ const hist=lead?.historicalExploration;
+ const leadRows=$('forecastLeadBuckets');leadRows.replaceChildren();
+ for(const [key,label] of [
+  ['1_TO_5','1–5 минут'],['6_TO_9','6–9 минут'],
+  ['10_TO_14','10–14 минут'],['15_TO_19','15–19 минут'],
+  ['20_TO_30','20–30 минут'],['NEVER_30M','Не достигнуто за 30 минут']
+ ]){
+  const tr=document.createElement('tr');
+  for(const value of [label,fw?.firstCrossingBuckets?.[key]??0,
+   hist?.firstCrossingBuckets?.[key]??0]){
+   const cell=document.createElement('td');
+   cell.textContent=String(value);tr.appendChild(cell)
+  }
+  leadRows.appendChild(tr);
+ }
+ const count=fw?.target15to19;
+ $('forecastLeadSummary').textContent=fw?
+  'Новые опубликованные прогнозы: '+fw.published+
+  ', полных 30-минутных наблюдений: '+fw.complete30m+
+  '. Первое достижение +0,10% на 15–19-й минуте: '+count.reached+
+  (count.pctAllComplete===null?'':' ('+pct(count.pctAllComplete)+' от всех полных наблюдений)')+
+  '. Не найдено предшествующего движения ≥0,10% и более раннего противоположного импульса: '+
+  count.noPriorExtensionAndNoEarlierAdverse+
+  '. Неполные 30-минутные наблюдения: '+fw.incomplete30m+
+  '. Это не подтверждённое преимущество и не доказательство точного начала тренда.':
+  'Исследование 15–19 минут пока недоступно, на отправку сигналов не влияет.';
+ $('forecastLeadCaveat').textContent=fw?
+  'Среди кандидатов 15–19м: движение уже было до уведомления — '+
+  count.alreadyExtendedBeforeAlert+
+  ', недостаточно истории перед уведомлением — '+count.unknownPriorHistory+
+  ', раньше было противоположное движение ≥0,10% — '+count.earlierAdverseCrossing+
+  '. По направлениям: LONG '+fw.byDirection.LONG.reached15to19+
+  ', SHORT '+fw.byDirection.SHORT.reached15to19+
+  '. Нет независимого рынка без уведомления для контрольного сравнения. V3 и рабочие уведомления не меняются.':
+  'Данных пока нет.';
  const hourly=forecast?.berlinTimeOfDay;
  const fmtTimeMetric=v=>v?.observed?
   pct(v.favorablePct)+' ('+v.favorable+'/'+v.observed+')':'—';
