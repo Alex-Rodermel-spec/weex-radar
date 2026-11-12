@@ -98,10 +98,10 @@ test('unsupported 30 markets never borrow BTC/ETH Greeks or place orders',async(
  assert.equal(invalid.code,400);
 });
 test('stale/invalid or internally inconsistent option Greeks fail closed',async()=>{
- const outdated=async x=>({...x,timestamp:now-600_000});
+ const outdated=x=>({...x,timestamp:now-600_000});
  await assert.rejects(readGreeksShadow('BTCUSDT',{now,fetchImpl:fakeFetcher([],outdated)}),
   /NO_FRESH_MATCHED_OPTION_QUOTES/);
- const badGreeks=async x=>({...x,greeks:{...x.greeks,gamma:-100}});
+ const badGreeks=x=>({...x,greeks:{...x.greeks,gamma:-100}});
  await assert.rejects(readGreeksShadow('BTCUSDT',{now,fetchImpl:fakeFetcher([],badGreeks)}),
   /NO_FRESH_MATCHED_OPTION_QUOTES/);
  const responseObj=response();
