@@ -101,4 +101,7 @@ test('market-specific 1m/3m timing rules cannot loosen original 10bps chase defe
  assert.equal(m.adaptiveReady,true);
  assert.equal(m.legacyLateRisk,true);
  assert.equal(m.lateRisk,true);
+ assert.equal(m.threshold1mBps,10);
+ assert.equal(m.threshold3mBps,10);
+ assert.ok(m.profileThreshold3mBps>10);
 });
