@@ -15,7 +15,7 @@ function rows({rebound=false,gap=false}={}){
  if(gap)one[8].closeTime+=1000;
  const five=Array.from({length:16},(_,i)=>{
   const close=101-i*.12;
-  return {close,open:close+.07,closeTime:T-(15-i)*FIVE};
+  return {close,open:close+.20,closeTime:T-(15-i)*FIVE};
  });
  if(rebound)five[15]={...five[15],open:98.0,close:98.6};
  return {one,five};
