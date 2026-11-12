@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {normalizeForecastMinutes,evaluatePublishedForecast,
- normalizeForecastArchiveRow,mergeForecastArchive,summarizeForecastArchive
+ normalizeForecastArchiveRow,mergeForecastArchive,summarizeForecastArchive,
+ recoverArchivedForecasts
 } from '../lib/forecast-journal.mjs';
 import {fastArrivalStatus,forecastTimingAudit} from '../lib/forecast-timing-audit.mjs';
 
@@ -112,4 +113,36 @@ test('read-only timeline panel isolates phone, cron, forecast generation and all
  for(const banned of [/trade-confirm/,/placeOrder/,/\/order/,/WEEX_API_SECRET/,
    /ntfySend/,/push-dispatch/,/process\.env/,/fetch\(/])
   assert.doesNotMatch(src,banned);
+});
+
+test('six-request historical writer repairs missing 1m/3m only within 12h forward cohort',async()=>{
+ const completed=evaluatePublishedForecast(forecast,normalizeForecastMinutes(fakeBars(),now),now);
+ assert.ok(completed.preMove5mBps!==null&&completed.preMove15mBps!==null);
+ assert.ok([5,10,15,20,30].every(h=>completed.windows[h].status==='OBSERVED'));
+ assert.ok([1,2,3].every(h=>completed.aligned5m[h].status==='OBSERVED'));
+ const legacy={...completed};
+ delete legacy.preMove1mBps;delete legacy.preMove3mBps;
+ const later=at+3*60*MIN;
+ const calls=[];
+ const fetchImpl=async url=>{
+  calls.push(String(url));
+  return {ok:true,text:async()=>JSON.stringify(fakeBars())};
+ };
+ const repaired=await recoverArchivedForecasts([legacy],later,{fetchImpl});
+ assert.equal(repaired.attempted,1);
+ assert.equal(repaired.failed,0);
+ assert.equal(repaired.rows.length,1);
+ assert.equal(calls.length,1);
+ assert.match(calls[0],/\/market\/historyKlines\?/);
+ assert.ok(repaired.rows[0].preMove1mBps>=10);
+ assert.ok(repaired.rows[0].preMove3mBps>=10);
+ const merged=mergeForecastArchive([legacy],repaired.rows,later);
+ assert.equal(merged.rows.length,1);
+ assert.equal(merged.rows[0].preMove1mBps,repaired.rows[0].preMove1mBps);
+ assert.equal(merged.rows[0].windows[5].moveBps,completed.windows[5].moveBps);
+ const tooOld=await recoverArchivedForecasts([legacy],at+14*60*MIN,{
+  fetchImpl:async()=>{throw Error('expired candidate must not fetch')}
+ });
+ assert.equal(tooOld.attempted,0,
+  'new short-timing fields must not cause perpetual old-archive recovery');
 });
