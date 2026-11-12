@@ -56,12 +56,13 @@ test('1m/3m prior metrics use closed candles BEFORE message, not outcome leakage
  assert.equal(partial.preMove3mBps,full.preMove3mBps);
  assert.equal(partial.windows[30].status,'PENDING');
  assert.equal(full.windows[30].status,'OBSERVED');
- const gaps=fakeBars().filter((_,i)=>i!==14);
+ const gaps=fakeBars().filter((_,i)=>i!==12);
  const gap=evaluatePublishedForecast(forecast,
   normalizeForecastMinutes(gaps,now),now);
- assert.equal(gap.preMove1mBps,null);
+ assert.ok(gap.preMove1mBps>=10);
+ assert.equal(gap.preMove3mBps,null);
  assert.equal(fastArrivalStatus(gap),'ALREADY_EXTENDED',
-  'A complete 3m window can still report evidence of past extension');
+  'A fully observed 1m burst may remain known even if 3m candles have a gap');
 });
 test('old encrypted archive fields remain UNKNOWN and are backfilled without erasing measured outcomes',()=>{
  const complete=evaluatePublishedForecast(forecast,
