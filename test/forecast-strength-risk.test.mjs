@@ -31,7 +31,8 @@ test('strong requires agreement, volume, correct structure, no late-entry risk',
  assert.equal(q.calibratedProbability,false);
  assert.equal(FORECAST_RISK_LABELS[q.level],'🟣 СИЛЬНЫЙ ПРОГНОЗ');
  const m=forecastMessage(sample());
- assert.match(m.title,/СИЛЬНЫЙ ПРОГНОЗ/);
+ assert.match(m.title,/ОБЫЧНЫЙ ПРОГНОЗ/);
+ assert.match(m.message,/вход на 5М ещё НЕ подтверждён/);
  assert.match(m.message,/не гарантия/);
  assert.match(m.message,/НЕ сигнал входа/);
 });
