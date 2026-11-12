@@ -399,3 +399,37 @@ test('new WEEX markets are archived as forecasts but are not trading radar marke
  assert.match(script,/id="forecast15to19"/);
  assert.match(script,/\[1,5,10,15,20,30\]/);
 });
+
+test('rolling 24h counts only exact prior day and gives ordinary LONG/SHORT first 0.1% times',()=>{
+ const base=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),now),now);
+ assert.equal(base.windows[30].status,'OBSERVED');
+ const mk=(id,ageMin,strength,direction,first,adverse,pre5)=>({
+  ...base,id:id.repeat(32),sentAt:now-ageMin*MIN,strength,direction,
+  firstFavorable10bpsMinute:first,firstAdverse10bpsMinute:adverse,
+  preMove5mBps:pre5
+ });
+ const input=[
+  mk('1',65,'STANDARD','SHORT',3,null,15),
+  mk('2',175,'STANDARD','LONG',17,4,-2),
+  mk('3',1200,'STRONG','LONG',null,6,0),
+  mk('4',1500,'STANDARD','SHORT',2,null,25)
+ ];
+ const study=summarizeForecastArchive(input,now);
+ const rolling=study.windows[1];
+ assert.ok(rolling);
+ assert.equal(rolling.total,3);
+ assert.equal(study.windows[30].total,4);
+ const standard=rolling.byStrength.STANDARD;
+ assert.equal(standard.total,2);
+ assert.equal(standard.byDirection.LONG.total,1);
+ assert.equal(standard.byDirection.SHORT.total,1);
+ assert.equal(standard.before5m.already10bps,1);
+ assert.equal(standard.firstMove30m.complete30m,2);
+ assert.equal(standard.firstMove30m.reached10bps,2);
+ assert.equal(standard.firstMove30m.in1to5,1);
+ assert.equal(standard.firstMove30m.in16to20,1);
+ assert.equal(standard.firstMove30m.medianMinutesIfReached,10);
+ assert.equal(standard.firstMove30m.favorableBeforeAdverse,1);
+ assert.equal(standard.firstMove30m.adverseBeforeFavorable,1);
+ assert.equal(rolling.byStrength.STRONG.firstMove30m.noFavorable10bps,1);
+});
