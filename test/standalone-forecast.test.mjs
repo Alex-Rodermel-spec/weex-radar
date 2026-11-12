@@ -43,6 +43,10 @@ test('forecasts on 1m 5m and completed 10m are independent, not orders',()=>{
  assert.ok(d.timeframes.every(x=>x.bollinger20.upper>=x.bollinger20.lower));
  assert.equal(d.primaryContext.actualLiquidityUnknown,true);
  assert.equal(d.primaryContext.orderBookChecked,false);
+ assert.equal(d.filterOverlapStudy.available,true);
+ assert.equal(d.filterOverlapStudy.ordersSent,0);
+ assert.equal(d.filterOverlapStudy.tradeSignal,false);
+ assert.equal(d.filterOverlapStudy.overlap.tenMinuteDerivedFromFiveMinute,true);
 });
 test('downtrend independently yields SHORT bias; no trading levels',()=>{
  const d=buildStandaloneForecast(
