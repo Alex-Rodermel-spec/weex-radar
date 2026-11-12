@@ -66,7 +66,7 @@ test('forecast API exposes shadow data without changing trade or alert modules',
 
 test('forecast dashboard visibly distinguishes normal and late STANDARD V2 reviews',()=>{
  const page=readFileSync(new URL('../forecast.html',import.meta.url),'utf8');
- const section=page.match(/function riskLabel\(q,v2\)\{[\s\S]*?\n\}\nfunction showDetail/);
+ const section=page.match(/function riskLabel\(q,v2,arrival\)\{[\s\S]*?\n\}\nfunction showDetail/);
  assert.ok(section,'riskLabel function found in forecast dashboard');
  const fn=section[0].replace(/\nfunction showDetail$/,'');
  const label=v2=>runInNewContext(fn+'\nriskLabel({level:"STANDARD"},v2)',
