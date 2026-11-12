@@ -66,7 +66,7 @@ test('full scan explains each market without inventing LONG/SHORT on no-setup da
  assert.equal(d.phonePolicy.earlyToPhone,false);
  assert.equal(d.ordersSent,0);
 });
-test('cron does not emit forecast or skip messages, but keeps silent diagnostics',()=>{
+test('cron emits prebreak ordinary alerts without skip/followup spam',()=>{
  const push=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
  const early=readFileSync(new URL('../lib/early-push.mjs',import.meta.url),'utf8');
  const health=readFileSync(new URL('../lib/health-route.mjs',import.meta.url),'utf8');
@@ -77,7 +77,8 @@ test('cron does not emit forecast or skip messages, but keeps silent diagnostics
  assert.match(push,/filterPhoneCandidates\(withFreshQuote,Date\.now\(\)\)/);
  assert.match(push,/ntfySend\('confirmed',signals\)/);
  assert.match(early,/export async function observeEarlyPush/);
- assert.match(early,/suppressedNotifications:detected.length/);
+ assert.match(early,/suppressedNotifications:Math.max/);
+ assert.match(early,/await ntfySend\('early',forecasts.slice\(0,2\)\)/);
  assert.match(health,/fullForecastDiagnostics\(marketResult.value,now\)/);
  assert.match(monitor,/recorded-in-diagnostics-only/);
  assert.doesNotMatch(monitor,/await publishNtfy\(main/);

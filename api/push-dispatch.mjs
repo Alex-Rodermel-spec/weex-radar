@@ -7,6 +7,7 @@ import {_test as marketSafety} from './signals.mjs';
 import {observeEarlyPush} from '../lib/early-push.mjs';
 import {runForecastNotifications} from '../lib/forecast-ntfy.mjs';
 import {ntfySend} from '../lib/ntfy-alerts.mjs';
+import {linkConfirmedForecasts} from '../lib/two-stage-confirmation.mjs';
 import {adviseSymbol} from '../lib/advisor.mjs';
 import {filterPhoneCandidates,PHONE_POLICY} from '../lib/directional-notification-policy.mjs';
 import {checkEntryLevels} from '../lib/entry-quality.mjs';
@@ -140,11 +141,17 @@ export default async function handler(req,res){
   }));
   const withFreshQuote=checked.filter(Boolean);
   const review=filterPhoneCandidates(withFreshQuote,Date.now());
-  const signals=review.accepted;
+  // STRONG needs a REAL earlier ordinary PRE_BREAK notification plus closed 5m.
+  // If early history is absent, the safe fallback label is NORMAL.
+  const twoStage=await linkConfirmedForecasts(review.accepted,{now:Date.now()});
+  const signals=twoStage.signals;
   const directionalDiagnostics={
    ...review.diagnostics,rawCandidates:candidates.length,
    recheckRejected:candidates.length-withFreshQuote.length,
-   sentToNtfy:signals.length
+   sentToNtfy:signals.length,
+   strongAfterOrdinary:twoStage.linked,
+   strongDowngradedWithoutEvidence:twoStage.downgraded,
+   earlyHistoryAvailable:twoStage.historyAvailable
   };
   console.info('WEEX_RADAR_DIRECTIONAL_GATE '+JSON.stringify(directionalDiagnostics));
   // Only fresh, cost-reviewed, manually REVIEW-rated 5m directional

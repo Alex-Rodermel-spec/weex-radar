@@ -102,7 +102,7 @@ test('production-like ntfy sends non-late candidate instead of late STRONG, at s
  assert.equal(result.delivered,2);
  assert.deepEqual(messages.map(x=>x.title.split(' · ')[1]),[
   'ETHUSDT SHORT','SOLUSDT SHORT']);
- assert.ok(messages.every(x=>x.title.includes('СИЛЬНЫЙ ПРОГНОЗ')));
+ assert.ok(messages.every(x=>x.title.includes('ОБЫЧНЫЙ ПРОГНОЗ')));
  assert.ok(messages.every(x=>x.message.includes('НЕ сигнал входа')));
  assert.equal(result.ordersSent,0);
  assert.equal(result.notATrade,true);

@@ -47,7 +47,7 @@ test('only coherent fresh three-timeframe directional forecasts qualify',()=>{
 });
 test('notification clearly separates forecast hypothesis from LONG/SHORT entry',()=>{
  const m=forecastMessage(fixture());
- assert.match(m.title,/^🔮 🟣 СИЛЬНЫЙ ПРОГНОЗ · BTCUSDT SHORT$/u);
+ assert.match(m.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT SHORT$/u);
  assert.match(m.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./);
  assert.match(m.message,/1М \/ 5М \/ 10М/);
  assert.match(m.message,/НЕ сигнал входа/);
@@ -72,7 +72,7 @@ test('plain-language forecast action keeps ntfy title, V2 and encrypted journal 
   title:msg.title,message:msg.message
  },forecastTopic(env),now);
  const old=record(m);
- assert.equal(old.strength,'STRONG');
+ assert.equal(old.strength,'STANDARD');
  assert.equal(old.direction,'SHORT');
  assert.equal(old.reference,99.5);
  assert.equal(old.v2Timing,'UNKNOWN');
@@ -89,12 +89,12 @@ test('plain-language forecast action keeps ntfy title, V2 and encrypted journal 
  assert.match(unsafe.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./);
 });
 
-test('V2 timing line is informational and never changes forecast title or trade status',()=>{
+test('V2 timing line never turns observation into strong 5m confirmation',()=>{
  const strong=fixture();
  strong.strongV2Review={baselineLevel:'STRONG',sampleReady:true,
   status:'REVIEW_DOWNGRADE',proposedLevel:'STANDARD'};
  const late=forecastMessage(strong);
- assert.match(late.title,/^🔮 🟣 СИЛЬНЫЙ ПРОГНОЗ · BTCUSDT SHORT$/u);
+ assert.match(late.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT SHORT$/u);
  assert.match(late.message,/V2: возможное опоздание/);
  assert.match(late.message,/НЕ сигнал входа/);
  assert.doesNotMatch(late.message,/SL \d|TP \d/);
@@ -172,7 +172,7 @@ test('owner gets one onboarding message in old topic; forecasts go ONLY to deriv
  assert.equal(forecasts.length,2);
  assert.ok(configs[0].click.startsWith('ntfy://ntfy.sh/'));
  assert.match(configs[0].message,/отдельные прогнозы/);
- assert.ok(forecasts.every(x=>x.title.startsWith('🔮 🟣 СИЛЬНЫЙ ПРОГНОЗ')&&
+ assert.ok(forecasts.every(x=>x.title.startsWith('🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ')&&
   /НЕ сигнал входа/.test(x.message)));
  assert.ok(events.every(x=>!x.message.includes('API_SECRET')));
  const nextHistory=async url=>{
