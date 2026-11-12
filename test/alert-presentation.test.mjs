@@ -3,10 +3,19 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {alertPresentation,formatPhoneAlert,priceText} from '../lib/alert-presentation.mjs';
 import {COST_MIN_NET_RR} from '../lib/net-costs.mjs';
-const base={symbol:'XAUTUSDT',exchange:'WEEX',direction:'SHORT',level:'NORMAL',
+const base={symbol:'XAUTUSDT',exchange:'WEEX',direction:'SHORT',level:'STRONG',
  livePrice:4049.05,stop:4050.0042,take:4047.1116,expiresAt:Date.now()+180000};
 const cost={mode:'SHADOW_COSTS',status:'PASS_ESTIMATE',netRR:1.8};
 const retest={SHORT:{status:'CONFIRMED',trendAligned:true}};
+test('V110 ordinary can warn but never greenlight an entry',()=>{
+ const ordinary=alertPresentation({...base,level:'NORMAL',retest,costReview:cost});
+ assert.equal(ordinary.status,'WAIT');
+ assert.match(ordinary.title,/🟡 ЖДАТЬ/);
+ assert.match(ordinary.reason,/Обычный прогноз/);
+ const notice=formatPhoneAlert({...base,level:'NORMAL',retest,costReview:cost});
+ assert.match(notice.message,/НЕ ВХОДИ/);
+ assert.doesNotMatch(notice.title,/🟢 ПРОВЕРИТЬ/);
+});
 test('four independent signal/risk presentation variants',()=>{
  const green=alertPresentation({...base,retest,costReview:cost});
  assert.equal(green.status,'CHECK');
