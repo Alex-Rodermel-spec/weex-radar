@@ -175,7 +175,8 @@ const RISK_REASON_LABELS={
 };
 function riskLabel(q,v2,arrival){
  if(!q||q.level==='UNAVAILABLE')return '⚪ Нет согласованного прогноза';
- if(v2?.status==='REVIEW_DOWNGRADE'&&['STRONG','STANDARD'].includes(v2.baselineLevel)||
+ if(v2?.status==='REVIEW_DOWNGRADE'&&
+    ['STRONG','STANDARD'].includes(q.level)&&v2.baselineLevel===q.level||
     arrival?.sampleReady===true&&arrival.lateRisk===true)
   return '🟡 V2: возможное опоздание · НЕ отправляется в прогнозный ntfy-канал';
  if(q.level==='STRONG')return '🟣 Сильный (эвристика, не гарантия)' +
