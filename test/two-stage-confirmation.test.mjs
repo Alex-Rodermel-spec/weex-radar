@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {TWO_STAGE_POLICY,expectedPrebreakIds,
+import {TWO_STAGE_POLICY,STRONG_MIN_OPPOSING_ROOM_R,checkStrongLevelRoom,expectedPrebreakIds,
  classifyTwoStageConfirmation,linkConfirmedForecasts}
  from '../lib/two-stage-confirmation.mjs';
 
@@ -14,7 +14,13 @@ function signal(patch={}){
  return {symbol:'XRPUSDT',exchange:'WEEX',status:'ok',
   level:'STRONG',direction:'SHORT',candleCloseTime:CLOSE,
   expiresAt:CLOSE+180_000,indicators:{volumeRatio:1.6},
-  closedFiveMinuteMoveBps:18,price:99.4,entryQuality:{ok:true},
+  closedFiveMinuteMoveBps:18,price:99.4,livePrice:99.4,
+  stop:100.4,take:97.4,
+  entryQuality:{ok:true,nearestLevel:null},
+  levelReview:{mode:'CLOSED_5M_OBSERVATION',interval:'5m',
+    candleCloseTime:CLOSE,support:99.85,resistance:101,
+    candleState:'BREAK_DOWN',breakoutDirection:'SHORT',
+    closeQuality:'SUPPORTED',recentFakeouts:{LONG:null,SHORT:null}},
   advisor:{status:'REVIEW'},costReview:{status:'PASS_ESTIMATE'},
   retest:{SHORT:{status:'UNKNOWN'}},...patch};
 }
@@ -120,6 +126,29 @@ test('V110 does not claim STRONG without closed post-alert 1m evidence',()=>{
  assert.equal(result.level,'NORMAL');
  assert.equal(result.twoStage.reason,'MINUTE_EVIDENCE_MISSING');
 });
+test('109 + 110 integration: 5m levels and 1m continuation BOTH required',()=>{
+ const s=signal(),notice=earlyNotice(s),minutes=sampleMinutes();
+ assert.equal(STRONG_MIN_OPPOSING_ROOM_R,1.5);
+ assert.equal(checkStrongLevelRoom(s).ok,true);
+ const clear=classifyTwoStageConfirmation(s,[notice],NOW,minutes);
+ assert.equal(clear.level,'STRONG');
+ const slip={...s,livePrice:99.95};
+ assert.equal(classifyTwoStageConfirmation(slip,[notice],NOW,minutes).twoStage.reason,
+   'BROKEN_LEVEL_NOT_HELD');
+ const blocked={...s,entryQuality:{ok:true,nearestLevel:98.9}};
+ assert.equal(classifyTwoStageConfirmation(blocked,[notice],NOW,minutes).twoStage.reason,
+   'OPPOSING_PIVOT_TOO_CLOSE');
+ assert.equal(classifyTwoStageConfirmation({...s,levelReview:{...s.levelReview,
+    closeQuality:'WEAK'}},[notice],NOW,minutes).twoStage.reason,
+   'FIVE_MINUTE_BREAKOUT_NOT_SUPPORTED');
+ const candleReversal=minutes.map(x=>({...x}));
+ candleReversal[4]={...candleReversal[4],open:99.6,high:99.82,
+   low:99.38,close:99.80};
+ assert.equal(classifyTwoStageConfirmation({...s,price:99.80},
+   [notice],NOW,candleReversal).twoStage.reason,
+   'LAST_MINUTE_REVERSAL');
+});
+
 test('ordinary historical signals are never promoted into strong',()=>{
  const s=signal({level:'NORMAL'});
  assert.equal(classifyTwoStageConfirmation(s,[earlyNotice(s)],NOW),s);
