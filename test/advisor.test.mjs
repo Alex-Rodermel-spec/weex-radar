@@ -16,11 +16,11 @@ const signal=(direction='SHORT')=>({
  indicators:{trend15:direction==='LONG'?'UP':'DOWN'}
 });
 
-test('both LONG and SHORT may be reviewed; strength is NOT the decision',()=>{
+test('V110: LONG and SHORT require STRONG for manual REVIEW',()=>{
  for(const direction of ['LONG','SHORT']){
   const s=signal(direction);
   assert.equal(adviseSymbol(s,NOW).status,'REVIEW');
-  assert.equal(adviseSymbol({...s,level:'NORMAL'},NOW).status,'REVIEW');
+  assert.equal(adviseSymbol({...s,level:'NORMAL'},NOW).status,'WAIT');
   assert.equal(adviseSymbol({...s,level:'STRONG',costReview:{
    ...s.costReview,status:'LOW_NET_RR',netRR:1.03
   }},NOW).status,'SKIP');
