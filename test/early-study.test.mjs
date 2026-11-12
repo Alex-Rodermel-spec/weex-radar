@@ -103,10 +103,10 @@ test('V108 real ordinary PRE_BREAK format is parsed with published WEEX levels',
  const old=notify({kind:'PRE_BREAK'});
  const modern={...old,
   title:'🔮 ПРОГНОЗ · BTCUSDT SHORT · 🔵 ОБЫЧНЫЙ · 🟡 ЖДАТЬ',
-  message:'👀 НАБЛЮДАЙ. НЕ ВХОДИТЬ.\\n📉 Возможное ПАДЕНИЕ · WEEX\\n'+
-   'WEEX · 📍 Сейчас: 100 USDT\\n'+
-   '🔑 Подтверждение: ниже 99,5\\n'+
-   '❌ Отмена сценария: выше 101,25\\n'+
+  message:'👀 НАБЛЮДАЙ. НЕ ВХОДИТЬ.\n📉 Возможное ПАДЕНИЕ · WEEX\n'+
+   'WEEX · 📍 Сейчас: 100 USDT\n'+
+   '🔑 Подтверждение: ниже 99,5\n'+
+   '❌ Отмена сценария: выше 101,25\n'+
    '⏳ Жди отдельного подтверждения 5М.'
  };
  const parsed=parseEarlyNotification(modern);
