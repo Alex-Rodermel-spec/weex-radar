@@ -433,3 +433,31 @@ test('rolling 24h counts only exact prior day and gives ordinary LONG/SHORT firs
  assert.equal(standard.firstMove30m.adverseBeforeFavorable,1);
  assert.equal(rolling.byStrength.STRONG.firstMove30m.noFavorable10bps,1);
 });
+
+test('six asset groups and post-rollout 30m measurements are independent, including empty groups',()=>{
+ const base=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),now),now);
+ const assessmentNow=Date.UTC(2026,10,12,16,0);
+ const sample=(id,symbol,level,at)=>({
+  ...base,id:id.repeat(32),symbol,strength:level,sentAt:at,
+  firstFavorable10bpsMinute:4,firstAdverse10bpsMinute:9,
+  preMove5mBps:4
+ });
+ const early=sample('1','BTCUSDT','STRONG',Date.UTC(2026,10,12,14,20));
+ const recent=sample('2','1000PEPEUSDT','STANDARD',Date.UTC(2026,10,12,15,10));
+ const metal=sample('3','XAUUSDT','STANDARD',Date.UTC(2026,10,12,15,15));
+ const equity=sample('4','CSCOUSDT','STRONG',Date.UTC(2026,10,12,15,20));
+ const a=summarizeForecastArchive([early,recent,metal,equity],assessmentNow).windows[1];
+ assert.equal(a.total,4);
+ assert.equal(Object.keys(a.byMarketGroup).length,6);
+ assert.equal(Object.values(a.byMarketGroup).reduce((sum,x)=>sum+x.total,0),4);
+ assert.deepEqual(a.byMarketGroup.MEME_CRYPTO.symbols,['1000PEPEUSDT']);
+ assert.equal(a.byMarketGroup.MEME_CRYPTO.byStrength.STANDARD.total,1);
+ assert.equal(a.byMarketGroup.METALS.at30m.observed,1);
+ assert.equal(a.byMarketGroup.EQUITY_DERIVED.byStrength.STRONG.at30m.observed,1);
+ assert.equal(a.byMarketGroup.FX_DERIVED.total,0);
+ assert.equal(a.byMarketGroup.FX_DERIVED.at30m.favorablePct,null);
+ assert.equal(a.postSafeguardCohort.count,3);
+ assert.equal(a.postSafeguardCohort.at30m.observed,3);
+ assert.equal(a.postSafeguardCohort.byMarketGroup.MAJOR_CRYPTO.total,0);
+ assert.match(a.postSafeguardCohort.labeling,/NOT persisted build version/);
+});
