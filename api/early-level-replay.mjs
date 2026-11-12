@@ -15,7 +15,7 @@ const rounded=(v,d=2)=>num(v)?Number(v.toFixed(d)):null;
 const pct=(n,d)=>d?rounded(100*n/d,1):null;
 const sign=s=>s==='LONG'?1:-1;
 export const EARLY_REPLAY_POLICY=Object.freeze({
- version:'2026-11-12-v110-early-shadow-v2',
+ version:'2026-11-12-v110-early-shadow-v3',
  oldestMinutesLimit:1000,sampleEveryMinutes:1,
  sameSymbolTenMinuteDedup:true,
  futureMinuteHorizons:[5,15],
@@ -80,6 +80,10 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
   one.length<140||five.length<80||fifteen.length<80)
   return {available:false,reason:'INSUFFICIENT_CLOSED_WEEX_HISTORY',symbol};
  const baseline=[],clear=[],caution=[],unknown=[];
+ const v110Within15m={scenarios:0,any5mStrongSameSide:0,
+  anyValidMinutePath:0,linkedStrongWithMinute:0,
+  firstLinkedAtMinutes:{},noOrders:true,
+  simulatedNoticeNotRealNtfy:true};
  const v110Shadow={scenarios:0,minutePass:0,minuteRejected:0,
   skippedTooNear5mClose:0,strong5mSameSide:0,joined5mAnd1m:0,
   joinedObservedNext5m:0,joinedFavorableNext5m:0,
@@ -171,6 +175,42 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
     }
    }
   }
+  // Test ALL 5m closes within the 15-minute live pairing window, not
+  // just the first. This is a COUNTERFACTUAL based on an invented one-second
+  // notice arrival, with no claim that ntfy actually published this scenario.
+  v110Within15m.scenarios++;
+  const firstClose=Math.floor(asOf/(5*MIN))*(5*MIN)+5*MIN;
+  let seenStrong=false,seenMinute=false,seenLinked=false;
+  for(let step=0;step<3;step++){
+   const target=firstClose+step*5*MIN;
+   if(target>asOf+15*MIN||target-asOf<3*MIN)continue;
+   const last5=five.find(c=>c.closeTime===target);
+   const quote=one.find(c=>c.closeTime===target);
+   const fiveHist=five.filter(c=>c.closeTime<=target).slice(-125);
+   const fifteenHist=fifteen.filter(c=>c.closeTime<=target).slice(-125);
+   if(!last5||!quote||fiveHist.length<60||fifteenHist.length<60)
+    continue;
+   const check=validateV110MinuteContinuation({
+     direction:f.direction,candleCloseTime:target,price:last5.close
+    },{sentAt:asOf+1000,trigger:f.triggerPrice,
+      invalidation:f.invalidationPrice},
+     one.filter(c=>c.time>=asOf+MIN&&c.closeTime<=target));
+   if(check.ok)seenMinute=true;
+   const radar5=radar.getAnalysis(fiveHist,fifteenHist,quote.close,
+     target+1000);
+   const strong=radar5.direction===f.direction&&radar5.level==='STRONG';
+   if(strong)seenStrong=true;
+   if(strong&&check.ok){
+    seenLinked=true;
+    const lag=Math.round((target-asOf)/MIN);
+    v110Within15m.firstLinkedAtMinutes[lag]=
+      (v110Within15m.firstLinkedAtMinutes[lag]||0)+1;
+    break;
+   }
+  }
+  if(seenStrong)v110Within15m.any5mStrongSameSide++;
+  if(seenMinute)v110Within15m.anyValidMinutePath++;
+  if(seenLinked)v110Within15m.linkedStrongWithMinute++;
   baseline.push(item);
   if(shadow.status==='CAUTION')caution.push(item);
   else if(shadow.status==='CLEAR')clear.push(item);
@@ -182,6 +222,7 @@ export function replayEarlyLevelShadow(one,five,fifteen,{symbol}={}){
   earlyCheapCandidates:candidateCount,fullPrebreakCandidates:fullCount,
   continuitySkipped,missingOutcome,
   v110HypotheticalConfirmation:v110Shadow,
+  v110Within15m,
   baseline:aggregate(baseline),noObstacleOrRejection:aggregate(clear),
   obstacleOrRejection:aggregate(caution),uncertainEvidence:aggregate(unknown),
   cautionReasons:Object.fromEntries([...new Set(caution.map(x=>x.reason))].map(
