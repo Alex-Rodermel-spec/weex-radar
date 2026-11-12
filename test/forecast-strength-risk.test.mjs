@@ -83,7 +83,8 @@ test('web dashboard shows risk and strong labels without placing trades',()=>{
  assert.match(page,/ПОВЫШЕННЫЙ РИСК|Повышенный риск/);
  assert.match(page,/Сильный \(эвристика/);
  assert.match(page,/forecastStrengthAndRisk:d.strengthRisk/);
- assert.match(backend,/strengthRisk:assessForecastStrengthRisk\(forecast\)/);
+ assert.match(backend,/strengthRisk:assessForecastStrengthRisk\(withReversal\)/);
+ assert.match(backend,/reversalRisk:assessForecastReversalRisk\(forecast,one,five,symbol\)/);
  assert.match(app,/const quality=assessForecastStrengthRisk\(d\)/);
  const script=page.match(/<script>([\s\S]*?)<\/script>/);
  assert.ok(script);
