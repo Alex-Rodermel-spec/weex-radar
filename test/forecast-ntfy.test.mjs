@@ -47,13 +47,33 @@ test('only coherent fresh three-timeframe directional forecasts qualify',()=>{
 });
 test('notification clearly separates forecast hypothesis from LONG/SHORT entry',()=>{
  const m=forecastMessage(fixture());
- assert.match(m.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT SHORT$/u);
+ assert.match(m.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT 🔴 SHORT$/u);
  assert.match(m.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./);
  assert.match(m.message,/1М \/ 5М \/ 10М/);
  assert.match(m.message,/НЕ сигнал входа/);
  assert.doesNotMatch(m.message,/Bollinger|EMA20|RSI14|Объём 1М/);
  assert.equal(m.priority,3);
  assert.equal(m.click,'https://weex-radar.vercel.app/forecast.html');
+});
+test('colored direction is easy to distinguish; historical title is still auditable',()=>{
+ for(const [bias,mark,side] of [
+  ['LONG_BIAS','🟢','LONG'],['SHORT_BIAS','🔴','SHORT']
+ ]){
+  const m=forecastMessage(fixture('XRPUSDT',bias));
+  assert.ok(m.title.endsWith(mark+' '+side),'badge is next to direction');
+  const original={event:'message',topic:forecastTopic(env),
+   sequence_id:(side==='LONG'?'a':'b').repeat(32),
+   time:Math.floor((now-1000)/1000),
+   title:m.title,message:m.message};
+  const parser=x=>parsePublishedForecast(x,forecastTopic(env),now);
+  assert.equal(parser(original).direction,side,'new title recorded correctly');
+  assert.equal(parser({...original,title:m.title.replace(mark+' ','')}).direction,
+   side,'legacy titles still parsed');
+  const mismatched=side==='LONG'?'🔴 LONG':'🟢 SHORT';
+  assert.equal(parser({...original,title:m.title.replace(mark+' '+side,mismatched)}),
+   null,'wrong color never misclassified');
+  assert.ok(m.message.startsWith('👀 НАБЛЮДАЙ. НЕ ВХОДИ.'));
+ }
 });
 test('plain-language forecast action keeps ntfy title, V2 and encrypted journal parser compatible',()=>{
  const f=fixture();
@@ -94,7 +114,7 @@ test('V2 timing line never turns observation into strong 5m confirmation',()=>{
  strong.strongV2Review={baselineLevel:'STRONG',sampleReady:true,
   status:'REVIEW_DOWNGRADE',proposedLevel:'STANDARD'};
  const late=forecastMessage(strong);
- assert.match(late.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT SHORT$/u);
+ assert.match(late.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT 🔴 SHORT$/u);
  assert.match(late.message,/V2: возможное опоздание/);
  assert.match(late.message,/НЕ сигнал входа/);
  assert.doesNotMatch(late.message,/SL \d|TP \d/);

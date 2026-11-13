@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {HEARTBEAT_MS,STALE_MS,ALERT_COOLDOWN_MS,monitorTopic,
- shouldHeartbeat,snapshotMarkets,assessHeartbeat,monitorDispatch} from '../lib/health-monitor.mjs';
+ shouldHeartbeat,snapshotMarkets,assessHeartbeat,monitorDispatch,
+ summarizeForecastNtfyHistory} from '../lib/health-monitor.mjs';
 
 const env={NTFY_TOPIC:'wr-'+'a'.repeat(32),PUSH_CRON_KEY:'B'.repeat(42)};
 const healthTopic=monitorTopic(env);
@@ -27,6 +28,24 @@ test('health topic is non-public derived from existing TWO server secrets',()=>{
  assert.equal(ALERT_COOLDOWN_MS,90*60000);
 });
 
+test('forecast health counts both historic titles and new red/green direction badges',()=>{
+ const t=Math.floor(now/1000);
+ const records=[
+  {event:'message',time:t-20,sequence_id:'a'.repeat(32),
+   title:'🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT SHORT'},
+  {event:'message',time:t-12,sequence_id:'b'.repeat(32),
+   title:'🔮 🟡 ПОВЫШЕННЫЙ РИСК · XRPUSDT 🟢 LONG'},
+  {event:'message',time:t-10,sequence_id:'c'.repeat(32),
+   title:'🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · ETHUSDT 🔴 SHORT'},
+  {event:'message',time:t-8,sequence_id:'d'.repeat(32),
+   title:'🔮 🟡 ПОВЫШЕННЫЙ РИСК · BTCUSDT 🔴 LONG'}
+ ];
+ const out=summarizeForecastNtfyHistory(records,now);
+ assert.equal(out.recentTwoHours.total,3);
+ assert.equal(out.recentTwoHours.STANDARD,2);
+ assert.equal(out.recentTwoHours.CAUTION,1);
+ assert.equal(out.recentTwoHours.STRONG,0);
+});
 test('market health distinguishes WEEX, backup Bybit, and missing sources',()=>{
  assert.deepEqual(snapshotMarkets([{exchange:'WEEX',status:'ok'},
   {exchange:'Bybit',status:'ok'},{exchange:null,status:'error'}]),
