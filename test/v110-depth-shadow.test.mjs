@@ -6,7 +6,7 @@ import {makeV110DepthFeature,evaluateV110DepthPairs,V110_DEPTH_POLICY}
 
 const H=3600000,NOW=Date.UTC(2026,10,13,4,0,0);
 const id=i=>i.toString(16).padStart(32,'0');
-function book(sentAt,{bid=200,ask=100,offset=1000,symbol='BTCUSDT'}={}){
+function book(sentAt,{bid=200,ask=100,offset=-1000,symbol='BTCUSDT'}={}){
  return {symbol,exchange:'WEEX',mode:'observation-only',
   ordersEnabled:false,alertsUnchanged:true,fetchedAt:sentAt+offset,
   bestBid:100,bestAsk:100.01,spreadBps:1,
@@ -27,7 +27,7 @@ function pairs(n,{reverseHoldout=false}={}){
    {forecastId:f.id,symbol:f.symbol,direction:f.direction,sentAt})};
  });
 }
-test('book snapshot must be within 10 seconds of ORIGINAL published forecast',()=>{
+test('depth must be captured BEFORE original forecast publication and within 10 seconds',()=>{
  const sentAt=NOW-2*H,base={forecastId:id(1),symbol:'BTCUSDT',direction:'LONG',sentAt};
  const valid=makeV110DepthFeature(book(sentAt),base);
  assert.equal(valid.usable,true);
@@ -35,7 +35,7 @@ test('book snapshot must be within 10 seconds of ORIGINAL published forecast',()
  assert.equal(valid.directionalPressurePct,33.3);
  assert.equal(valid.timestampSource,'LOCAL_HTTP_RESPONSE_NOT_EXCHANGE_TIMESTAMP');
  assert.equal(makeV110DepthFeature(book(sentAt,{offset:20000}),base).reason,'NOT_CAPTURED_AT_FORECAST_TIME');
- assert.equal(makeV110DepthFeature(book(sentAt,{offset:-1000}),base).usable,false);
+ assert.equal(makeV110DepthFeature(book(sentAt,{offset:-20000}),base).usable,false);
  assert.equal(makeV110DepthFeature(book(sentAt,{symbol:'ETHUSDT'}),base).usable,false);
 });
 test('pressure direction flips for SHORT, without trading action',()=>{
