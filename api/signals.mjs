@@ -270,6 +270,12 @@ export default async function handler(req,res){
   const {handleOneMinuteResearch}=await import('../lib/one-minute-entry-research-route.mjs');
   return handleOneMinuteResearch(req,res,SYMBOLS);
  }
+ if(req.query?.mode==='learning-status'){
+  // V110 research Preview: public aggregate preflight only.
+  // No journal decryption, private credentials, trading or ntfy changes.
+  const {handleLearningReadiness}=await import('../lib/v110-learning-readiness.mjs');
+  return handleLearningReadiness(req,res);
+ }
  if(req.query?.mode==='journal'||req.query?.mode==='journal-export'){
   const {handleJournal}=await import('../lib/journal-route.mjs');
   return handleJournal(req,res,req.query.mode);

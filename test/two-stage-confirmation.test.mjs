@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {TWO_STAGE_POLICY,expectedPrebreakIds,
+import {TWO_STAGE_POLICY,STRONG_MIN_OPPOSING_ROOM_R,checkStrongLevelRoom,expectedPrebreakIds,
  classifyTwoStageConfirmation,linkConfirmedForecasts}
  from '../lib/two-stage-confirmation.mjs';
 
@@ -14,7 +14,13 @@ function signal(patch={}){
  return {symbol:'XRPUSDT',exchange:'WEEX',status:'ok',
   level:'STRONG',direction:'SHORT',candleCloseTime:CLOSE,
   expiresAt:CLOSE+180_000,indicators:{volumeRatio:1.6},
-  closedFiveMinuteMoveBps:18,entryQuality:{ok:true},
+  closedFiveMinuteMoveBps:18,price:99.4,livePrice:99.4,
+  stop:100.4,take:97.4,
+  entryQuality:{ok:true,nearestLevel:null},
+  levelReview:{mode:'CLOSED_5M_OBSERVATION',interval:'5m',
+    candleCloseTime:CLOSE,support:99.85,resistance:101,
+    candleState:'BREAK_DOWN',breakoutDirection:'SHORT',
+    closeQuality:'SUPPORTED',recentFakeouts:{LONG:null,SHORT:null}},
   advisor:{status:'REVIEW'},costReview:{status:'PASS_ESTIMATE'},
   retest:{SHORT:{status:'UNKNOWN'}},...patch};
 }
@@ -24,10 +30,21 @@ function earlyNotice(s=signal(),when=CLOSE-3*MIN){
   sequence_id:createHash('sha256').update('early|'+
    ['WEEX',s.symbol,s.direction,'PRE_BREAK',bucket].join('|')).digest('hex').slice(0,32),
   title:'🔮 ПРОГНОЗ · '+s.symbol+' '+s.direction+' · 🔵 ОБЫЧНЫЙ · 🟡 ЖДАТЬ',
-  message:'👀 НАБЛЮДАЙ. НЕ ВХОДИТЬ.\n🔑 Подтверждение: ниже 1.02'};
+  message:'👀 НАБЛЮДАЙ. НЕ ВХОДИТЬ.\n🔑 Подтверждение: '+(s.direction==='LONG'?'выше 100,15':'ниже 99,85')+'\n❌ Отмена сценария: '+(s.direction==='LONG'?'ниже 99,2':'выше 100,5')};
 }
+const sampleMinutes=()=>{
+ const vals=[
+  [100.1,100.13,99.96,100.0],
+  [100,100.04,99.88,99.92],
+  [99.92,99.95,99.78,99.85],
+  [99.85,99.86,99.68,99.70],
+  [99.70,99.73,99.35,99.40]];
+ return vals.map(([open,high,low,close],i)=>({
+  time:CLOSE-(5-i)*MIN,closeTime:CLOSE-(4-i)*MIN,
+  open,high,low,close,volume:100}));
+};
 test('prior ordinary forecast and safe closed 5m confirm in same direction',()=>{
- const s=signal(),row=earlyNotice(s),res=classifyTwoStageConfirmation(s,[row],NOW);
+ const s=signal(),row=earlyNotice(s),res=classifyTwoStageConfirmation(s,[row],NOW,sampleMinutes());
  assert.ok(expectedPrebreakIds(s).includes(row.sequence_id));
  assert.equal(res.level,'STRONG');
  assert.equal(res.twoStage.stage,'CONFIRMED_AFTER_EARLY');
@@ -48,7 +65,7 @@ test('5m strong cannot invent an earlier ordinary notification',()=>{
   [{...earlyNotice(s),time:null}],
   [{...earlyNotice(s),sequence_id:'a'.repeat(32)}]
  ]){
-  const result=classifyTwoStageConfirmation(s,history,NOW);
+  const result=classifyTwoStageConfirmation(s,history,NOW,sampleMinutes());
   assert.equal(result.level,'NORMAL');
   assert.equal(result.twoStage.stage,'ORDINARY_5M');
  }
@@ -69,10 +86,10 @@ test('strong needs fresh closed 5m, modelled costs, volume and no chase',()=>{
   {retest:{SHORT:{status:'FAILED'}}}
  ];
  for(const changes of variants){
-  const got=classifyTwoStageConfirmation(signal(changes),[row],NOW);
+  const got=classifyTwoStageConfirmation(signal(changes),[row],NOW,sampleMinutes());
   assert.equal(got.level,'NORMAL',JSON.stringify(changes));
  }
- assert.equal(classifyTwoStageConfirmation(signal(),[row],CLOSE+91_000).level,'NORMAL');
+ assert.equal(classifyTwoStageConfirmation(signal(),[row],CLOSE+91_000,sampleMinutes()).level,'NORMAL');
 });
 test('six separate groups have bounded evidence requirements',()=>{
  const names=['BTCUSDT','XRPUSDT','1000PEPEUSDT','XAUUSDT','EURUSDT','CSCOUSDT'];
@@ -81,14 +98,57 @@ test('six separate groups have bounded evidence requirements',()=>{
  for(let i=0;i<names.length;i++){
   const s=signal({symbol:names[i],indicators:{volumeRatio:5},
    closedFiveMinuteMoveBps:1});
-  const result=classifyTwoStageConfirmation(s,[earlyNotice(s)],NOW);
+  const result=classifyTwoStageConfirmation(s,[earlyNotice(s)],NOW,sampleMinutes());
   assert.equal(result.level,'STRONG');
   assert.equal(result.twoStage.group,groups[i]);
   const cap=TWO_STAGE_POLICY.marketRules[groups[i]].maxFiveMinuteMoveBps;
   assert.equal(classifyTwoStageConfirmation(
-   {...s,closedFiveMinuteMoveBps:cap+0.1},[earlyNotice(s)],NOW).level,'NORMAL');
+   {...s,closedFiveMinuteMoveBps:cap+0.1},[earlyNotice(s)],NOW,sampleMinutes()).level,'NORMAL');
  }
 });
+test('V110 refuses old matching early after a newer opposite forecast',()=>{
+ const s=signal();
+ const first=earlyNotice(s,CLOSE-4*MIN);
+ const newer=earlyNotice({...s,direction:'LONG'},CLOSE-2*MIN);
+ assert.equal(classifyTwoStageConfirmation(s,[first,newer],NOW,sampleMinutes()).twoStage.reason,
+  'LATER_OPPOSITE_EARLY_FORECAST');
+});
+test('V110 refuses invalidated 1m path even with prior published ordinary alert',()=>{
+ const s=signal(),rows=sampleMinutes();
+ rows[3]={...rows[3],high:100.6};
+ const result=classifyTwoStageConfirmation(s,[earlyNotice(s)],NOW,rows);
+ assert.equal(result.level,'NORMAL');
+ assert.equal(result.twoStage.reason,'EARLY_SCENARIO_INVALIDATED');
+});
+test('V110 does not claim STRONG without closed post-alert 1m evidence',()=>{
+ const s=signal();
+ const result=classifyTwoStageConfirmation(s,[earlyNotice(s)],NOW,null);
+ assert.equal(result.level,'NORMAL');
+ assert.equal(result.twoStage.reason,'MINUTE_EVIDENCE_MISSING');
+});
+test('109 + 110 integration: 5m levels and 1m continuation BOTH required',()=>{
+ const s=signal(),notice=earlyNotice(s),minutes=sampleMinutes();
+ assert.equal(STRONG_MIN_OPPOSING_ROOM_R,1.5);
+ assert.equal(checkStrongLevelRoom(s).ok,true);
+ const clear=classifyTwoStageConfirmation(s,[notice],NOW,minutes);
+ assert.equal(clear.level,'STRONG');
+ const slip={...s,livePrice:99.95};
+ assert.equal(classifyTwoStageConfirmation(slip,[notice],NOW,minutes).twoStage.reason,
+   'BROKEN_LEVEL_NOT_HELD');
+ const blocked={...s,entryQuality:{ok:true,nearestLevel:98.9}};
+ assert.equal(classifyTwoStageConfirmation(blocked,[notice],NOW,minutes).twoStage.reason,
+   'OPPOSING_PIVOT_TOO_CLOSE');
+ assert.equal(classifyTwoStageConfirmation({...s,levelReview:{...s.levelReview,
+    closeQuality:'WEAK'}},[notice],NOW,minutes).twoStage.reason,
+   'FIVE_MINUTE_BREAKOUT_NOT_SUPPORTED');
+ const candleReversal=minutes.map(x=>({...x}));
+ candleReversal[4]={...candleReversal[4],open:99.6,high:99.82,
+   low:99.38,close:99.80};
+ assert.equal(classifyTwoStageConfirmation({...s,price:99.80},
+   [notice],NOW,candleReversal).twoStage.reason,
+   'LAST_MINUTE_REVERSAL');
+});
+
 test('ordinary historical signals are never promoted into strong',()=>{
  const s=signal({level:'NORMAL'});
  assert.equal(classifyTwoStageConfirmation(s,[earlyNotice(s)],NOW),s);
@@ -102,7 +162,8 @@ test('history link is checked only when strong candidate exists',async()=>{
   return {ok:true,text:async()=>JSON.stringify(row)+'\n'};
  };
  const a=await linkConfirmedForecasts([s,signal({level:'NORMAL'})],
-  {now:NOW,env:{NTFY_TOPIC:TOPIC},fetchImpl});
+  {now:NOW,env:{NTFY_TOPIC:TOPIC},fetchImpl,
+   minuteCandlesBySymbol:new Map([['XRPUSDT',sampleMinutes()]])});
  assert.equal(calls,1);
  assert.equal(a.linked,1);assert.equal(a.downgraded,0);
  assert.equal(a.historyAvailable,true);
