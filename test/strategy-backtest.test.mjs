@@ -95,6 +95,17 @@ test('closed 15m candles must not be borrowed from the future when replaying 5m'
  assert.equal(typeof v.baseline.tpNetLoss,'number');
  assert.equal(typeof v.filtered.tpNetPositive,'number');
  assert.ok(v.rawCandidates>=v.filtered.setups);
+ assert.equal(v.missedOpportunityStudy.rejected.count,v.rejectedQuality);
+ assert.equal(v.missedOpportunityStudy.passedExistingEntryGates.count,v.filtered.setups);
+ assert.equal(v.missedOpportunityStudy.rejected.count+
+   v.missedOpportunityStudy.passedExistingEntryGates.count,v.baseline.setups);
+ assert.equal(v.missedOpportunityStudy.mode,'HISTORICAL_REJECTED_CANDIDATE_SHADOW');
+ for(const direction of ['LONG','SHORT'])
+  assert.equal(v.missedOpportunityStudy.byDirection[direction].rejected.count+
+    v.missedOpportunityStudy.byDirection[direction].passedExistingEntryGates.count,
+    v.directions[direction].baseline.setups);
+ assert.equal(Object.values(v.missedOpportunityStudy.byRejectedStage)
+  .reduce((n,row)=>n+row.count,0),v.rejectedQuality);
  assert.equal(v.historicalEconomicStudy.total,v.filtered.setups);
  assert.equal(v.sensitivity.variants.PREVIOUS.minNetRR,1.5);
  assert.equal(v.sensitivity.variants.MODERATE.minNetRR,1.3);
