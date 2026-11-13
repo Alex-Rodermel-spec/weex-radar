@@ -57,6 +57,11 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
  <div id="derived-topic" class="topic-secret" hidden></div>
  <p class="legend">Не отправляй свою тему ntfy другим людям и не присылай её в чат. Доставка зависит от ntfy и разрешений Android.</p>
 </section>
+<section class="panel" aria-label="Новостной фон без влияния на сигналы">
+ <div class="heading"><h2>📰 NEWS RADAR · новостной фон</h2><span class="pill">ТОЛЬКО ИНФОРМАЦИЯ</span></div>
+ <div class="status" id="news-context" role="status" aria-live="polite">⚪ Нет подтверждённой новостной оценки. Прогнозы WEEX работают независимо.</div>
+ <p class="legend">🟢 Позитивный / 🔴 негативный / 🟡 неоднозначный новостной контекст — лишь исследовательская оценка, не прогноз на 10 минут и не разрешение открыть LONG/SHORT. Новости загружаются отдельно ПОСЛЕ обновления прогнозов, без блокировки ntfy, торгового сканера и фильтров. Непроверенные и устаревшие публикации не получают цветовую оценку. <a href="https://github.com/Alex-Rodermel-spec/weex-radar/issues/62" target="_blank" rel="noopener noreferrer">Журнал NEWS RADAR</a>.</p>
+</section>
 <section class="panel">
  <div class="heading"><h2>Прогнозный монитор · 32 инструмента</h2><span class="pill">WEEX PUBLIC · READ-ONLY</span></div>
  <div class="actions">
@@ -317,6 +322,47 @@ $('greeks-load').onclick=async()=>{
   ' Существующие прогнозы WEEX продолжают работать независимо.'}
  finally{clearTimeout(kill);button.disabled=false}
 };
+// Independent, best-effort research badge. Does NOT run inside refresh(),
+// forecast evaluation, cron, ntfy publishing or trading order paths.
+async function loadNewsContext(){
+ const panel=$('news-context');
+ const ctl=new AbortController(),kill=setTimeout(()=>ctl.abort(),4500);
+ try{
+  const response=await fetch('/api/signals?mode=v110-news',{
+   cache:'no-store',signal:ctl.signal
+  });
+  if(!response.ok)throw Error('news service unavailable');
+  const news=await response.json();
+  if(news.mode!=='V110_PUBLIC_NEWS_SHADOW'||news.changesLiveSignals!==false||
+    news.ordersSent!==0)throw Error('invalid research response');
+  const display=news.newsDisplay;
+  if(display?.status!=='RESEARCH_CONTEXT'||!Array.isArray(display.events)||
+    !display.events.length){
+   panel.textContent='⚪ Нет проверенных свежих новостей с оценкой влияния на рынок. Это не значит, что рынок спокоен.';
+   return;
+  }
+  const impactNames={POSITIVE:'🟢 ПОЗИТИВНЫЙ ФОН',
+   NEGATIVE:'🔴 НЕГАТИВНЫЙ ФОН',MIXED:'🟡 НЕОДНОЗНАЧНЫЙ ФОН'};
+  const assetLabels={BTC:'BTC',ETH:'ETH',XRP:'XRP',GOLD:'золото',
+   CRYPTO:'криптовалюты',ALL:'несколько рынков'};
+  const lines=display.events.slice(0,3).flatMap(e=>{
+   if(!Object.prototype.hasOwnProperty.call(impactNames,e.marketImpact)||
+    !Array.isArray(e.impactAssets)||!e.impactAssets.length||
+    !Number.isFinite(Date.parse(e.publishedAt)))return [];
+   const assets=e.impactAssets.filter(a=>
+    Object.prototype.hasOwnProperty.call(assetLabels,a)).map(a=>assetLabels[a]);
+   if(!assets.length)return [];
+   return [impactNames[e.marketImpact]+' · '+assets.join(', ')+
+    ' · '+e.category+' · '+e.sourceHost];
+  });
+  panel.textContent=lines.length?lines.join('\n')+
+   '\n⚠️ Возможная реакция, не подтверждённое направление цены. LONG/SHORT не меняются.':
+   '⚪ Нет подтверждённой оценки влияния на рынок.';
+  panel.style.whiteSpace='pre-line';
+ }catch{
+  panel.textContent='⚪ Новостная проверка недоступна. Прогнозы и торговые сигналы продолжают работать независимо.';
+ }finally{clearTimeout(kill)}
+}
 $('refresh').onclick=refresh;
 $('filter').onchange=render;
 $('details-symbol').onchange=showDetail;
@@ -332,5 +378,8 @@ document.addEventListener('visibilitychange',()=>{
   if(timer){clearTimeout(timer);timer=null}
  }else if(running){refresh();schedule()}
 });
-refresh();
+// Forecast data always start FIRST. News runs afterwards and never
+// contributes to the Promise returned by refresh() or any ntfy workflow.
+refresh().finally(()=>{void loadNewsContext()});
+setInterval(()=>{if(document.visibilityState==='visible')void loadNewsContext()},180000);
 </script></body></html>

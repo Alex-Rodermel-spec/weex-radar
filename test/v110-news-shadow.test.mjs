@@ -57,3 +57,48 @@ test('NEWS research never enters live scan/ntfy or order placement',()=>{
  assert.doesNotMatch(sender,/v110-news-shadow|handleV110NewsStudy/);
  assert.doesNotMatch(source,/placeOrder|trade-confirm|NTFY_TOPIC|PUSH_CRON_KEY|privateKey/);
 });
+
+test('editorially annotated recent verified event can inform a separate research badge',()=>{
+ const fresh=event({
+  publishedAt:'2026-11-13T02:40:00Z',
+  detectedAt:'2026-11-13T02:40:28Z',
+  marketImpact:'NEGATIVE',impactAssets:['BTC','CRYPTO']
+ });
+ const result=summarizeV110NewsStudy([{body:fresh}],now);
+ assert.equal(result.newsDisplay.status,'RESEARCH_CONTEXT');
+ assert.deepEqual(result.newsDisplay.events[0].impactAssets,['BTC','CRYPTO']);
+ assert.equal(result.newsDisplay.events[0].marketImpact,'NEGATIVE');
+ assert.equal(result.newsDisplay.events[0].sourceHost,'www.federalreserve.gov');
+ assert.equal(result.changesLiveSignals,false);
+ assert.equal(result.ordersSent,0);
+});
+test('old, planned, unverified, late and unlabeled events never create fake news bias',()=>{
+ const cases=[
+  {publishedAt:'2026-11-12T23:58:00Z',detectedAt:'2026-11-12T23:58:30Z'},
+  {publishedAt:'2026-11-13T02:40:00Z',detectedAt:'2026-11-13T02:40:20Z',planned:true},
+  {publishedAt:'2026-11-13T02:40:00Z',detectedAt:'2026-11-13T02:40:20Z',primaryTimeVerified:false},
+  {publishedAt:'2026-11-13T02:40:00Z',detectedAt:'2026-11-13T02:48:00Z'},
+  {publishedAt:'2026-11-13T02:40:00Z',detectedAt:'2026-11-13T02:40:20Z',marketImpact:'UP_TO_90_PERCENT'},
+  {publishedAt:'2026-11-13T02:40:00Z',detectedAt:'2026-11-13T02:40:20Z',impactAssets:['INVALID']}
+ ];
+ for(const change of cases){
+  const ev=event({publishedAt:'2026-11-13T02:40:00Z',
+   detectedAt:'2026-11-13T02:40:20Z',
+   marketImpact:'POSITIVE',impactAssets:['BTC'],...change});
+  const result=summarizeV110NewsStudy([{body:ev}],now);
+  assert.equal(result.newsDisplay.status,'UNKNOWN',JSON.stringify(change));
+  assert.deepEqual(result.newsDisplay.events,[]);
+ }
+});
+test('dashboard news fetch starts strictly after forecast refresh, never modifies server signals',()=>{
+ const html=readFileSync(new URL('../forecast.html',import.meta.url),'utf8');
+ const sender=readFileSync(new URL('../lib/forecast-ntfy.mjs',import.meta.url),'utf8');
+ const dispatcher=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
+ assert.match(html,/aria-label="Новостной фон без влияния на сигналы"/);
+ assert.match(html,/refresh\(\)\.finally\(\(\)=>\{void loadNewsContext\(\)\}\)/);
+ assert.match(html,/fetch\('\/api\/signals\?mode=v110-news'/);
+ assert.match(html,/4500/);
+ assert.match(html,/panel\.textContent=/);
+ assert.doesNotMatch(sender,/v110-news-shadow|mode=v110-news|newsDisplay/);
+ assert.doesNotMatch(dispatcher,/v110-news-shadow|mode=v110-news|newsDisplay/);
+});
