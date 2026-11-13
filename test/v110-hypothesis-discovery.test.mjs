@@ -61,6 +61,12 @@ test('no distinct future days means no false independent result',()=>{
  assert.equal(out.status,'INSUFFICIENT_DISTINCT_UTC_DAYS');
  assert.equal(out.recommendation,'KEEP_108');
  assert.equal(out.requiredDays,5);
+ assert.equal(out.ideas.length,6);
+ assert.ok(out.ideas.every(x=>x.state==='PENDING_CHRONOLOGICAL_VALIDATION'));
+ assert.equal(out.preliminaryDiagnosticsOnly,true);
+ assert.equal(out.descriptiveDirectionSnapshot.LONG.n,192);
+ assert.equal(out.descriptiveDirectionSnapshot.SHORT.n,0);
+ assert.equal(out.observedShortMinusLongPct,null);
  assert.equal(out.ordersSent,0);
 });
 test('no sample or invalid outcome never becomes evidence',()=>{
