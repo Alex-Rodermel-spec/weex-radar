@@ -106,3 +106,34 @@ test('new lab reads only archived published forecasts and cannot block scanner o
  assert.doesNotMatch(cron,/v110-hypothesis-discovery/);
  assert.doesNotMatch(api,/v110-hypothesis-discovery/);
 });
+
+test('descriptive LONG breakdown distinguishes risk labels and already-moved forecasts',()=>{
+ const out=evaluateV110Hypotheses(samples({days:4}),NOW);
+ const p=out.descriptiveRiskChase.LONG;
+ assert.equal(p.total,192);
+ assert.equal(p.byStrength.STANDARD.n,96);
+ assert.equal(p.byStrength.CAUTION.n,96);
+ assert.equal(p.byStrength.STANDARD.at15m.favorablePct,100);
+ assert.equal(p.byStrength.CAUTION.at15m.favorablePct,0);
+ assert.equal(p.beforeAlert5m.observed,192);
+ assert.equal(p.beforeAlert5m.unknown,0);
+ assert.equal(p.beforeAlert5m.alreadyMoved10bps,96);
+ assert.equal(p.beforeAlert5m.alreadyMovedPct,50);
+ assert.equal(out.descriptiveRiskChase.SHORT.total,0);
+ assert.equal(out.descriptiveRiskChase.SHORT.beforeAlert5m.alreadyMovedPct,null);
+ assert.equal(out.recommendation,'KEEP_108');
+ assert.equal(out.ordersSent,0);
+});
+test('missing pre-alert data remains unknown; sparse risk outcomes are suppressed',()=>{
+ const entries=samples({days:4}).map((x,i)=>({
+  ...x,preMove5mBps:i<12?null:x.preMove5mBps,
+  strength:i<10?'STRONG':x.strength
+ }));
+ const out=evaluateV110Hypotheses(entries,NOW);
+ assert.equal(out.descriptiveRiskChase.LONG.beforeAlert5m.unknown,12);
+ assert.equal(out.descriptiveRiskChase.LONG.beforeAlert5m.observed,180);
+ assert.equal(out.descriptiveRiskChase.LONG.byStrength.STRONG.n,10);
+ assert.equal(out.descriptiveRiskChase.LONG.byStrength.STRONG.at15m,null);
+ assert.equal(out.preliminaryDiagnosticsOnly,true);
+ assert.equal(out.recommendation,'KEEP_108');
+});
