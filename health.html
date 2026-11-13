@@ -41,9 +41,13 @@ button:disabled{opacity:.6;cursor:wait}
 <main>
 <header><span class="brand">◈ WEEX RADAR · HEALTH MONITOR</span><a href="/forecast.html" class="back">🔮 Прогнозист 1М/5М/10М</a><a href="/" class="back">← Назад к сигналам</a></header>
 <h1>🛡️ Состояние нашего бота</h1>
-<p class="lede">Проверяем расписание, доступность рынка и серверный канал ntfy. Эта страница ничего не торгует, не меняет настройки и не создаёт подписок.</p>
+<p class="lede">Проверяем расписание, доступность рынка и серверный канал ntfy. Эта страница ничего не торгует и не меняет настройки. <b>Когда страница открыта, статус обновляется примерно раз в 3 минуты.</b></p>
 <div class="controls"><button id="refresh" type="button">↻ Проверить сейчас</button><span role="status" id="stamp">Получаем состояние…</span></div>
 <div class="cards">
+ <section class="card" id="version-card">
+  <div class="eyebrow">🛡️ WEEX STATUS · Автообновления</div><h2 id="version-state">Проверяем…</h2>
+  <p class="detail" id="version-detail">Загрузка версии и состояния.</p>
+ </section>
  <section class="card" id="cron-card">
   <div class="eyebrow">⏱️ Cron-job.org</div><h2 id="cron-state">Проверяем…</h2>
   <p class="detail" id="cron-detail">Последняя контрольная отметка: —</p>
@@ -80,7 +84,7 @@ button:disabled{opacity:.6;cursor:wait}
   </table></div>
   <p class="compact" id="diagnostics-status">Диагностика ещё не обновлена.</p>
  </section>
-<div class="info">✅ <b>Без новых регистраций и оплаты.</b> Cron оставляет служебную отметку примерно раз в 15 минут. Если он перестанет отвечать более 35 минут, независимая проверка GitHub попробует отправить предупреждение через ntfy. Оно зависит от работы GitHub и самого ntfy, поэтому не гарантировано.</div>
+<div class="info">🛡️ <b>Отдельный канал WEEX STATUS:</b> в основном канале ntfy придёт одно приглашение. Нажми его и подпишись на STATUS, чтобы видеть обновление версии, восстановление или проблему и тихое «работает» приблизительно раз в 3 часа. Служебная отметка cron фиксируется примерно раз в 15 минут; после 35 минут без неё резерв GitHub может предупредить в отдельном STATUS. Если сама служба Vercel, GitHub или ntfy недоступна, предупреждение не гарантировано. Никаких дополнительных платных услуг.</div>
 <p class="caution">Важно: отсутствие торговых сигналов не означает поломку. Доступность ntfy подтверждает только связь с сервером уведомлений, но не факт появления баннера на Android. Если ntfy полностью недоступен, предупреждение через него также не придёт. Для проверки фактической доставки смотри приложение ntfy.</p>
 </main>
 <script>
@@ -95,6 +99,17 @@ function setCard(id,state,title,detail){
 }
 function render(data){
  const cron=data.cron||{};
+ const status=data.statusNotifications||{};
+ const version=status.revision||'нет данных';
+ const state=cron.state;
+ const stateName=state==='OK'?'● Работает':state==='DEGRADED'?
+  '● Частично работает':state==='STALE'?'● Нет свежей отметки':'● Не подтверждено';
+ setCard('version',state==='OK'?'ok':state==='STALE'?'bad':'warn',
+  stateName+' · '+version,
+  'Сборка '+version+'. '+(status.channelConfigured?
+   'Отдельный канал STATUS настроен на сервере; подписка телефона проверяется в ntfy.':
+   'Отдельный канал STATUS не настроен.')+
+  ' Новая версия не означает автоматическое улучшение точности.');
  const age=cron.lastSeenAt?Math.max(0,Math.round((data.generatedAt-cron.lastSeenAt)/60000)):null;
  if(cron.state==='OK')setCard('cron','ok','● Работает','Контрольная отметка '+clock(cron.lastSeenAt)+' · '+age+' мин назад.');
  else if(cron.state==='DEGRADED')setCard('cron','warn','● Есть предупреждения','Cron отвечает, но последняя проверка сообщила о проблеме. Отметка '+clock(cron.lastSeenAt)+'.');
@@ -192,7 +207,8 @@ function render(data){
   tr.appendChild(td);$('market-diagnostics-body').appendChild(tr);
   $('diagnostics-status').textContent='Источники диагностики временно недоступны.';
  }
- $('stamp').textContent='Проверено '+clock(data.generatedAt)+' · обновляется только по запросу';
+ $('stamp').textContent='Проверено '+clock(data.generatedAt)+
+  ' · при открытой странице обновляется примерно раз в 3 минуты';
 }
 async function refresh(){
  $('refresh').disabled=true;$('stamp').textContent='Проверяем…';
@@ -205,6 +221,12 @@ async function refresh(){
  finally{$('refresh').disabled=false}
 }
 $('refresh').addEventListener('click',refresh);
+refresh();
+// Foreground-only refresh: avoid unnecessary market scans on hidden tabs.
+setInterval(()=>{if(document.visibilityState==='visible'&&!$('refresh').disabled)refresh()},180000);
+document.addEventListener('visibilitychange',()=>{
+ if(document.visibilityState==='visible'&&!$('refresh').disabled)refresh()
+});
 refresh();
 </script>
 </body>
