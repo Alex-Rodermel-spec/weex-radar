@@ -62,3 +62,48 @@ test('uses existing encrypted forecast journal and cannot trade or change main',
   assert.ok(!learner.includes(s),s+' must not appear in learning code');
  }
 });
+
+test('owner 3+2 policy evaluates exactly three training days plus two independent holdout days',()=>{
+ const origin=Date.UTC(2026,10,8);
+ const records=[];
+ for(let day=0;day<5;day++){
+  const count=day<3?42:27;
+  const spacing=day<3?32:48;
+  for(let j=0;j<count;j++){
+   const i=records.length,good=i%2===0,m=good?20:-20;
+   records.push({id:i.toString(16).padStart(32,'0'),symbol:'BTCUSDT',
+    direction:'LONG',strength:good?'STANDARD':'CAUTION',
+    v2Timing:good?'CLEAR':'LATE',preMove5mBps:good?0:22,
+    sentAt:origin+day*DAY+j*spacing*60000,
+    windows:{15:{status:'OBSERVED',moveBps:m},
+     30:{status:'OBSERVED',moveBps:m}}});
+  }
+ }
+ assert.equal(records.length,180);
+ assert.equal(V110_LEARNING_POLICY.minTrainDays,3);
+ assert.equal(V110_LEARNING_POLICY.minHoldoutDays,2);
+ const out=evaluateV110Learning(records,NOW);
+ assert.equal(out.trainN,126);
+ assert.equal(out.holdoutN,54);
+ assert.equal(out.status,'SHADOW_CANDIDATE_PASSED');
+ assert.equal(out.recommendation,'OWNER_REVIEW_REQUIRED');
+ assert.equal(out.autoShadowEvaluation,true);
+ assert.equal(out.readyForLivePromotion,false);
+ assert.equal(out.ordersSent,0);
+ assert.equal(out.liveChanges,0);
+});
+test('three days is training only: two-day holdout gate remains mandatory',()=>{
+ const origin=Date.UTC(2026,10,8),rows=[];
+ for(let i=0;i<180;i++){
+  // Only 2 UTC days overall: even plenty of observations must be rejected.
+  const sentAt=origin+Math.floor(i/90)*DAY+(i%90)*10*60000;
+  const symbol=['BTCUSDT','XRPUSDT','ETHUSDT'][i%3];
+  rows.push({id:i.toString(16).padStart(32,'0'),symbol,
+   direction:'LONG',strength:'STANDARD',v2Timing:'CLEAR',
+   preMove5mBps:0,sentAt,
+   windows:{15:{status:'OBSERVED',moveBps:20},30:{status:'OBSERVED',moveBps:20}}});
+ }
+ const out=evaluateV110Learning(rows,NOW);
+ assert.notEqual(out.status,'SHADOW_CANDIDATE_PASSED');
+ assert.equal(out.recommendation,'KEEP_108');
+});
