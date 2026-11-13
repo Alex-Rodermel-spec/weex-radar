@@ -55,12 +55,27 @@ test('notification clearly separates forecast hypothesis from LONG/SHORT entry',
  assert.equal(m.priority,3);
  assert.equal(m.click,'https://weex-radar.vercel.app/forecast.html');
 });
-test('colored direction words stand out, while both legacy and new titles remain auditable',()=>{
+test('colored direction is easy to distinguish; historical title is still auditable',()=>{
  for(const [bias,mark,side] of [
   ['LONG_BIAS','🟢','LONG'],['SHORT_BIAS','🔴','SHORT']
  ]){
   const m=forecastMessage(fixture('XRPUSDT',bias));
-  assert.match(m.title,new RegExp('^🔮 .* · XRPUSDT '+mark+' '+side+'
+  assert.ok(m.title.endsWith(mark+' '+side),'badge is next to direction');
+  const original={event:'message',topic:forecastTopic(env),
+   sequence_id:(side==='LONG'?'a':'b').repeat(32),
+   time:Math.floor((now-1000)/1000),
+   title:m.title,message:m.message};
+  const parser=x=>parsePublishedForecast(x,forecastTopic(env),now);
+  assert.equal(parser(original).direction,side,'new title recorded correctly');
+  assert.equal(parser({...original,title:m.title.replace(mark+' ','')}).direction,
+   side,'legacy titles still parsed');
+  const mismatched=side==='LONG'?'🔴 LONG':'🟢 SHORT';
+  assert.equal(parser({...original,title:m.title.replace(mark+' '+side,mismatched)}),
+   null,'wrong color never misclassified');
+  assert.ok(m.message.startsWith('👀 НАБЛЮДАЙ. НЕ ВХОДИ.'));
+ }
+});
+test('plain-language forecast action keeps ntfy title, V2 and encrypted journal parser compatible',()=>{
  const f=fixture();
  const m=forecastMessage(f);
  assert.match(m.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./u);
