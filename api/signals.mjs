@@ -234,6 +234,11 @@ async function scanAll(){
 }
 export default async function handler(req,res){
  if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
+ if(req.query?.mode==='v110-news'){
+  // Public research only; no news enters the trade or forecast cron.
+  const {handleV110NewsStudy}=await import('../lib/v110-news-shadow.mjs');
+  return handleV110NewsStudy(req,res);
+ }
  if(req.query?.mode==='greeks'){
   // Manual on-demand option data only; never part of cron, signal or forecast dispatch.
   const {handleGreeksShadow}=await import('../lib/greeks-shadow.mjs');
