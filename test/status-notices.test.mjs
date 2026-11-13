@@ -46,7 +46,8 @@ test('status distinguishes initial boot, deploy, degradation, recovery and quiet
  assert.equal(decideStatusNotice(good,heartbeat(false),[{title:'other'}],notHour).kind,'DEGRADED');
  assert.equal(decideStatusNotice(heartbeat(false),good,[{title:'other'}],notHour).kind,'RECOVERED');
  assert.equal(decideStatusNotice(good,good,[{title:'🚨 WEEX RADAR · CRON НЕ ОТВЕЧАЕТ'}],notHour).kind,'RECOVERED');
- const already=decideStatusNotice(good,good,[{sequence_id:start.id,title:start.title}],now);
+ const alive=decideStatusNotice(good,good,[{title:'other'}],now);
+ const already=decideStatusNotice(good,good,[{sequence_id:alive.id,title:alive.title}],now);
  assert.equal(already,null);
 });
 
