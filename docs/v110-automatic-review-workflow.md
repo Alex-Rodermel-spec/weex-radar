@@ -1,0 +1,52 @@
+# №110 → GitHub → №108: automatic, owner-gated research proposals
+
+## Existing infrastructure reused
+- Live №108 and forecast endpoints remain untouched.
+- Existing OIDC-authenticated journal writer runs approximately every 20 minutes.
+- The new `workflow_run` job waits for a **successful run on main** of the existing journal writer.
+- It reads only `GET /api/signals?mode=journal` public **aggregates**; it never accesses encrypted plaintext, ntfy topics, exchange keys or account positions.
+- GitHub CI already tests pull requests; Vercel builds preview branches.
+
+## Automated step, disabled until merged
+When, and ONLY when, a known six-policy №110 idea passes the 3-training + 2-independent-holdout screening, it:
+1. Validates status, sample sizes, untouched holdout improvement, direction and manual-approval flags using a fixed allowlist.
+2. Creates one stable named branch for that policy; never retries a closed/rejected policy.
+3. Creates one **draft PR** containing a sanitized JSON research summary at `research/v110-proposals/<POLICY>.json` **and an isolated, pure research-only candidate source** at `research/v110-proposals/<POLICY>.mjs`. Nothing imports this candidate into live №108; there is no trading or signal mutation.
+4. Explicitly dispatches the existing read-only GitHub safety tests for this branch (GitHub-token-created PRs do not automatically trigger ordinary PR CI).
+5. Leaves the PR for independent forward testing, human review and later explicit approval.
+
+Normal status `KEEP_108`, insufficient data, network error, invalid fields or partial evidence: **no proposal**.
+
+## Important missing step
+This mechanism is an automated **research proposal draft**, not an autonomous live strategy rewrite. It deliberately cannot deploy an untested strategy: a separate forward test must show useful improvement on unselected future published alerts, and any later strategy-code PR must receive explicit owner approval and pass CI, with rollback ready. Approving the research draft alone does not activate a trading rule.
+
+## Safeguards
+- No automatic merge, no signals/forecasts/orders changes, no extra cron, no new paid data.
+- A new GitHub Actions `workflow_run` is executed after existing archive completions; this consumes some existing GitHub Actions runtime, but does not add a scheduled market scan.
+- Standard `GITHUB_TOKEN` branch/PR creation may require GitHub repository setting *Allow GitHub Actions to create and approve pull requests*. If disabled, the job fails closed and leaves №108 untouched.
+- The public GitHub PR contains only high-level aggregate numbers and allowlisted inert code, never journal contents, secrets or private topics.
+- An interrupted run can recover an existing research branch and update its two research artifacts safely. If GitHub's PR-creation setting blocks Actions, a single review issue is attempted instead; production remains untouched.
+- The exporter rejects public journal snapshots older than three hours or with an implausible future timestamp.
+- This proposal workflow only runs after its feature PR is reviewed and merged. CI and Vercel Preview must pass before considering merge.
+
+## How to verify
+1. `npm test` — including `test/v110-owner-proposal.test.mjs`.
+2. Confirm current `/api/signals?mode=journal` has `recommendation: KEEP_108`. This must produce **no proposal** (script exits 3).
+3. After future independent 3+2 data passes, check a draft PR is created, verify it contains only `research/v110-proposals/*.json` and `.mjs` files, and that production and №108 remain unchanged.
+4. No approval is inferred from a notification or a chat message: merge/release authorization remains explicit and separate.
+
+
+## Frozen prospective LONG check — staged in this PR
+The researcher has selected `LONG_SKIP_CAUTION_CHASE` based on its earlier 3+2 screening. Its rules and thresholds are now frozen in `lib/v110-forward-study.mjs` **before** the future sample starts.
+
+- **Future observation window:** 2026-11-15 00:00 UTC (01:00 Berlin) through 2026-11-19 00:00 UTC (01:00 Berlin), end-exclusive.
+- Existing encrypted journal, actually published LONG forecast records only, +15 and +30 minute observed outcomes, 30-minute spacing for the same symbol, duplicate exclusion and no new WEEX requests.
+- Compare the original LONG cohort with only LONG alerts that had neither `CAUTION` nor >=10bps positive movement before the alert. Missing prior-move values are excluded from the candidate, never labeled safe.
+- A **fixed evaluation end** prevents peeking, changing rules mid-study, or stopping early on favorable interim metrics. The result cannot pass before the entire window and 40-minute maturity buffer have elapsed.
+- Minimums: 2 UTC days with samples, 75 original forecasts, 35 kept, >=45% coverage. Directional improvement >=6 percentage points and >=3 basis points of mean 15-minute movement, kept mean >0, 30-minute favorable rate no worse.
+- A pass is only `FORWARD_DIRECTIONAL_SCREEN_PASSED`: **NOT authorization for live promotion**. There is no actual WEEX fill, spread, latency, fee or net profit validation, and these require a separate execution-readiness review with explicit owner authorization.
+- New read-only `GET /api/signals?mode=journal` field: `forwardStudy`. It is calculated from the existing server-side decrypted journal; only public aggregate metrics are returned, never source records.
+- Before the PR is merged into production, the forward-study monitor is **staged only**. This PR remains draft until the owner approves its release. The V110 forward cut-off and filter must not be altered after the observation period begins.
+
+- **Illustrative cost stress is precommitted:** 8 bps commission plus 3 bps slippage **per side** (22 bps modeled round trip), and 5 bps extra slippage per side under stress (32 bps round trip). The future candidate must have positive mean 15-minute directional movement **after both modeled scenarios** or the recommendation remains `KEEP_108`. These proxies are NOT WEEX actual fills, charges or profit; verifying execution remains separate.
+- The first 3+2 screening candidate's mean favorable movement was only +2.15 bps, far below this illustrative cost model. A 6.8-percentage-point rise in favorable outcomes does not justify a live filter by itself.

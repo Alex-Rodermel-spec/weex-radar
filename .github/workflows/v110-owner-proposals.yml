@@ -1,0 +1,146 @@
+name: WEEX V110 - owner research proposal drafts
+on:
+  workflow_run:
+    workflows:
+      - "WEEX RADAR — private 90-day journal"
+    types:
+      - completed
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+concurrency:
+  group: v110-owner-proposal-draft
+  cancel-in-progress: false
+jobs:
+  prepare-owner-review:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.repository == 'Alex-Rodermel-spec/weex-radar' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Checkout trusted main, no persisted authentication
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Screen existing public V110 journal summary (fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          node scripts/v110-export-owner-proposal.mjs > "$RUNNER_TEMP/v110-proposal.json"
+          result=$?
+          set -e
+          if [[ "$result" == "3" ]]; then
+            echo "qualified=false" >> "$GITHUB_OUTPUT"
+            echo "No qualified 3+2 V110 research candidate." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [[ "$result" != "0" ]]; then
+            echo "::error::V110 research status could not be verified"
+            exit "$result"
+          fi
+          echo "qualified=true" >> "$GITHUB_OUTPUT"
+        id: screen
+      - name: Open one DRAFT review PR for a screened policy (no live code changes)
+        if: ${{ steps.screen.outputs.qualified == 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          policy="$(jq -er '.policyId' "$RUNNER_TEMP/v110-proposal.json")"
+          # The proposal exporter also has an allowlist. Defense in depth.
+          if [[ ! "$policy" =~ ^(LONG|SHORT)_SKIP_(CAUTION|CHASE|CAUTION_CHASE)$ ]]; then
+            echo "::error::Unknown researcher policy"
+            exit 1
+          fi
+          # Generate the actual candidate filter as inert, reviewable source.
+          # It remains outside live lib/ and has no effect on №108.
+          node scripts/v110-build-candidate.mjs "$RUNNER_TEMP/v110-proposal.json" > "$RUNNER_TEMP/v110-candidate.mjs"
+          test -s "$RUNNER_TEMP/v110-candidate.mjs"
+          branch="v110-owner-review-${policy,,}"
+          # Exactly one review branch per policy. Never repeat a rejected study.
+          existing="$(gh pr list --state all --head "$branch" --json number --jq '.[0].number // empty')"
+          if [[ -n "$existing" ]]; then
+            echo "Existing review PR #$existing for $policy; no repeat." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Recover safely from a previous interrupted run. An already-existing
+          # branch/file must not strand the proposal with an HTTP 422.
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha' >/dev/null 2>&1; then
+            base_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/heads/$branch" -f sha="$base_sha" >/dev/null
+          fi
+          path="research/v110-proposals/$policy.json"
+          file_contents="$(base64 -w0 < "$RUNNER_TEMP/v110-proposal.json")"
+          old_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=$branch" --jq '.sha' 2>/dev/null || true)"
+          if [[ -n "$old_sha" ]]; then
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" \
+              -f message="research(v110): refresh screened $policy study" \
+              -f branch="$branch" -f content="$file_contents" -f sha="$old_sha" >/dev/null
+          else
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" \
+              -f message="research(v110): stage $policy for independent forward testing" \
+              -f branch="$branch" -f content="$file_contents" >/dev/null
+          fi
+          # A second research-only artifact contains the proposed pure filter
+          # implementation. It is not imported by live code anywhere.
+          codepath="research/v110-proposals/$policy.mjs"
+          code_contents="$(base64 -w0 < "$RUNNER_TEMP/v110-candidate.mjs")"
+          old_code_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$codepath?ref=$branch" --jq '.sha' 2>/dev/null || true)"
+          if [[ -n "$old_code_sha" ]]; then
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$codepath" \
+              -f message="research(v110): refresh inert $policy candidate module" \
+              -f branch="$branch" -f content="$code_contents" -f sha="$old_code_sha" >/dev/null
+          else
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$codepath" \
+              -f message="research(v110): draft inert $policy candidate module" \
+              -f branch="$branch" -f content="$code_contents" >/dev/null
+          fi
+          title="V110 research proposal: $policy (forward test required)"
+          # Only inert aggregate JSON is committed: no live strategy source.
+          body="$(cat <<'EOF'
+          Automatically generated №110 **research screening only**, NOT a deployment.
+          The PR contains only a summary JSON and an inert, isolated research filter module, not a live strategy change.
+          The screening checks 3 training and 2 later holdout days of published forecasts.
+          This is **not** evidence of net profitable trading.
+
+          To propose a live №108 change, a different code PR must:
+          - Pass a separate untouched prospective forward-test on newly published alerts.
+          - Address slippage, fees, correlations, notification latency and coverage.
+          - Receive explicit owner review and pass green CI.
+          - Provide rollback instructions and confirm no unauthorized order changes.
+
+          No live trading rules, forecast rules, keys, or orders change in this PR.
+          EOF
+          )"
+          if gh pr create --draft --base main --head "$branch" \
+              --title "$title" --body "$body" >/dev/null; then
+            # GITHUB_TOKEN-created PRs do not trigger normal PR workflow runs.
+            # Explicit dispatch is supported, and runs only the read-only CI job.
+            gh workflow run safety-tests.yml --ref "$branch"
+            echo "Opened DRAFT V110 PR for $policy and dispatched safety tests. Live #108 untouched." >> "$GITHUB_STEP_SUMMARY"
+          else
+            # Some repositories forbid GITHUB_TOKEN-created PRs. Alert via
+            # a single issue instead of pretending the automation succeeded.
+            fallback_title="V110 review pending pull-request permission: $policy"
+            if ! gh issue list --state all --limit 100 --json title --jq '.[].title' | \
+                grep -Fxq "$fallback_title"; then
+              gh issue create --title "$fallback_title" \
+                --body "$body
+
+          Research branch: $branch
+          Research JSON: $path
+          Draft PR creation was blocked. The owner must allow Actions to create PRs in repository settings or create it manually." >/dev/null
+            fi
+            echo "::warning::V110 proposal branch prepared but GitHub prevented automatic PR creation."
+            echo "Review GitHub issue for $policy; live #108 untouched." >> "$GITHUB_STEP_SUMMARY"
+          fi
