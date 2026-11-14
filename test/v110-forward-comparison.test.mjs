@@ -54,3 +54,15 @@ test('matched observations below threshold never produce lift or live approval',
  assert.equal(result.ready,false);
  assert.equal(result.approvedForLive,false);
 });
+
+test('same alert and observation but different outcome timestamps must not be paired',()=>{
+ const baseline=row('V108','same','LONG',5,101);
+ const candidate={...row('V110','same','LONG',5,102),outcomeKnownAt:'2026-11-14T04:21:00Z'};
+ const adapted=adaptV110ForecastJournal([baseline,candidate],{now});
+ const result=compareV110ForwardOutcomes(adapted,{minPaired:1,minDays:1});
+ const g=result.groups.find(x=>x.horizonMinutes===5&&x.direction==='LONG');
+ assert.equal(g.paired.n,0);
+ assert.equal(g.paired.deltaFavorablePct,null);
+ assert.equal(result.ready,false);
+ assert.equal(result.approvedForLive,false);
+});
