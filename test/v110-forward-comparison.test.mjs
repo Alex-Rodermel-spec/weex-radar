@@ -131,3 +131,30 @@ test('matching sampled horizon survives delayed independent publication',()=>{
  assert.equal(result.groups.find(g=>g.horizonMinutes===5&&g.direction==='LONG').paired.n,1);
  assert.equal(result.approvedForLive,false);
 });
+
+test('duplicate independent rows cannot inflate the matched sample count',()=>{
+ const baseline={...row('V108','same','LONG',5,101),symbol:'XRPUSDT',evaluatedAt:'2026-11-14T03:50:00Z'};
+ const candidate={...row('V110','same','LONG',5,102),symbol:'XRPUSDT',evaluatedAt:'2026-11-14T03:50:00Z'};
+ const result=compareV110ForwardOutcomes({
+  status:'ADAPTED',baseline:[baseline],
+  candidate:[candidate,{...candidate,outcomePrice:103}]
+ },{minPaired:1,minDays:1});
+ const g=result.groups.find(x=>x.horizonMinutes===5&&x.direction==='LONG');
+ assert.equal(g.paired.n,0);
+ assert.equal(g.paired.researchVerdict,'INSUFFICIENT_DATA');
+ assert.equal(result.ready,false);
+ assert.equal(result.approvedForLive,false);
+});
+test('duplicate baseline rows and incompatible sampling provenance never match',()=>{
+ const baseline={...row('V108','same','SHORT',5,99),symbol:'BTCUSDT',evaluatedAt:'2026-11-14T03:50:00Z'};
+ const candidate={...row('V110','same','SHORT',5,98),symbol:'BTCUSDT',evaluatedAt:'2026-11-14T03:50:00Z'};
+ const duplicated=compareV110ForwardOutcomes({
+  status:'ADAPTED',baseline:[baseline,{...baseline,outcomePrice:97}],candidate:[candidate]
+ },{minPaired:1,minDays:1});
+ assert.equal(duplicated.groups.find(x=>x.horizonMinutes===5&&x.direction==='SHORT').paired.n,0);
+ const missingSampleClock=compareV110ForwardOutcomes({
+  status:'ADAPTED',baseline:[{...baseline,evaluatedAt:null}],candidate:[candidate]
+ },{minPaired:1,minDays:1});
+ assert.equal(missingSampleClock.groups.find(x=>x.horizonMinutes===5&&x.direction==='SHORT').paired.n,0);
+ assert.equal(missingSampleClock.approvedForLive,false);
+});
