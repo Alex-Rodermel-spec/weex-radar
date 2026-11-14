@@ -66,3 +66,17 @@ test('same alert and observation but different outcome timestamps must not be pa
  assert.equal(result.ready,false);
  assert.equal(result.approvedForLive,false);
 });
+
+test('matched coverage reports excluded unmatched observations rather than hiding them',()=>{
+ const adapted=adaptV110ForecastJournal([
+  row('V108','same','LONG',5,101),row('V110','same','LONG',5,102),
+  row('V108','baseline-only','LONG',5,99),
+  row('V110','candidate-only','LONG',5,103)
+ ],{now});
+ const result=compareV110ForwardOutcomes(adapted,{minPaired:1,minDays:1});
+ const g=result.groups.find(x=>x.horizonMinutes===5&&x.direction==='LONG');
+ assert.equal(g.paired.n,1);
+ assert.equal(g.paired.baselineCoveragePct,50);
+ assert.equal(g.paired.candidateCoveragePct,50);
+ assert.equal(result.approvedForLive,false);
+});
