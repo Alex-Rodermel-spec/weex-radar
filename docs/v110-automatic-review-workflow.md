@@ -34,3 +34,16 @@ This mechanism is an automated **research proposal draft**, not an autonomous li
 2. Confirm current `/api/signals?mode=journal` has `recommendation: KEEP_108`. This must produce **no proposal** (script exits 3).
 3. After future independent 3+2 data passes, check a draft PR is created, verify it contains only `research/v110-proposals/*.json` and `.mjs` files, and that production and №108 remain unchanged.
 4. No approval is inferred from a notification or a chat message: merge/release authorization remains explicit and separate.
+
+
+## Frozen prospective LONG check — staged in this PR
+The researcher has selected `LONG_SKIP_CAUTION_CHASE` based on its earlier 3+2 screening. Its rules and thresholds are now frozen in `lib/v110-forward-study.mjs` **before** the future sample starts.
+
+- **Future observation window:** 2026-11-15 00:00 UTC (01:00 Berlin) through 2026-11-19 00:00 UTC (01:00 Berlin), end-exclusive.
+- Existing encrypted journal, actually published LONG forecast records only, +15 and +30 minute observed outcomes, 30-minute spacing for the same symbol, duplicate exclusion and no new WEEX requests.
+- Compare the original LONG cohort with only LONG alerts that had neither `CAUTION` nor >=10bps positive movement before the alert. Missing prior-move values are excluded from the candidate, never labeled safe.
+- A **fixed evaluation end** prevents peeking, changing rules mid-study, or stopping early on favorable interim metrics. The result cannot pass before the entire window and 40-minute maturity buffer have elapsed.
+- Minimums: 2 UTC days with samples, 75 original forecasts, 35 kept, >=45% coverage. Directional improvement >=6 percentage points and >=3 basis points of mean 15-minute movement, kept mean >0, 30-minute favorable rate no worse.
+- A pass is only `FORWARD_DIRECTIONAL_SCREEN_PASSED`: **NOT authorization for live promotion**. There is no actual WEEX fill, spread, latency, fee or net profit validation, and these require a separate execution-readiness review with explicit owner authorization.
+- New read-only `GET /api/signals?mode=journal` field: `forwardStudy`. It is calculated from the existing server-side decrypted journal; only public aggregate metrics are returned, never source records.
+- Before the PR is merged into production, the forward-study monitor is **staged only**. This PR remains draft until the owner approves its release. The V110 forward cut-off and filter must not be altered after the observation period begins.
