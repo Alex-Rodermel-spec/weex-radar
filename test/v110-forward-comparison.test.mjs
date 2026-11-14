@@ -122,3 +122,12 @@ test('identical alert IDs on different symbols never count as a pair',()=>{
  assert.equal(g.paired.researchVerdict,'INSUFFICIENT_DATA');
  assert.equal(result.approvedForLive,false);
 });
+
+test('matching sampled horizon survives delayed independent publication',()=>{
+ const baseline={...row('V108','same','LONG',5,101),symbol:'XRPUSDT',evaluatedAt:'2026-11-14T03:50:00Z'};
+ const candidate={...row('V110','same','LONG',5,102),symbol:'XRPUSDT',evaluatedAt:'2026-11-14T03:50:00Z',outcomeKnownAt:'2026-11-14T04:21:00Z'};
+ const adapted=adaptV110ForecastJournal([baseline,candidate],{now});
+ const result=compareV110ForwardOutcomes(adapted,{minPaired:1,minDays:1});
+ assert.equal(result.groups.find(g=>g.horizonMinutes===5&&g.direction==='LONG').paired.n,1);
+ assert.equal(result.approvedForLive,false);
+});
