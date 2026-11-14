@@ -82,6 +82,17 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
 <h2>📊 Гипотеза: SHORT-прогнозист против LONG-прогнозиста</h2>
 <p class="muted">Сравниваем только отдельные опубликованные прогнозы, а не подтверждённые торговые входы. Процент считается только по реально проверенным закрытым свечам. Если нет свечей — это «нет данных», а не ошибка прогноза. Наблюдение не означает прибыльность.</p>
 <div class="table-box"><table><thead><tr><th>Направление</th><th>Прогнозов</th><th>Оценено через 5м</th><th>В сторону через 5м</th><th>Через 10м</th><th>Через 15м</th><th>Без данных на 5м</th><th>Уже прошло ≥0,10% до сигнала</th></tr></thead><tbody id="forecastDirection"></tbody></table></div>
+
+<section class="card" aria-labelledby="v110-order-title">
+ <h2 id="v110-order-title">🧠 №110: когда и куда цена пошла первой?</h2>
+ <p class="muted">Весь доступный зашифрованный архив (до 90 дней), вне зависимости от выбора 30/90 выше. Первая закрытая 1m свеча после отправки ntfy с движением +0,10% в сторону прогноза или −0,10% против него.</p>
+ <p class="muted" id="v110TimingStatus" role="status">Загружаем исследование №110…</p>
+ <div class="table-box"><table><thead><tr><th>Направление</th><th>Наблюдено 30м</th><th>+0,10% первым</th><th>−0,10% первым</th><th>Доля + первым</th><th>Медиана + порога</th><th>Не определено</th></tr></thead><tbody id="v110TimingRows"></tbody></table></div>
+ <details><summary>Разбивка по силе STRONG / STANDARD / CAUTION</summary>
+ <div class="table-box"><table><thead><tr><th>Направление · сила</th><th>Наблюдено 30м</th><th>+0,10% первым</th><th>−0,10% первым</th><th>Доля + первым</th><th>Медиана + порога</th><th>Не определено</th></tr></thead><tbody id="v110TimingStrengthRows"></tbody></table></div>
+ </details>
+ <p class="muted">Процент считается только среди известных первых пересечений и скрывается при менее 20 наблюдениях. Медиана скрыта при менее 20 измеренных достижениях. «Не определено» — порог не достигнут либо не хватает минутных свечей. Это не подтверждение торговой прибыли или превосходства стратегии.</p>
+</section>
 <h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
 <p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
 <div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
@@ -176,6 +187,57 @@ let report=null;
 const pct=v=>v===null||v===undefined?'—':String(v)+'%';
 const showN=v=>Number.isFinite(v)?String(v):'—';
 const utc=ms=>new Date(ms).toLocaleString('ru-RU',{timeZone:'Europe/Berlin',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+// Research-only UI: use aggregate data, never private journal records.
+function v110TimingRows(diagnostics){
+ const result=[];
+ for(const [side,label] of [['LONG','🟢 LONG'],['SHORT','🔴 SHORT']]){
+  const first=diagnostics?.byDirection?.[side]?.firstMove10bps;
+  const all=[{group:'summary',label,order:first?.firstThresholdOrder,median:first?.favorable}];
+  for(const [strength,name] of [['STRONG','🟣 Сильный'],['STANDARD','🔵 Обычный'],['CAUTION','🟡 Риск']]){
+   all.push({group:'strength',label:label+' · '+name,
+    order:first?.thresholdOrderByStrength?.[strength],median:null});
+  }
+  for(const part of all){
+   const o=part.order||{},resolved=o.resolvedFirstCrossings;
+   const unresolved=Number.isSafeInteger(o.neitherRecordedOrUnknown)&&Number.isSafeInteger(o.ambiguousTie)?
+    o.neitherRecordedOrUnknown+o.ambiguousTie:null;
+   result.push({
+    group:part.group,label:part.label,
+    matured:Number.isSafeInteger(o.maturedWithObserved30m)?o.maturedWithObserved30m:null,
+    favorable:Number.isSafeInteger(o.firstFavorable)?o.firstFavorable:null,
+    adverse:Number.isSafeInteger(o.firstAdverse)?o.firstAdverse:null,
+    favorablePct:Number.isSafeInteger(resolved)&&resolved>=20&&Number.isFinite(o.firstFavorablePctAmongResolved)?
+     o.firstFavorablePctAmongResolved:null,
+    medianMinute:part.median?.recorded>=20&&Number.isSafeInteger(part.median?.medianMinute)?
+     part.median.medianMinute:null,
+    unresolved
+   });
+  }
+ }
+ return result;
+}
+function renderV110Timing(diagnostics){
+ const entries=v110TimingRows(diagnostics);
+ for(const [group,id] of [['summary','v110TimingRows'],['strength','v110TimingStrengthRows']]){
+  const body=$(id);body.replaceChildren();
+  for(const row of entries.filter(x=>x.group===group)){
+   const tr=document.createElement('tr');
+   for(const value of [row.label,row.matured,row.favorable,row.adverse,
+    row.favorablePct===null?'—':row.favorablePct+'%',
+    row.medianMinute===null?'—':row.medianMinute+' мин',row.unresolved]){
+    const td=document.createElement('td');
+    td.textContent=value===null?'—':String(value);
+    tr.appendChild(td);
+   }
+   body.appendChild(tr);
+  }
+ }
+ const recorded=entries.filter(x=>x.group==='summary').reduce((sum,x)=>sum+(x.matured??0),0);
+ $('v110TimingStatus').textContent=diagnostics?.status==='OBSERVED_AGGREGATES_ONLY'?
+  'Изучено '+recorded+' прогнозов с завершённым и наблюдённым 30-минутным окном. Доли только среди известных первых пересечений.':
+  'Исследовательская статистика №110 пока недоступна; отсутствующие значения не подменяем предположениями.';
+}
+
 function display(){
  if(!report)return;
  const days=$('days').value,stats=report.windows?.[days];
@@ -270,7 +332,8 @@ function display(){
  $('confirmedAuditDetail').textContent=confirmed?
   'Только реально отправленные LONG/SHORT. Изменение цены до уведомления показывает запоздание, а движение после — наблюдаемое направление, не прибыльность после комиссий.':
   'История новой проверки LONG/SHORT пока пуста.';
- const forecast=report.forecastStudy?.windows?.[days];
+ renderV110Timing(report.directionDiagnostics);
+  const forecast=report.forecastStudy?.windows?.[days];
  $('forecastTotal').textContent=showN(forecast?.total);
  $('forecast5').textContent=forecast?.at5m?.observed?pct(forecast.at5m.favorablePct)+' ('+forecast.at5m.observed+')':'—';
  $('forecast10').textContent=forecast?.at10m?.observed?pct(forecast.at10m.favorablePct)+' ('+forecast.at10m.observed+')':'—';
