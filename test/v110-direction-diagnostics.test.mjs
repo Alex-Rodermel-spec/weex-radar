@@ -130,3 +130,24 @@ test('small cohorts and missing crossings are not reported as meaningful first-h
  assert.equal(r.thresholdOrderByStrength.STANDARD.firstAdversePctAmongResolved,null);
  assert.equal(r.thresholdOrderByStrength.CAUTION.resolvedFirstCrossings,0);
 });
+
+test('first +10bps onset median is arithmetic for even cohort and middle for odd cohort',()=>{
+ const even=Array.from({length:20},(_,i)=>record(1200+i,'LONG',{
+  firstFavorable10bpsMinute:i<10?6:7,
+  firstAdverse10bpsMinute:15
+ }));
+ const odd=Array.from({length:21},(_,i)=>record(1300+i,'SHORT',{
+  firstFavorable10bpsMinute:i<10?5:i===10?8:11
+ }));
+ const output=evaluate([...even,...odd],now);
+ const l=output.byDirection.LONG.firstMove10bps;
+ const s=output.byDirection.SHORT.firstMove10bps;
+ assert.equal(l.favorable.recorded,20);
+ assert.equal(l.favorable.medianMinute,6.5);
+ assert.equal(l.adverse.medianMinute,15);
+ assert.equal(s.favorable.recorded,21);
+ assert.equal(s.favorable.medianMinute,8);
+ assert.equal(l.firstThresholdOrder.firstFavorable,20);
+ assert.equal(output.ordersSent,0);
+ assert.equal(output.changesLiveSignals,false);
+});
