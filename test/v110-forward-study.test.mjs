@@ -12,7 +12,7 @@ function records(reverse=false){
  for(let d=0;d<4;d++)for(let i=0;i<48;i++){
   const included=i%2===0;
   const good=reverse?!included:included;
-  const m=good?22:-22;
+  const m=good?45:-45;
   rows.push({
    id:rows.length.toString(16).padStart(32,'0'),
    symbol:['BTCUSDT','XRPUSDT','ETHUSDT'][i%3],
@@ -27,7 +27,9 @@ function records(reverse=false){
 }
 test('fixed preregistered future study does not recommend live deployment',()=>{
  const v=evaluateV110FixedForwardStudy(records(),NOW);
- assert.equal(v.status,'FORWARD_DIRECTIONAL_SCREEN_PASSED');
+ assert.equal(v.status,'FORWARD_PRICE_AND_COST_PROXY_PASSED');
+ assert.equal(v.modeledCosts.candidateNormalNetBpsProxy,23);
+ assert.equal(v.modeledCosts.candidateStressNetBpsProxy,13);
  assert.equal(v.baseline.n,192);
  assert.equal(v.candidate.n,96);
  assert.equal(v.days,4);
@@ -36,13 +38,28 @@ test('fixed preregistered future study does not recommend live deployment',()=>{
  assert.equal(v.noLiveChanges,true);
  assert.equal(v.ordersSent,0);
  assert.equal(v.approvedForLive,false);
- assert.equal(v.recommendation,'OWNER_REVIEW_COST_AND_EXECUTION_STILL_REQUIRED');
+ assert.equal(v.recommendation,'OWNER_REVIEW_EXECUTION_EVIDENCE_STILL_REQUIRED');
 });
 test('losing prospectively fixed policy is rejected rather than retuned',()=>{
  const v=evaluateV110FixedForwardStudy(records(true),NOW);
  assert.equal(v.status,'FORWARD_SCREEN_REJECTED');
  assert.equal(v.recommendation,'KEEP_108');
  assert.equal(v.approvedForLive,false);
+});
+test('positive directional results still FAIL modeled fee/slippage stress',()=>{
+ const x=records().map(r=>({
+  ...r,windows:{15:{status:'OBSERVED',moveBps:r.strength==='STANDARD'?22:-22},
+   30:{status:'OBSERVED',moveBps:r.strength==='STANDARD'?22:-22}}
+ }));
+ const study=evaluateV110FixedForwardStudy(x,NOW);
+ assert.equal(study.favorableLiftPct,50);
+ assert.equal(study.status,'FORWARD_COST_PROXY_REJECTED');
+ assert.equal(study.recommendation,'KEEP_108');
+ assert.equal(study.modeledCosts.modeledRoundTripBps,22);
+ assert.equal(study.modeledCosts.modeledStressRoundTripBps,32);
+ assert.equal(study.modeledCosts.candidateNormalNetBpsProxy,0);
+ assert.equal(study.modeledCosts.candidateStressNetBpsProxy,-10);
+ assert.equal(study.approvedForLive,false);
 });
 test('do not claim a pass on partial days or early favorable results',()=>{
  assert.equal(evaluateV110FixedForwardStudy(records(),START-MIN).status,'NOT_STARTED');
