@@ -29,7 +29,12 @@ test('strong internal candidate is proposed for prospective testing, never live 
  assert.equal(p.candidateN,38);
  assert.equal(p.candidatePct,54);
  const notice=formatV110ReviewProposal(p);
- assert.match(notice.title,/КАНДИДАТ НА ПРОВЕРКУ/);
+ assert.match(notice.title,/№110 · КАНДИДАТ · ПРОВЕРИТЬ/);
+ assert.ok(notice.title.length<40);
+ assert.ok(notice.message.length<320);
+ assert.match(notice.message,/📊 Историческая проверка:/);
+ assert.match(notice.message,/45% → 54%/);
+ assert.match(notice.message,/forward-тест/);
  assert.match(notice.message,/НЕ доказанная прибыль/);
  assert.match(notice.message,/ручное одобрение/);
  assert.match(notice.message,/№108.*НЕ изменены/);
