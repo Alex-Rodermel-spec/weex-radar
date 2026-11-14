@@ -6,8 +6,8 @@ const row=(model,id,direction='LONG')=>({model,alertId:id,direction,horizonMinut
  observedAt:'2026-11-14T03:45:00Z',outcomeKnownAt:'2026-11-14T03:50:00Z',source:'independent-forward'});
 test('independent journal rows become directional outcomes',()=>{
  const r=adapt([row('V108','a'),row('V110','b','SHORT')],{now});
- assert.equal(r.readyForMonitoring,true);assert.equal(r.baseline[0].signedMoveBps,100);
- assert.equal(r.candidate[0].signedMoveBps,-100);
+ assert.equal(r.readyForMonitoring,true);assert.ok(Math.abs(r.baseline[0].signedMoveBps-100)<1e-8);
+ assert.ok(Math.abs(r.candidate[0].signedMoveBps+100)<1e-8);
 });
 test('duplicate, unverified and future outcomes are excluded',()=>{
  const future={...row('V110','future'),outcomeKnownAt:'2026-11-15T03:50:00Z'};
