@@ -111,3 +111,14 @@ test('candidate cannot be called promising with only half the alerts matched',()
  assert.equal(g.paired.researchVerdict,'LOW_MATCH_COVERAGE');
  assert.equal(result.approvedForLive,false);
 });
+
+test('identical alert IDs on different symbols never count as a pair',()=>{
+ const a={...row('V108','same','LONG',5,101),symbol:'BTCUSDT'};
+ const b={...row('V110','same','LONG',5,102),symbol:'XRPUSDT'};
+ const adapted=adaptV110ForecastJournal([a,b],{now});
+ const result=compareV110ForwardOutcomes(adapted,{minPaired:1,minDays:1});
+ const g=result.groups.find(x=>x.horizonMinutes===5&&x.direction==='LONG');
+ assert.equal(g.paired.n,0);
+ assert.equal(g.paired.researchVerdict,'INSUFFICIENT_DATA');
+ assert.equal(result.approvedForLive,false);
+});
