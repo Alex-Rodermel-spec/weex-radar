@@ -21,3 +21,9 @@ test('duplicate candidate observations are marked ambiguous',()=>{
  const result=auditV110DirectionalDisagreements({status:'ADAPTED',baseline:[r('LONG',100)],candidate:[r('SHORT',-100),r('SHORT',-100)]});
  assert.equal(result.matched,0);assert.equal(result.ambiguous,1);
 });
+
+test('duplicate baseline observations cannot count the same disagreement twice',()=>{
+ const result=auditV110DirectionalDisagreements({status:'ADAPTED',baseline:[r('LONG',100),r('LONG',100)],candidate:[r('SHORT',-100)]});
+ assert.equal(result.matched,0);assert.equal(result.disagree,0);
+ assert.equal(result.ambiguous,2);assert.equal(result.approvedForLive,false);
+});
