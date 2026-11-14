@@ -25,7 +25,7 @@ Status: DESIGN ONLY. No production deployment or automated trading.
 - Require separate owner authorization and release workflow for any later V108 change, plus rollback and post-release monitoring.
 
 ## First pilot
-Use LONG_SKIP_CAUTION_CHASE as research-only test case, not as a pre-approved upgrade. Its prospective window is 2026-11-15T00:00Z to 2026-11-19T00:00Z; preserve the frozen rules.
+Use LONG_SKIP_CAUTION_CHASE as research-only test case, not as a pre-approved upgrade. The currently configured prospective window is 2026-11-14T04:40:00Z to 2026-11-18T04:40:00Z (exclusive), followed by a 40-minute outcome maturity buffer. Use `lib/v110-forward-study.mjs` on `main` as the source of truth; do not shift the window in response to observed performance.
 
 ## Implementation checklist
 - [ ] Implement proposal-to-research-code adapter with strict allowlist and validation.
