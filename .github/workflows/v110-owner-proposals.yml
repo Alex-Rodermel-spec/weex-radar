@@ -9,6 +9,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  actions: write
 concurrency:
   group: v110-owner-proposal-draft
   cancel-in-progress: false
@@ -104,7 +105,10 @@ jobs:
           )"
           if gh pr create --draft --base main --head "$branch" \
               --title "$title" --body "$body" >/dev/null; then
-            echo "Opened DRAFT V110 owner-review PR for $policy. Live #108 untouched." >> "$GITHUB_STEP_SUMMARY"
+            # GITHUB_TOKEN-created PRs do not trigger normal PR workflow runs.
+            # Explicit dispatch is supported, and runs only the read-only CI job.
+            gh workflow run safety-tests.yml --ref "$branch"
+            echo "Opened DRAFT V110 PR for $policy and dispatched safety tests. Live #108 untouched." >> "$GITHUB_STEP_SUMMARY"
           else
             # Some repositories forbid GITHUB_TOKEN-created PRs. Alert via
             # a single issue instead of pretending the automation succeeded.
