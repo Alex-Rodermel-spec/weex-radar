@@ -6,6 +6,7 @@ import {adaptV110ForecastJournal} from '../lib/v110-journal-adapter.mjs';
 import {compareV110ForwardOutcomes} from '../lib/v110-forward-comparison.mjs';
 import {validateV110EvaluationTimes} from '../lib/v110-evaluation-time.mjs';
 import {auditV110DirectionalDisagreements} from '../lib/v110-disagreement-audit.mjs';
+import {auditV110PriceConsistency} from '../lib/v110-price-consistency.mjs';
 const path=process.argv[2];
 if(!path){console.error('Usage: node scripts/v110-compare-forward.mjs <verified-outcomes.json>');process.exitCode=2;}
 else {
@@ -18,8 +19,10 @@ else {
   if(timing.status!=='VALIDATED'||timing.rejected.length)throw Error('UNVERIFIED_FORECAST_EVALUATION_TIMES');
   const adapted=adaptV110ForecastJournal(timing.valid);
   if(adapted.status!=='ADAPTED')throw Error('INVALID_JOURNAL');
+  const priceAudit=auditV110PriceConsistency(adapted);
+  if(priceAudit.status!=='RESEARCH_AUDIT_ONLY'||priceAudit.priceConflicts||priceAudit.ambiguous)throw Error('CONFLICTING_PAIRED_MARKET_PRICES');
   const comparison=compareV110ForwardOutcomes(adapted);
   const disagreementAudit=auditV110DirectionalDisagreements(adapted);
-  process.stdout.write(JSON.stringify({inputRows:records.length,acceptedRows:adapted.baseline.length+adapted.candidate.length,skipped:adapted.skipped,disagreementAudit,...comparison},null,2)+'\n');
+  process.stdout.write(JSON.stringify({inputRows:records.length,acceptedRows:adapted.baseline.length+adapted.candidate.length,skipped:adapted.skipped,priceAudit,disagreementAudit,...comparison},null,2)+'\n');
  }catch(e){console.error('V110_READ_ONLY_COMPARISON_FAILED: '+String(e.message).slice(0,120));process.exitCode=1;}
 }
