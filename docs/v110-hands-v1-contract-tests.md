@@ -24,6 +24,6 @@ Reject unknown policy IDs, missing/invalid data, stale evidence, mismatched dire
 10. Draft PR cannot trigger automatic merge/deploy; explicit owner approval and separate release review required.
 
 ## Pilot
-LONG_SKIP_CAUTION_CHASE only as research artifact. Preserve frozen prospective 2026-11-15T00:00Z through 2026-11-19T00:00Z, then maturity buffer and cost stress. No live promotion inferred from a directional pass.
+LONG_SKIP_CAUTION_CHASE only as research artifact. Current prospective study window is 2026-11-14T04:40:00Z through 2026-11-18T04:40:00Z (end exclusive), plus a 40-minute maturity buffer and cost stress. The authoritative times live in `lib/v110-forward-study.mjs`; do not alter them based on outcomes. No live promotion inferred from a directional pass.
 
-Status: specification committed; implementation/tests not yet executed.
+Status: research-only contract and unit tests implemented in PR #128. Synthetic tests do not replace independently verified live forward evidence; production strategy promotion remains disabled.
