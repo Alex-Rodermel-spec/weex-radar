@@ -9,6 +9,12 @@ async function main(){
  const raw=await response.text();
  if(raw.length>700000)throw Error('V110_JOURNAL_STATUS_TOO_LARGE');
  const report=JSON.parse(raw);
+ // Only freshly computed aggregate evidence may initiate a new draft PR.
+ // A stale CDN/report or a clock in the future must not replay old screening.
+ const age=Date.now()-report.generatedAt;
+ if(!Number.isSafeInteger(report.generatedAt)||
+  age< -60_000||age>3*60*60_000)
+  throw Error('V110_JOURNAL_STATUS_STALE');
  const proposal=buildV110OwnerProposal(report);
  if(!proposal){
   console.error('V110_NO_QUALIFIED_RESEARCH_PROPOSAL');
