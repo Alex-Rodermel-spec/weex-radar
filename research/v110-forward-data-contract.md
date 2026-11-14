@@ -5,6 +5,7 @@ The research comparator is implemented but is **not yet connected** to the priva
 ## Required input
 A locally supplied UTF-8 JSON array of independently resolved outcomes, max 10,000 records and 5 MB. Each row must contain:
 - `model`: `V108` or `V110`
+- `symbol`: uppercase market identifier such as `XRPUSDT`, required by the private CLI; paired comparisons must have the same symbol
 - `alertId`: stable nonempty ID shared by both models for a genuinely comparable observation
 - `direction`: `LONG` or `SHORT`
 - `horizonMinutes`: 1, 5, 10, 15, or 30
