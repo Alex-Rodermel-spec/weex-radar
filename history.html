@@ -104,6 +104,17 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <p class="muted" id="v110ForwardStatus" role="status">Читаем опубликованные агрегаты исследования…</p>
  <p class="muted">Даже пройденный исследовательский порог не означает, что новая стратегия прибыльна или внедрена в №108. Комиссии и проскальзывание моделируются отдельно от фактического исполнения; для любого изменения боевых правил нужны дополнительные доказательства и согласование владельца.</p>
 </section>
+<section class="card" aria-labelledby="v110-ml-title">
+ <h2 id="v110-ml-title">🧠 №110 · встроенный обучаемый ИИ (ML, теневой режим)</h2>
+ <p class="muted">Бесплатная модель логистической регрессии обучается на опубликованных прогнозах из существующего зашифрованного журнала. Признаки только ДО уведомления, результат — направление через 15 минут. Обучение и проверка — на разных днях с временным разрывом; никаких торговых решений.</p>
+ <p class="muted" id="v110MLStatus" role="status">Загружаем статистику встроенного ИИ…</p>
+ <div class="metrics">
+  <div class="card"><small>Обучающая / отложенная выборка</small><strong id="v110MLSamples">—</strong></div>
+  <div class="card"><small>Проверка ИИ · Brier против простой базы</small><strong id="v110MLBrier">—</strong></div>
+  <div class="card"><small>Выбранные моделью / все · 15 минут</small><strong id="v110MLHit">—</strong></div>
+ </div>
+ <p class="muted">Brier — средняя квадратичная ошибка оценки исхода; меньше лучше. Отложенная историческая выборка не заменяет независимый будущий тест. Это НЕ вероятность прибыльной сделки и НЕ разрешение изменять №108. При отсутствии результата отображается «—», а не вымышленный процент.</p>
+</section>
 <h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
 <p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
 <div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
@@ -257,6 +268,44 @@ function renderV110Timing(diagnostics){
  $('v110TimingStatus').textContent=diagnostics?.status==='OBSERVED_AGGREGATES_ONLY'?
   'Изучено '+recorded+' прогнозов с завершённым и наблюдённым 30-минутным окном. Доли только среди известных первых пересечений.':
   'Исследовательская статистика №110 пока недоступна; отсутствующие значения не подменяем предположениями.';
+}
+
+// No individual forecast rows or weights ever leave the encrypted journal.
+function v110MLDisplay(report){
+ const n=v=>Number.isSafeInteger(v)&&v>=0?v:null;
+ const f=v=>typeof v==='number'&&Number.isFinite(v)?v:null;
+ if(!report||report.mode!=='V110_EMBEDDED_ML_SHADOW'){
+  return {status:'Исследование ИИ недоступно; №108 работает независимо.',
+   samples:'—',brier:'—',hit:'—'};
+ }
+ if(report.modelTrained!==true){
+  const days=n(report.distinctDays),eligible=n(report.eligible);
+  const status=report.status==='COLLECTING_INDEPENDENT_DAYS'?
+   'Собираем независимые дни (нужно минимум 5): '+(days??'—')+
+    ' дн.; зрелых прогнозов: '+(eligible??'—')+'. Модель ещё не обучена.':
+   'Недостаточно разделённых обучающих/тестовых данных. Модель ещё не обучена.';
+  return {status,samples:'—',brier:'—',hit:'—'};
+ }
+ const trained=n(report.trainN),held=n(report.holdoutN);
+ const base=f(report.holdoutBrier?.constantTrainingRate);
+ const ml=f(report.holdoutBrier?.learnedModel);
+ const all=f(report.holdoutBaseline?.favorablePct);
+ const selected=f(report.holdoutSelected?.favorablePct);
+ const count=n(report.holdoutSelected?.n);
+ const status=report.status==='HISTORICAL_HOLDOUT_PROMISING_ONLY'?
+  'Историческая проверка перспективна, но №108 НЕ меняется. Нужен независимый будущий тест.':
+  'Убедительного улучшения на исторической проверке нет. №108 остаётся прежним.';
+ return {status,samples:(trained??'—')+' / '+(held??'—'),
+  brier:base===null||ml===null?'—':ml.toFixed(3)+' против '+base.toFixed(3),
+  hit:all===null||selected===null||count===null?
+   '—':selected+'% ('+count+') / '+all+'% ('+held+')'};
+}
+function renderV110ML(report){
+ const d=v110MLDisplay(report);
+ $('v110MLStatus').textContent=d.status;
+ $('v110MLSamples').textContent=d.samples;
+ $('v110MLBrier').textContent=d.brier;
+ $('v110MLHit').textContent=d.hit;
 }
 
 // Only aggregate published policy progress. No private records or future peeking.
@@ -421,6 +470,7 @@ function display(){
   'Только реально отправленные LONG/SHORT. Изменение цены до уведомления показывает запоздание, а движение после — наблюдаемое направление, не прибыльность после комиссий.':
   'История новой проверки LONG/SHORT пока пуста.';
  renderV110Timing(report.directionDiagnostics);
+ renderV110ML(report.mlShadow);
   renderV110ForwardProgress(report);
   const forecast=report.forecastStudy?.windows?.[days];
  $('forecastTotal').textContent=showN(forecast?.total);
