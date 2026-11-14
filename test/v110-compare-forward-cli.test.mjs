@@ -10,7 +10,7 @@ test('read-only CLI reports insufficient evidence and never approves live',()=>{
  try{
   const file=join(dir,'outcomes.json');
   const t='2026-11-13T12:00:00Z',end='2026-11-13T12:05:00Z';
-  const row=model=>({model,alertId:'same',direction:'LONG',horizonMinutes:5,entryPrice:100,outcomePrice:101,observedAt:t,outcomeKnownAt:end,source:'independent-forward'});
+  const row=model=>({model,alertId:'same',direction:'LONG',horizonMinutes:5,entryPrice:100,outcomePrice:101,observedAt:t,evaluatedAt:end,outcomeKnownAt:end,source:'independent-forward'});
   writeFileSync(file,JSON.stringify([row('V108'),row('V110')]));
   const p=spawnSync(process.execPath,[cli,file],{encoding:'utf8'});
   assert.equal(p.status,0,p.stderr);
