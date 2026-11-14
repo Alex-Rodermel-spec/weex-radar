@@ -69,6 +69,7 @@ test('no extra market requests, secret access or references from live scanner',(
  const lib=readFileSync(new URL('../lib/v110-forward-study.mjs',import.meta.url),'utf8');
  const scan=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');
  const push=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
+ const route=readFileSync(new URL('../lib/journal-route.mjs',import.meta.url),'utf8');
  assert.equal(V110_FORWARD_POLICY.noNewMarketRequests,true);
  assert.equal(V110_FORWARD_POLICY.noOrders,true);
  assert.equal(V110_FORWARD_POLICY.humanApprovalRequired,true);
@@ -77,4 +78,6 @@ test('no extra market requests, secret access or references from live scanner',(
   assert.equal(lib.includes(forbidden),false,forbidden);
  assert.equal(scan.includes('v110-forward-study'),false);
  assert.equal(push.includes('v110-forward-study'),false);
+ assert.match(route,/forwardStudy:evaluateV110FixedForwardStudy\\(forecastRows,now\\)/);
+ assert.match(route,/from '\\.\\/v110-forward-study\\.mjs'/);
 });
