@@ -115,6 +115,18 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  </div>
  <p class="muted">Brier — средняя квадратичная ошибка оценки исхода; меньше лучше. Отложенная историческая выборка не заменяет независимый будущий тест. Это НЕ вероятность прибыльной сделки и НЕ разрешение изменять №108. При отсутствии результата отображается «—», а не вымышленный процент.</p>
 </section>
+<section class="card" aria-labelledby="v110-two5m-title">
+ <h2 id="v110-two5m-title">🕯️ №110: 1М-прогноз → две полностью закрытые 5М-свечи</h2>
+ <p class="muted">Проверяем уже опубликованные ранние прогнозы на двух последовательных полных 5-минутных периодах ПОСЛЕ уведомления. Первое закрытие 5М после сообщения может относиться к уже начатой свече — используем его только как исходную границу, не как подтверждение. Считаем изменения по последовательным закрытиям, а не цвет тела свечи.</p>
+ <p class="muted" id="two5mStatus" role="status">Загружаем исследование двух 5М-свечей…</p>
+ <div class="metrics">
+  <div class="card"><small>Наблюдений с двумя 5М</small><strong id="two5mSample">—</strong></div>
+  <div class="card"><small>Обе 5М в сторону и цена лучше прогноза</small><strong id="two5mBoth">—</strong></div>
+  <div class="card"><small>Медиана времени до второго закрытия</small><strong id="two5mDelay">—</strong></div>
+ </div>
+ <div class="table-box"><table><thead><tr><th>Сторона</th><th>Наблюдений</th><th>1-я полная 5М по прогнозу</th><th>2-я полная 5М по прогнозу</th><th>Обе + цена в сторону прогноза</th></tr></thead><tbody id="two5mDirections"></tbody></table></div>
+ <p class="muted">Здесь нет неподанных Forecast или всех минутных откатов: старый журнал хранит только отправленные уведомления. Схема двух 5М может опаздывать на 10–15 минут. Статистика не означает прибыльной сделки и не меняет №108, Forecast или риск.</p>
+</section>
 <h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
 <p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
 <div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
@@ -268,6 +280,47 @@ function renderV110Timing(diagnostics){
  $('v110TimingStatus').textContent=diagnostics?.status==='OBSERVED_AGGREGATES_ONLY'?
   'Изучено '+recorded+' прогнозов с завершённым и наблюдённым 30-минутным окном. Доли только среди известных первых пересечений.':
   'Исследовательская статистика №110 пока недоступна; отсутствующие значения не подменяем предположениями.';
+}
+
+// Only aggregate two-CLOSED-5m research data, never candle rows.
+function two5mDisplay(result){
+ const n=v=>Number.isSafeInteger(v)&&v>=0?v:null;
+ const percent=(rate,size)=>n(size)>=20&&typeof rate==='number'&&Number.isFinite(rate)?
+  rate+'%':'—';
+ if(result?.mode!=='V110_TWO_FULLY_CLOSED_5M_SHADOW')
+  return {status:'Исследование двух 5М пока недоступно.',sample:'—',
+   both:'—',delay:'—',directions:[]};
+ const main=result.complete||{};
+ const size=n(result.matured);
+ const status=result.status==='DESCRIPTIVE_SAMPLE_AVAILABLE'?
+  'Есть описательные данные ('+(n(result.distinctUtcDays)??'—')+
+  ' разных UTC-дней). №108 НЕ изменён; независимая проверка впереди.':
+  'Собираем корректные закрытые свечи; текущая выборка ещё недостаточна для обзора.';
+ const rows=[['LONG','📈 LONG'],['SHORT','📉 SHORT']].map(([key,label])=>{
+  const r=result.byDirection?.[key]||{};
+  return [label,n(r.n)??0,percent(r.firstFull5mFavorablePct,r.n),
+   percent(r.secondFull5mFavorablePct,r.n),percent(r.bothAndNetPositivePct,r.n)];
+ });
+ return {status,sample:size===null?'—':String(size),
+  both:percent(main.bothAndNetPositivePct,main.n),
+  delay:typeof main.medianMinutesToSecondFullClose==='number'?
+   main.medianMinutesToSecondFullClose+' мин':'—',directions:rows};
+}
+function renderV110Two5m(result){
+ const v=two5mDisplay(result);
+ $('two5mStatus').textContent=v.status;
+ $('two5mSample').textContent=v.sample;
+ $('two5mBoth').textContent=v.both;
+ $('two5mDelay').textContent=v.delay;
+ const table=$('two5mDirections');table.replaceChildren();
+ for(const values of v.directions){
+  const tr=document.createElement('tr');
+  for(const value of values){
+   const td=document.createElement('td');td.textContent=String(value);
+   tr.appendChild(td);
+  }
+  table.appendChild(tr);
+ }
 }
 
 // No individual forecast rows or weights ever leave the encrypted journal.
@@ -471,6 +524,7 @@ function display(){
   'История новой проверки LONG/SHORT пока пуста.';
  renderV110Timing(report.directionDiagnostics);
  renderV110ML(report.mlShadow);
+ renderV110Two5m(report.twoClosed5mShadow);
   renderV110ForwardProgress(report);
   const forecast=report.forecastStudy?.windows?.[days];
  $('forecastTotal').textContent=showN(forecast?.total);
