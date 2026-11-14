@@ -99,3 +99,15 @@ test('a better matched research candidate is never approved for live deployment'
  assert.equal(g.paired.researchVerdict,'PROMISING_RESEARCH_ONLY');
  assert.equal(result.approvedForLive,false);
 });
+
+test('candidate cannot be called promising with only half the alerts matched',()=>{
+ const adapted=adaptV110ForecastJournal([
+  row('V108','same','LONG',5,99),row('V110','same','LONG',5,102),
+  row('V108','baseline-only','LONG',5,99),row('V110','candidate-only','LONG',5,102)
+ ],{now});
+ const result=compareV110ForwardOutcomes(adapted,{minPaired:1,minDays:1});
+ const g=result.groups.find(x=>x.horizonMinutes===5&&x.direction==='LONG');
+ assert.equal(g.paired.candidateCoveragePct,50);
+ assert.equal(g.paired.researchVerdict,'LOW_MATCH_COVERAGE');
+ assert.equal(result.approvedForLive,false);
+});
