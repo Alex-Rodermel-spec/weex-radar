@@ -32,3 +32,11 @@ test('invalid input fails closed',()=>{
  assert.equal(buildV110HandsReviewReport(null,'LONG_SKIP_CHASE').status,'INVALID_INPUT');
  assert.equal(buildV110HandsReviewReport([],'UNLISTED').recommendation,'KEEP_108');
 });
+
+test('empty observations preserve KEEP_108 and null metrics',()=>{
+ const r=buildV110HandsReviewReport([],'LONG_SKIP_CAUTION_CHASE');
+ assert.equal(r.recommendation,'KEEP_108');
+ assert.equal(r.baseline.LONG.n,0);
+ assert.equal(r.candidate.SHORT.horizons[30].favorablePct,null);
+ assert.equal(r.status,'RESEARCH_ONLY_NOT_INDEPENDENTLY_VALIDATED');
+});
