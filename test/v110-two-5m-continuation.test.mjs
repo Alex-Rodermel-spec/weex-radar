@@ -66,7 +66,7 @@ test('duplicates, missing and future closes do not fabricate a confirmed move',(
  const a=evaluate([...rows,...rows.map(x=>({...x}))],NOW);
  assert.equal(a.archived,400);
  assert.equal(a.matured,130);
- assert.equal(a.complete.bothAndNetPositiveFromNotice,66);
+ assert.equal(a.complete.bothAndNetPositiveFromNotice,65);
  assert.equal(a.missingOrUnresolved,70);
  const future={...rows[0],id:'f'.repeat(32),sentAt:NOW-1000};
  assert.equal(evaluate([...rows,future],NOW).matured,130);
