@@ -15,3 +15,32 @@ test('duplicate, unverified and future outcomes are excluded',()=>{
  assert.equal(r.baseline.length,1);assert.equal(r.candidate.length,0);assert.equal(r.skipped,3);
  assert.equal(r.readyForMonitoring,false);
 });
+
+test('all five horizons preserve LONG and SHORT signs without using TP or SL',()=>{
+ const horizons=[1,5,10,15,30];
+ const rows=horizons.flatMap(h=>[
+  {...row('V108','base-'+h),horizonMinutes:h},
+  {...row('V110','candidate-'+h,'SHORT'),horizonMinutes:h,outcomePrice:99}
+ ]);
+ const result=adapt(rows,{now});
+ assert.equal(result.status,'ADAPTED');
+ assert.deepEqual(result.baseline.map(x=>x.horizonMinutes),horizons);
+ assert.deepEqual(result.candidate.map(x=>x.horizonMinutes),horizons);
+ assert.ok(result.baseline.every(x=>x.signedMoveBps>0));
+ assert.ok(result.candidate.every(x=>x.signedMoveBps>0));
+ assert.equal(result.skipped,0);
+});
+test('rejects impossible prices and unverified outcome timestamps',()=>{
+ const invalid=[
+  {...row('V108','zero'),entryPrice:0},
+  {...row('V108','nan'),outcomePrice:NaN},
+  {...row('V110','reversed'),outcomeKnownAt:'2026-11-14T03:40:00Z'},
+  {...row('V110','wrong-horizon'),horizonMinutes:60},
+  {...row('V110','unknown-side'),direction:'WAIT'}
+ ];
+ const result=adapt(invalid,{now});
+ assert.equal(result.skipped,invalid.length);
+ assert.equal(result.baseline.length,0);
+ assert.equal(result.candidate.length,0);
+ assert.equal(result.readyForMonitoring,false);
+});
