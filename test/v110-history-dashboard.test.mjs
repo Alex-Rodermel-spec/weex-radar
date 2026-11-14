@@ -17,7 +17,7 @@ test('history V110 timing model shows only aggregate data, with denominator and 
    firstThresholdOrder:{maturedWithObserved30m:30,resolvedFirstCrossings:25,
     firstFavorable:19,firstAdverse:6,firstFavorablePctAmongResolved:76,
     neitherRecordedOrUnknown:4,ambiguousTie:1},
-   favorable:{recorded:22,medianMinute:5},
+   favorable:{recorded:22,medianMinute:6.5},
    thresholdOrderByStrength:{STANDARD:{maturedWithObserved30m:2,
     resolvedFirstCrossings:2,firstFavorable:1,firstAdverse:1,
     firstFavorablePctAmongResolved:50,neitherRecordedOrUnknown:0,
@@ -35,7 +35,7 @@ test('history V110 timing model shows only aggregate data, with denominator and 
  assert.equal(l.favorable,19);
  assert.equal(l.adverse,6);
  assert.equal(l.favorablePct,76);
- assert.equal(l.medianMinute,5);
+ assert.equal(l.medianMinute,6.5);
  assert.equal(l.unresolved,5);
  const s=rows.find(r=>r.label==='🔴 SHORT');
  assert.equal(s.favorablePct,null);
