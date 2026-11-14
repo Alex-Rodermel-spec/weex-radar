@@ -13,7 +13,7 @@ test('reports all ten horizon/direction slices without inventing model lift',()=
  const adapted=adaptV110ForecastJournal(records,{now});
  const result=compareV110ForwardOutcomes(adapted);
  assert.equal(result.groups.length,10);
- assert.equal(result.status,'DESCRIPTIVE_ONLY_UNPAIRED');
+ assert.equal(result.status,'INSUFFICIENT_MATCHED_FORWARD_DATA');
  assert.equal(result.ready,false);
  assert.equal(result.approvedForLive,false);
  const long5=result.groups.find(g=>g.horizonMinutes===5&&g.direction==='LONG');
@@ -27,4 +27,30 @@ test('empty and malformed data fail closed',()=>{
  assert.equal(compareV110ForwardOutcomes(null).status,'INVALID_INPUT');
  assert.equal(compareV110ForwardOutcomes({status:'ADAPTED',baseline:[],candidate:[]}).approvedForLive,false);
  assert.equal(compareV110ForwardOutcomes({status:'ADAPTED',baseline:[],candidate:[]},{minPaired:0}).status,'INVALID_INPUT');
+});
+
+test('only identical independent alert IDs and observation timestamps count as paired',()=>{
+ const records=[
+  row('V108','same','LONG',5,101),row('V110','same','LONG',5,102),
+  row('V108','unmatched','LONG',5,99),row('V110','other','LONG',5,101)
+ ];
+ const adapted=adaptV110ForecastJournal(records,{now});
+ const result=compareV110ForwardOutcomes(adapted,{minPaired:1,minDays:1});
+ const g=result.groups.find(x=>x.horizonMinutes===5&&x.direction==='LONG');
+ assert.equal(g.paired.n,1);
+ assert.equal(g.paired.days,1);
+ assert.equal(g.paired.deltaFavorablePct,0);
+ assert.equal(result.status,'MATCHED_RESEARCH_ONLY');
+ assert.equal(result.approvedForLive,false);
+});
+test('matched observations below threshold never produce lift or live approval',()=>{
+ const adapted=adaptV110ForecastJournal([
+  row('V108','same','SHORT',10,99),row('V110','same','SHORT',10,98)
+ ],{now});
+ const result=compareV110ForwardOutcomes(adapted,{minPaired:2,minDays:2});
+ const g=result.groups.find(x=>x.horizonMinutes===10&&x.direction==='SHORT');
+ assert.equal(g.paired.n,1);
+ assert.equal(g.paired.deltaFavorablePct,null);
+ assert.equal(result.ready,false);
+ assert.equal(result.approvedForLive,false);
 });
