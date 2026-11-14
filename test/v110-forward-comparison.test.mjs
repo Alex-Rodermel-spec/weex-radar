@@ -80,3 +80,22 @@ test('matched coverage reports excluded unmatched observations rather than hidin
  assert.equal(g.paired.candidateCoveragePct,50);
  assert.equal(result.approvedForLive,false);
 });
+
+test('research verdict rejects a worse candidate even with sufficient matched records',()=>{
+ const adapted=adaptV110ForecastJournal([
+  row('V108','same','LONG',5,102),row('V110','same','LONG',5,99)
+ ],{now});
+ const result=compareV110ForwardOutcomes(adapted,{minPaired:1,minDays:1});
+ const g=result.groups.find(x=>x.horizonMinutes===5&&x.direction==='LONG');
+ assert.equal(g.paired.researchVerdict,'KEEP_108');
+ assert.equal(result.approvedForLive,false);
+});
+test('a better matched research candidate is never approved for live deployment',()=>{
+ const adapted=adaptV110ForecastJournal([
+  row('V108','same','LONG',5,99),row('V110','same','LONG',5,102)
+ ],{now});
+ const result=compareV110ForwardOutcomes(adapted,{minPaired:1,minDays:1});
+ const g=result.groups.find(x=>x.horizonMinutes===5&&x.direction==='LONG');
+ assert.equal(g.paired.researchVerdict,'PROMISING_RESEARCH_ONLY');
+ assert.equal(result.approvedForLive,false);
+});
