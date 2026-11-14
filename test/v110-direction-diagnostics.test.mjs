@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {evaluateV110DirectionDiagnostics as evaluate} from '../lib/v110-direction-diagnostics.mjs';
+
+const MIN=60_000;
+const now=Date.parse('2026-11-14T00:00:00Z');
+const sentAt=now-90*MIN;
+const record=(i,direction='LONG',patch={})=>({
+ id:i.toString(16).padStart(32,'0'),
+ symbol:direction==='LONG'?'XRPUSDT':'BTCUSDT',direction,sentAt,
+ strength:'STANDARD',preMove5mBps:2,
+ windows:{5:{status:'OBSERVED',moveBps:2},10:{status:'OBSERVED',moveBps:4},
+  15:{status:'OBSERVED',moveBps:8},30:{status:'OBSERVED',moveBps:11}},
+ firstFavorable10bpsMinute:null,firstAdverse10bpsMinute:null,
+ ...patch
+});
+
+test('observed first +/-10bps minute is counted separately for LONG and SHORT',()=>{
+ const longs=Array.from({length:25},(_,i)=>record(i,'LONG',{
+  firstFavorable10bpsMinute:i<20?4:i<22?9:null,
+  firstAdverse10bpsMinute:i<21?15:null
+ }));
+ const shorts=[record(100,'SHORT',{firstFavorable10bpsMinute:2}),
+  record(101,'SHORT',{firstAdverse10bpsMinute:25})];
+ const result=evaluate([...longs,...shorts],now);
+ assert.equal(result.status,'OBSERVED_AGGREGATES_ONLY');
+ assert.equal(result.byDirection.LONG.firstMove10bps.eligibleMature30m,25);
+ const long=result.byDirection.LONG.firstMove10bps;
+ assert.equal(long.favorable.recorded,22);
+ assert.equal(long.favorable.missingOrNotReached,3);
+ assert.equal(long.favorable.medianMinute,4);
+ assert.deepEqual(long.favorable.bands,{'1-5':20,'6-10':2,'11-15':0,'16-30':0});
+ assert.equal(long.adverse.recorded,21);
+ assert.equal(long.adverse.medianMinute,15);
+ assert.equal(long.adverse.bands['11-15'],21);
+ const short=result.byDirection.SHORT.firstMove10bps;
+ assert.equal(short.eligibleMature30m,2);
+ assert.equal(short.favorable.recorded,1);
+ assert.equal(short.favorable.medianMinute,null);
+ assert.equal(short.favorable.bands,null);
+ assert.equal(result.ordersSent,0);
+ assert.equal(result.changesLiveSignals,false);
+});
+
+test('unknown and legacy onset fields are never considered a confirmed failure',()=>{
+ const rows=[
+  record(1,'LONG',{firstFavorable10bpsMinute:null}),
+  record(2,'LONG',{firstFavorable10bpsMinute:0}),
+  record(3,'LONG',{firstFavorable10bpsMinute:31}),
+  record(4,'LONG',{firstFavorable10bpsMinute:6.5}),
+  record(5,'LONG',{firstFavorable10bpsMinute:10,
+   windows:{30:{status:'PENDING',moveBps:null}}}),
+  record(6,'LONG',{firstFavorable10bpsMinute:8,sentAt:now-10*MIN})
+ ];
+ const result=evaluate(rows,now);
+ const r=result.byDirection.LONG.firstMove10bps;
+ assert.equal(r.eligibleMature30m,4);
+ assert.equal(r.favorable.recorded,0);
+ assert.equal(r.favorable.missingOrNotReached,4);
+ assert.equal(r.favorable.medianMinute,null);
+ assert.equal(r.adverse.recorded,0);
+ assert.equal(result.byDirection.SHORT.firstMove10bps.eligibleMature30m,0);
+ assert.equal(result.byDirection.LONG.horizons[30].observed,4);
+});
+
+test('onset diagnostics do not alter the live scanner or introduce market requests',()=>{
+ const lib=readFileSync(new URL('../lib/v110-direction-diagnostics.mjs',import.meta.url),'utf8');
+ const scan=readFileSync(new URL('../api/signals.mjs',import.meta.url),'utf8');
+ assert.equal(scan.includes('v110-direction-diagnostics'),false);
+ for(const forbidden of ['fetch(','placeOrder','process.env','trade-confirm','PUSH_CRON_KEY'])
+  assert.equal(lib.includes(forbidden),false,forbidden);
+});
