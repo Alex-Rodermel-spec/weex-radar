@@ -9,7 +9,7 @@ A locally supplied UTF-8 JSON array of independently resolved outcomes, max 10,0
 - `direction`: `LONG` or `SHORT`
 - `horizonMinutes`: 1, 5, 10, 15, or 30
 - `entryPrice`, `outcomePrice`: finite positive numbers
-- `observedAt`, `outcomeKnownAt`: valid ISO timestamps
+- `observedAt`, `evaluatedAt`, `outcomeKnownAt`: valid ISO timestamps. `evaluatedAt` is the timestamp of the actual sampled market price at the specified forecast horizon (within 5 seconds). `outcomeKnownAt` is when the result became available and must not precede `evaluatedAt`.
 - `source`: `independent-forward`, assigned only by an independent evaluator after resolution
 
 **Do not relabel backtests, historical screenings or synthetic fixtures as independent-forward.** The evaluator must document how price and horizon were resolved and exclude information unavailable at forecast time. Ensure matching IDs and timestamps refer to the same market observation. Never export API keys, private account information, orders, or notification credentials.
