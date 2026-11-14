@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 concurrency:
   group: v110-owner-proposal-draft
   cancel-in-progress: false
@@ -66,6 +67,8 @@ jobs:
             echo "Existing review PR #$existing for $policy; no repeat." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          # Recover safely from a previous interrupted run. An already-existing
+          # branch/file must not strand the proposal with an HTTP 422.
           if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha' >/dev/null 2>&1; then
             base_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
             gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
@@ -73,20 +76,48 @@ jobs:
           fi
           path="research/v110-proposals/$policy.json"
           file_contents="$(base64 -w0 < "$RUNNER_TEMP/v110-proposal.json")"
-          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" \
-            -f message="research(v110): stage $policy for independent forward testing" \
-            -f branch="$branch" -f content="$file_contents" >/dev/null
-          gh pr create --draft --base main --head "$branch" \
-            --title "V110 research proposal: $policy (forward test required)" \
-            --body "Automated V110 screening proposal only. This PR adds a sanitized aggregate research artifact, NOT live strategy code.
+          old_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=$branch" --jq '.sha' 2>/dev/null || true)"
+          if [[ -n "$old_sha" ]]; then
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" \
+              -f message="research(v110): refresh screened $policy study" \
+              -f branch="$branch" -f content="$file_contents" -f sha="$old_sha" >/dev/null
+          else
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" \
+              -f message="research(v110): stage $policy for independent forward testing" \
+              -f branch="$branch" -f content="$file_contents" >/dev/null
+          fi
+          title="V110 research proposal: $policy (forward test required)"
+          # Only inert aggregate JSON is committed: no live strategy source.
+          body="$(cat <<'EOF'
+          Automatically generated №110 **research screening only**, NOT a deployment.
+          The screening checks 3 training and 2 later holdout days of published forecasts.
+          This is **not** evidence of net profitable trading.
 
-          The 3-training + 2-holdout exploratory screen passed on published forecasts. This does NOT prove profit, execution quality or accuracy on independent future data.
+          To propose a live №108 change, a different code PR must:
+          - Pass a separate untouched prospective forward-test on newly published alerts.
+          - Address slippage, fees, correlations, notification latency and coverage.
+          - Receive explicit owner review and pass green CI.
+          - Provide rollback instructions and confirm no unauthorized order changes.
 
-          BEFORE implementing ANY change to #108:
-          - Record and pass a separate untouched forward test.
-          - Measure publication delays, market correlation, commissions, slippage and missed opportunities.
-          - Obtain explicit owner approval for the exact live code change.
-          - Require green CI, code review, a reversible rollout and rollback checks.
+          No live trading rules, forecast rules, keys, or orders change in this PR.
+          EOF
+          )"
+          if gh pr create --draft --base main --head "$branch" \
+              --title "$title" --body "$body" >/dev/null; then
+            echo "Opened DRAFT V110 owner-review PR for $policy. Live #108 untouched." >> "$GITHUB_STEP_SUMMARY"
+          else
+            # Some repositories forbid GITHUB_TOKEN-created PRs. Alert via
+            # a single issue instead of pretending the automation succeeded.
+            fallback_title="V110 review pending pull-request permission: $policy"
+            if ! gh issue list --state all --limit 100 --json title --jq '.[].title' | \
+                grep -Fxq "$fallback_title"; then
+              gh issue create --title "$fallback_title" \
+                --body "$body
 
-          No automatic merge. No order placement. No signal or trading rule modifications." >/dev/null
-          echo "Opened a draft owner-review PR for $policy. Live #108 untouched." >> "$GITHUB_STEP_SUMMARY"
+          Research branch: $branch
+          Research JSON: $path
+          Draft PR creation was blocked. The owner must allow Actions to create PRs in repository settings or create it manually." >/dev/null
+            fi
+            echo "::warning::V110 proposal branch prepared but GitHub prevented automatic PR creation."
+            echo "Review GitHub issue for $policy; live #108 untouched." >> "$GITHUB_STEP_SUMMARY"
+          fi
