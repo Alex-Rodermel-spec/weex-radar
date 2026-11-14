@@ -61,6 +61,10 @@ jobs:
             echo "::error::Unknown researcher policy"
             exit 1
           fi
+          # Generate the actual candidate filter as inert, reviewable source.
+          # It remains outside live lib/ and has no effect on №108.
+          node scripts/v110-build-candidate.mjs "$RUNNER_TEMP/v110-proposal.json" > "$RUNNER_TEMP/v110-candidate.mjs"
+          test -s "$RUNNER_TEMP/v110-candidate.mjs"
           branch="v110-owner-review-${policy,,}"
           # Exactly one review branch per policy. Never repeat a rejected study.
           existing="$(gh pr list --state all --head "$branch" --json number --jq '.[0].number // empty')"
@@ -87,10 +91,25 @@ jobs:
               -f message="research(v110): stage $policy for independent forward testing" \
               -f branch="$branch" -f content="$file_contents" >/dev/null
           fi
+          # A second research-only artifact contains the proposed pure filter
+          # implementation. It is not imported by live code anywhere.
+          codepath="research/v110-proposals/$policy.mjs"
+          code_contents="$(base64 -w0 < "$RUNNER_TEMP/v110-candidate.mjs")"
+          old_code_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$codepath?ref=$branch" --jq '.sha' 2>/dev/null || true)"
+          if [[ -n "$old_code_sha" ]]; then
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$codepath" \
+              -f message="research(v110): refresh inert $policy candidate module" \
+              -f branch="$branch" -f content="$code_contents" -f sha="$old_code_sha" >/dev/null
+          else
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$codepath" \
+              -f message="research(v110): draft inert $policy candidate module" \
+              -f branch="$branch" -f content="$code_contents" >/dev/null
+          fi
           title="V110 research proposal: $policy (forward test required)"
           # Only inert aggregate JSON is committed: no live strategy source.
           body="$(cat <<'EOF'
           Automatically generated №110 **research screening only**, NOT a deployment.
+          The PR contains only a summary JSON and an inert, isolated research filter module, not a live strategy change.
           The screening checks 3 training and 2 later holdout days of published forecasts.
           This is **not** evidence of net profitable trading.
 
