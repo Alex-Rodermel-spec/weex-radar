@@ -249,7 +249,7 @@ function renderV110Timing(diagnostics){
 function v110ForwardProgress(report){
  const integer=n=>Number.isSafeInteger(n)&&n>=0?n:null;
  const number=n=>typeof n==='number'&&Number.isFinite(n)?n:null;
- const utc=s=>typeof s==='string'&&/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/.test(s)&&
+ const utc=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(s)&&
   Number.isFinite(Date.parse(s))?s.slice(0,16).replace('T',' ')+' UTC':'—';
  const state=s=>{
   if(s==='NOT_STARTED')return 'Ещё не началось';
