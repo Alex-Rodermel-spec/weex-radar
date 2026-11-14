@@ -215,7 +215,8 @@ function v110TimingRows(diagnostics){
     adverse:Number.isSafeInteger(o.firstAdverse)?o.firstAdverse:null,
     favorablePct:Number.isSafeInteger(resolved)&&resolved>=20&&Number.isFinite(o.firstFavorablePctAmongResolved)?
      o.firstFavorablePctAmongResolved:null,
-    medianMinute:part.median?.recorded>=20&&Number.isSafeInteger(part.median?.medianMinute)?
+    medianMinute:part.median?.recorded>=20&&Number.isFinite(part.median?.medianMinute)&&
+     part.median.medianMinute>=1&&part.median.medianMinute<=30?
      part.median.medianMinute:null,
     unresolved
    });
@@ -231,7 +232,7 @@ function renderV110Timing(diagnostics){
    const tr=document.createElement('tr');
    for(const value of [row.label,row.matured,row.favorable,row.adverse,
     row.favorablePct===null?'—':row.favorablePct+'%',
-    row.medianMinute===null?'—':row.medianMinute+' мин',row.unresolved]){
+    row.medianMinute===null?'—':new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(row.medianMinute)+' мин',row.unresolved]){
     const td=document.createElement('td');
     td.textContent=value===null?'—':String(value);
     tr.appendChild(td);
