@@ -3,6 +3,9 @@ on:
   push:
     branches: [main, feature/weex-manual-trade-preview]
   pull_request:
+  # Allow V110's GITHUB_TOKEN to request an explicit verification run.
+  # Pull requests opened by GITHUB_TOKEN do not trigger ordinary PR workflows.
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
