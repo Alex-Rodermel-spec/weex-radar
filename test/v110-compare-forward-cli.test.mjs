@@ -40,3 +40,14 @@ test('read-only CLI refuses contradictory market prices for the same observation
   assert.equal(p.status,1);assert.match(p.stderr,/CONFLICTING_PAIRED_MARKET_PRICES/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('read-only CLI refuses a partially invalid export instead of reporting biased accuracy',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'v110-'));
+ try{
+  const file=join(dir,'partial.json');
+  const row={symbol:'XRPUSDT',alertId:'same',direction:'LONG',horizonMinutes:5,entryPrice:100,outcomePrice:101,observedAt:'2026-11-13T12:00:00Z',evaluatedAt:'2026-11-13T12:05:00Z',outcomeKnownAt:'2026-11-13T12:05:01Z',source:'independent-forward'};
+  writeFileSync(file,JSON.stringify([{...row,model:'V108'},{...row,model:'V110'},{...row,model:'V110',source:'backtest',alertId:'unverified'}]));
+  const p=spawnSync(process.execPath,[cli,file],{encoding:'utf8'});
+  assert.equal(p.status,1);assert.match(p.stderr,/UNVERIFIED_OR_DUPLICATED_JOURNAL_ROWS/);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
