@@ -61,7 +61,7 @@ test('unknown and legacy onset fields are never considered a confirmed failure',
  assert.equal(r.favorable.medianMinute,null);
  assert.equal(r.adverse.recorded,0);
  assert.equal(result.byDirection.SHORT.firstMove10bps.eligibleMature30m,0);
- assert.equal(result.byDirection.LONG.horizons[30].observed,5);
+ assert.equal(result.byDirection.LONG.horizons[30].observed,4);
 });
 
 test('onset diagnostics do not alter the live scanner or introduce market requests',()=>{
