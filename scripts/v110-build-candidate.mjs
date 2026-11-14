@@ -1,16 +1,13 @@
-// Emits a deterministic research-only source file for a screened proposal.
-// The emitted module never trades, calls an API, or alters production №108.
+// Validate the complete research proposal through V110 Hands before emitting
+// any inert candidate source. No trading, network, deployment or GitHub writes.
 import {readFileSync} from 'node:fs';
-import {buildV110CandidateModule} from '../lib/v110-candidate-template.mjs';
+import {prepareV110HandsProposal} from '../lib/v110-hands.mjs';
 const file=process.argv[2];
 if(!file)throw Error('V110_PROPOSAL_INPUT_REQUIRED');
-const p=JSON.parse(readFileSync(file,'utf8'));
-if(p.schema!=='v110-research-proposal-v1'||
- p.readiness!=='FORWARD_TEST_REQUIRED'||
- p.requiresOwnerApproval!==true||
- p.affectsLiveSignals!==false||
- p.affectsOrders!==false||
- p.canAutoMerge!==false)throw Error('V110_PROPOSAL_UNVERIFIED');
-const source=buildV110CandidateModule(p.policyId);
-if(!source)throw Error('V110_POLICY_NOT_ALLOWED');
-process.stdout.write(source);
+const proposal=JSON.parse(readFileSync(file,'utf8'));
+const prepared=prepareV110HandsProposal(proposal);
+if(!prepared)throw Error('V110_HANDS_PROPOSAL_REJECTED');
+const source=prepared.files.find(f=>f.path===
+ `research/v110-proposals/${proposal.policyId}.mjs`);
+if(!source||!source.content)throw Error('V110_HANDS_SOURCE_MISSING');
+process.stdout.write(source.content);

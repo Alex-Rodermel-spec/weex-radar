@@ -1,0 +1,45 @@
+name: V110 private forward comparison (manual research only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Verify configuration
+        env:
+          PRIVATE_FORWARD_JSON_B64: ${{ secrets.V110_PRIVATE_FORWARD_JSON_B64 }}
+        run: |
+          if [ -z "$PRIVATE_FORWARD_JSON_B64" ]; then
+            echo 'Private forward dataset secret missing; no comparison performed.'
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$PRIVATE_FORWARD_JSON_B64" | base64 --decode > "$RUNNER_TEMP/v110-forward.json"
+          test "$(wc -c < "$RUNNER_TEMP/v110-forward.json")" -le 5000000
+      - name: Compare privately (do not publish records)
+        env:
+          V110_INPUT: ${{ runner.temp }}/v110-forward.json
+        run: |
+          node scripts/v110-compare-forward.mjs "$V110_INPUT" > "$RUNNER_TEMP/v110-result.json"
+          node --input-type=module -e "
+            import {readFileSync} from 'node:fs';
+            const x=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/v110-result.json','utf8'));
+            console.log(JSON.stringify({status:x.status,ready:x.ready,approvedForLive:false,
+              paired:x.groups?.reduce((n,g)=>n+g.paired.n,0)||0,
+              disagreements:x.disagreementAudit?.disagree||0,
+              priceConflicts:x.priceAudit?.priceConflicts||0}));
+          "
+      - name: Remove private input
+        if: always()
+        run: rm -f "$RUNNER_TEMP/v110-forward.json" "$RUNNER_TEMP/v110-result.json"

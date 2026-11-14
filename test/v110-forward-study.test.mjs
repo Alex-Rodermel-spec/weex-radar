@@ -32,7 +32,8 @@ test('fixed preregistered future study does not recommend live deployment',()=>{
  assert.equal(v.modeledCosts.candidateStressNetBpsProxy,13);
  assert.equal(v.baseline.n,192);
  assert.equal(v.candidate.n,96);
- assert.equal(v.days,4);
+ // Four rolling 24-hour periods may cross five distinct UTC calendar dates.
+ assert.equal(v.days,new Set(records().map(r=>new Date(r.sentAt).toISOString().slice(0,10))).size);
  assert.equal(v.candidate.favorable15mPct,100);
  assert.equal(v.baseline.favorable15mPct,50);
  assert.equal(v.noLiveChanges,true);
