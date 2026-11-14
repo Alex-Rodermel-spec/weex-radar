@@ -2,7 +2,7 @@
 
 Inspection of production `lib/forecast-journal.mjs`, `lib/journal-route.mjs`, and `lib/v110-forward-study.mjs` shows an existing encrypted archive and an existing pre-registered prospective candidate policy.
 
-**Production source of truth:** `evaluateV110FixedForwardStudy(forecastRows, now)` already runs inside `GET /api/signals?mode=journal` and uses the existing journal writer. It evaluates a policy fixed before its 2026-11-15 through 2026-11-18 UTC observation window. It does not claim an unobserved V110 prediction, and requires 75 baseline/35 candidate observations and distinct days plus modeled cost stress. No trade or live strategy changes are authorized.
+**Production source of truth:** `evaluateV110FixedForwardStudy(forecastRows, now)` already runs inside `GET /api/signals?mode=journal` and uses the existing journal writer. It evaluates a policy configured for its 2026-11-14T04:40:00Z to 2026-11-18T04:40:00Z (exclusive) UTC observation window. The study result cannot be finalized before the subsequent 40-minute maturity buffer. It does not claim an unobserved V110 prediction, and requires 75 baseline/35 candidate observations and distinct days plus modeled cost stress. No trade or live strategy changes are authorized.
 
 **Do not replace it with the experimental offline paired-outcome analyzer.** The offline analyzer requires truly paired contemporaneous V108/V110 alerts and is not an adapter for the production filtered-cohort forward policy. Treating a filtered subset as independent V110 forecasts would misstate the evidence.
 
