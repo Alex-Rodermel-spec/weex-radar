@@ -78,6 +78,6 @@ test('no extra market requests, secret access or references from live scanner',(
   assert.equal(lib.includes(forbidden),false,forbidden);
  assert.equal(scan.includes('v110-forward-study'),false);
  assert.equal(push.includes('v110-forward-study'),false);
- assert.match(route,/forwardStudy:evaluateV110FixedForwardStudy\\(forecastRows,now\\)/);
- assert.match(route,/from '\\.\\/v110-forward-study\\.mjs'/);
+ assert.ok(route.includes('forwardStudy:evaluateV110FixedForwardStudy(forecastRows,now)'));
+ assert.ok(route.includes("from './v110-forward-study.mjs'"));
 });
