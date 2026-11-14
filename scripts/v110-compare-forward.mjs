@@ -19,6 +19,7 @@ else {
   if(timing.status!=='VALIDATED'||timing.rejected.length)throw Error('UNVERIFIED_FORECAST_EVALUATION_TIMES');
   const adapted=adaptV110ForecastJournal(timing.valid);
   if(adapted.status!=='ADAPTED')throw Error('INVALID_JOURNAL');
+  if(adapted.skipped>0)throw Error('UNVERIFIED_OR_DUPLICATED_JOURNAL_ROWS');
   const priceAudit=auditV110PriceConsistency(adapted);
   if(priceAudit.status!=='RESEARCH_AUDIT_ONLY'||priceAudit.priceConflicts||priceAudit.ambiguous)throw Error('CONFLICTING_PAIRED_MARKET_PRICES');
   const comparison=compareV110ForwardOutcomes(adapted);
