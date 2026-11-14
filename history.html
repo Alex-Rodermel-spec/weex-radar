@@ -93,6 +93,13 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  </details>
  <p class="muted">Процент считается только среди известных первых пересечений и скрывается при менее 20 наблюдениях. Медиана скрыта при менее 20 измеренных достижениях. «Не определено» — порог не достигнут либо не хватает минутных свечей. Это не подтверждение торговой прибыли или превосходства стратегии.</p>
 </section>
+<section class="card" aria-labelledby="v110-forward-title">
+ <h2 id="v110-forward-title">🧪 №110: независимое испытание улучшений</h2>
+ <p class="muted">Здесь видны только сроки, объём накопленной выборки и окончательный статус двух <b>заранее зафиксированных</b> исследований. Пока период не завершился, промежуточные проценты успеха намеренно скрыты, чтобы мы не подгоняли правила под новые наблюдения.</p>
+ <div class="table-box"><table><thead><tr><th>Исследование</th><th>Период · UTC</th><th>Прогресс</th><th>Вывод</th></tr></thead><tbody id="v110ForwardRows"></tbody></table></div>
+ <p class="muted" id="v110ForwardStatus" role="status">Читаем опубликованные агрегаты исследования…</p>
+ <p class="muted">Даже пройденный исследовательский порог не означает, что новая стратегия прибыльна или внедрена в №108. Комиссии и проскальзывание моделируются отдельно от фактического исполнения; для любого изменения боевых правил нужны дополнительные доказательства и согласование владельца.</p>
+</section>
 <h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
 <p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
 <div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
@@ -238,6 +245,73 @@ function renderV110Timing(diagnostics){
   'Исследовательская статистика №110 пока недоступна; отсутствующие значения не подменяем предположениями.';
 }
 
+// Only aggregate published policy progress. No private records or future peeking.
+function v110ForwardProgress(report){
+ const integer=n=>Number.isSafeInteger(n)&&n>=0?n:null;
+ const number=n=>typeof n==='number'&&Number.isFinite(n)?n:null;
+ const utc=s=>typeof s==='string'&&/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/.test(s)&&
+  Number.isFinite(Date.parse(s))?s.slice(0,16).replace('T',' ')+' UTC':'—';
+ const state=s=>{
+  if(s==='NOT_STARTED')return 'Ещё не началось';
+  if(s==='COLLECTING_FIXED_WINDOW')return 'Сбор идёт · результат скрыт';
+  if(s==='INSUFFICIENT_FUTURE_SAMPLE')return 'Недостаточно независимых наблюдений · KEEP_108';
+  if(s==='FORWARD_SCREEN_REJECTED'||s==='TIMING_EFFECT_NOT_REPLICATED')
+   return 'Гипотеза не подтвердилась · KEEP_108';
+  if(s==='FORWARD_COST_PROXY_REJECTED')return 'Не прошёл модель затрат · KEEP_108';
+  if(s==='FORWARD_PRICE_AND_COST_PROXY_PASSED')
+   return 'Прошёл исследовательский порог · только ручная проверка';
+  if(s==='TIMING_EFFECT_REPLICATED_REVIEW_ONLY')
+   return 'Эффект времени наблюдался · только ручная проверка';
+  return 'Статус недоступен · KEEP_108';
+ };
+ const source=report?.forwardStudy,policy=source?.policy;
+ const timing=report?.longStandardForward,timingPolicy=timing?.policy;
+ const mainStats=integer(source?.baseline?.n)===null||integer(source?.candidate?.n)===null?
+  'Статистика пока недоступна':
+  'Исходных LONG: '+source.baseline.n+' / '+(integer(policy?.minBaselineN)??'—')+
+  '; отобрано: '+source.candidate.n+' / '+(integer(policy?.minCandidateN)??'—')+
+  '; дней: '+(integer(source.days)??'—')+' / '+(integer(policy?.minDistinctUTCdays)??'—')+
+  '; покрытие: '+(number(source.coveragePct)===null?'—':source.coveragePct+'%');
+ const timingStats=integer(timing?.early?.n)===null||integer(timing?.late?.n)===null?
+  'Статистика пока недоступна':
+  'Ранние: '+timing.early.n+' / '+(integer(timingPolicy?.minEarly)??'—')+
+  '; запоздалые: '+timing.late.n+' / '+(integer(timingPolicy?.minLate)??'—')+
+  '; дней: '+(integer(timing.distinctDays)??'—')+' / '+
+  (integer(timingPolicy?.minDistinctDays)??'—');
+ const status=(x)=>{
+  if(!x?.status||x.status==='INVALID_INPUT')return 'Нет достоверного отчёта · KEEP_108';
+  // Never publish an interim winner even if a malformed payload says PASS.
+  if(x.futureWindowComplete!==true){
+   return x.status==='NOT_STARTED'?'Ещё не началось':
+    'Сбор идёт · результат скрыт';
+  }
+  return state(x.status);
+ };
+ return [
+  {name:'LONG: исключить риск и догоняющее движение',
+   period:utc(policy?.startUTC)+' — '+utc(policy?.endExclusiveUTC),
+   progress:mainStats,status:status(source)},
+  {name:'Обычный LONG: ранний или запоздалый',
+   period:utc(timingPolicy?.startUTC)+' — '+utc(timingPolicy?.endExclusiveUTC),
+   progress:timingStats,status:status(timing)}
+ ];
+}
+function renderV110ForwardProgress(data){
+ const rows=v110ForwardProgress(data);
+ const body=$('v110ForwardRows');body.replaceChildren();
+ for(const row of rows){
+  const tr=document.createElement('tr');
+  for(const value of [row.name,row.period,row.progress,row.status]){
+   const td=document.createElement('td');
+   td.textContent=value;
+   tr.appendChild(td);
+  }
+  body.appendChild(tr);
+ }
+ $('v110ForwardStatus').textContent=
+  'Исследования не изменяют №108. Положительное направление цены не равно результату сделки.';
+}
+
 function display(){
  if(!report)return;
  const days=$('days').value,stats=report.windows?.[days];
@@ -333,6 +407,7 @@ function display(){
   'Только реально отправленные LONG/SHORT. Изменение цены до уведомления показывает запоздание, а движение после — наблюдаемое направление, не прибыльность после комиссий.':
   'История новой проверки LONG/SHORT пока пуста.';
  renderV110Timing(report.directionDiagnostics);
+  renderV110ForwardProgress(report);
   const forecast=report.forecastStudy?.windows?.[days];
  $('forecastTotal').textContent=showN(forecast?.total);
  $('forecast5').textContent=forecast?.at5m?.observed?pct(forecast.at5m.favorablePct)+' ('+forecast.at5m.observed+')':'—';
