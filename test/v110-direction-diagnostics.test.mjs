@@ -71,3 +71,62 @@ test('onset diagnostics do not alter the live scanner or introduce market reques
  for(const forbidden of ['fetch(','placeOrder','process.env','trade-confirm','PUSH_CRON_KEY'])
   assert.equal(lib.includes(forbidden),false,forbidden);
 });
+
+test('first 10bps threshold separates favorable-before-adverse from adverse-before-favorable',()=>{
+ const favorable=Array.from({length:20},(_,i)=>record(200+i,'LONG',{
+  strength:'STRONG',firstFavorable10bpsMinute:3,
+  firstAdverse10bpsMinute:i%2===0?12:null
+ }));
+ const adverse=Array.from({length:5},(_,i)=>record(240+i,'LONG',{
+  strength:'STRONG',firstAdverse10bpsMinute:4,
+  firstFavorable10bpsMinute:i%2===0?19:null
+ }));
+ const unclassified=[record(260,'LONG'),record(261,'LONG',{
+  firstFavorable10bpsMinute:7,firstAdverse10bpsMinute:7
+ })];
+ const insufficient=[record(270,'LONG',{sentAt:now-10*MIN,
+  firstFavorable10bpsMinute:2}),record(271,'LONG',{
+  windows:{30:{status:'NO_DATA',moveBps:null}},
+  firstAdverse10bpsMinute:3
+ })];
+ const shorts=Array.from({length:22},(_,i)=>record(300+i,'SHORT',{
+  strength:'STANDARD',
+  firstFavorable10bpsMinute:i<11?5:22,
+  firstAdverse10bpsMinute:i<11?18:2
+ }));
+ const output=evaluate([...favorable,...adverse,...unclassified,...insufficient,...shorts],now);
+ const l=output.byDirection.LONG.firstMove10bps.firstThresholdOrder;
+ assert.equal(l.maturedWithObserved30m,27);
+ assert.equal(l.firstFavorable,20);
+ assert.equal(l.firstAdverse,5);
+ assert.equal(l.resolvedFirstCrossings,25);
+ assert.equal(l.firstFavorablePctAmongResolved,80);
+ assert.equal(l.firstAdversePctAmongResolved,20);
+ assert.equal(l.bothRecorded,14);
+ assert.equal(l.onlyFavorableRecorded,10);
+ assert.equal(l.onlyAdverseRecorded,2);
+ assert.equal(l.ambiguousTie,1);
+ assert.equal(l.neitherRecordedOrUnknown,1);
+ assert.equal(output.byDirection.LONG.firstMove10bps.thresholdOrderByStrength.STRONG.firstFavorable,20);
+ const s=output.byDirection.SHORT.firstMove10bps.firstThresholdOrder;
+ assert.equal(s.firstFavorable,11);
+ assert.equal(s.firstAdverse,11);
+ assert.equal(s.firstFavorablePctAmongResolved,50);
+ assert.equal(output.byDirection.SHORT.firstMove10bps.thresholdOrderByStrength.STANDARD.resolvedFirstCrossings,22);
+ assert.equal(output.ordersSent,0);
+});
+
+test('small cohorts and missing crossings are not reported as meaningful first-hit rates',()=>{
+ const rows=[record(700,'SHORT',{firstFavorable10bpsMinute:2}),
+  record(701,'SHORT',{firstAdverse10bpsMinute:9}),
+  record(702,'SHORT'),record(703,'SHORT',{
+   firstFavorable10bpsMinute:8,firstAdverse10bpsMinute:8})];
+ const r=evaluate(rows,now).byDirection.SHORT.firstMove10bps;
+ assert.equal(r.firstThresholdOrder.resolvedFirstCrossings,2);
+ assert.equal(r.firstThresholdOrder.firstFavorablePctAmongResolved,null);
+ assert.equal(r.firstThresholdOrder.ambiguousTie,1);
+ assert.equal(r.firstThresholdOrder.neitherRecordedOrUnknown,1);
+ assert.equal(r.thresholdOrderByStrength.STANDARD.resolvedFirstCrossings,2);
+ assert.equal(r.thresholdOrderByStrength.STANDARD.firstAdversePctAmongResolved,null);
+ assert.equal(r.thresholdOrderByStrength.CAUTION.resolvedFirstCrossings,0);
+});
