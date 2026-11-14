@@ -127,6 +127,19 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <div class="table-box"><table><thead><tr><th>Сторона</th><th>Наблюдений</th><th>1-я полная 5М по прогнозу</th><th>2-я полная 5М по прогнозу</th><th>Обе + цена в сторону прогноза</th></tr></thead><tbody id="two5mDirections"></tbody></table></div>
  <p class="muted">Здесь нет неподанных Forecast или всех минутных откатов: старый журнал хранит только отправленные уведомления. Схема двух 5М может опаздывать на 10–15 минут. Статистика не означает прибыльной сделки и не меняет №108, Forecast или риск.</p>
 </section>
+<section class="card" aria-labelledby="v110-all32-title">
+ <h2 id="v110-all32-title">🔍 №110: аудит ВСЕХ 32 инструментов</h2>
+ <p class="muted">Не выбираем только HYPE/AMD: данные по каждому рынку из уже опубликованных Forecast и подтверждённых 5М LONG/SHORT. Охватывает даже инструменты с НУЛЁМ уведомлений. Выборка не включает отсеянные прогнозы и не измеряет прибыль после комиссий.</p>
+ <p id="v110All32Status" class="muted" role="status">Загружаем аудит всех 32 инструментов…</p>
+ <details>
+  <summary>Открыть таблицу всех 32 рынков · LONG / SHORT / опоздания / 5М / 15М</summary>
+  <div class="table-box"><table>
+   <thead><tr><th>Инструмент</th><th>Forecast</th><th>LONG / SHORT</th><th>5М в сторону</th><th>15М в сторону</th><th>Уже ≥0,10% до сигнала</th><th>5М входных уведомлений</th><th>Их 15М результат</th></tr></thead>
+   <tbody id="v110All32Rows"></tbody>
+  </table></div>
+ </details>
+ <p class="muted">Проценты по каждому инструменту скрываются при менее 20 полноценно измеренных уведомлений; ноль уведомлений ≠ ноль ошибок. Учитываются только закрытия цены относительно опубликованной опорной цены. Проверки 1М/5М отсеянных кандидатов живут отдельно в серверной телеметрии. Никаких изменений торговых правил №108.</p>
+</section>
 <h2>🔵 Обычный или 🟣 сильный — кто приходит раньше на 5М?</h2>
 <p class="muted">«До 15м» показывает, сколько цена уже прошла в сторону прогноза до уведомления (плюс означает возможное запоздание). «Закрытие 5М» — направление на ближайшем закрытии 5-минутной свечи после сообщения. Это наблюдение, не рекомендация входа.</p>
 <div class="table-box"><table><thead><tr><th>Тип</th><th>Прогнозов</th><th>Среднее до 15м</th><th>Уже прошло ≥0,10%</th><th>Первое закрытие 5М</th><th>Через 10м</th><th>Через 15м</th></tr></thead><tbody id="forecastStrength"></tbody></table></div>
@@ -320,6 +333,38 @@ function renderV110Two5m(result){
    tr.appendChild(td);
   }
   table.appendChild(tr);
+ }
+}
+
+// Safe all-32 summary: only aggregated counts, never decrypted rows.
+function renderV110All32(audit){
+ const body=$('v110All32Rows');body.replaceChildren();
+ const status=$('v110All32Status');
+ if(audit?.mode!=='V110_ALL32_ARCHIVE_QUALITY_AUDIT'||
+  !Array.isArray(audit.markets)||audit.markets.length!==32){
+  status.textContent='Полный аудит 32 инструментов пока недоступен. Работа №108 от этого не зависит.';
+  return;
+ }
+ const n=v=>Number.isSafeInteger(v)&&v>=0?v:0;
+ const pp=v=>typeof v==='number'&&Number.isFinite(v)?v+'%':'—';
+ const markets=audit.markets;
+ const hasData=markets.filter(m=>n(m.forecast?.published)>0).length;
+ status.textContent='Инструментов: 32/32 · с опубликованными прогнозами: '+
+  hasData+'/32 · всего Forecast: '+n(audit.totals?.forecast?.published)+
+  ' · подтверждённых уведомлений: '+n(audit.totals?.confirmed?.published)+
+  '. Недостаточная выборка обозначена «—»; это НЕ точность стратегии или доходность.';
+ for(const m of markets){
+  const f=m.forecast||{},confirmed=m.confirmed||{};
+  const values=[m.symbol,n(f.published),
+   n(f.LONG)+' / '+n(f.SHORT),pp(f.after5m?.favorablePct),
+   pp(f.after15m?.favorablePct),pp(f.pre5m?.alreadyMovedPct),
+   n(confirmed.published),pp(confirmed.after15m?.favorablePct)];
+  const tr=document.createElement('tr');
+  for(const v of values){
+   const td=document.createElement('td');td.textContent=String(v);
+   tr.appendChild(td);
+  }
+  body.appendChild(tr);
  }
 }
 
@@ -525,6 +570,7 @@ function display(){
  renderV110Timing(report.directionDiagnostics);
  renderV110ML(report.mlShadow);
  renderV110Two5m(report.twoClosed5mShadow);
+ renderV110All32(report.all32MarketAudit);
   renderV110ForwardProgress(report);
   const forecast=report.forecastStudy?.windows?.[days];
  $('forecastTotal').textContent=showN(forecast?.total);
