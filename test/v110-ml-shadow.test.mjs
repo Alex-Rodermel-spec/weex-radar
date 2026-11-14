@@ -46,7 +46,7 @@ test('a real trained regression evaluates later separated UTC days only',()=>{
  assert.equal(a.trainDays,4);
  assert.equal(a.holdoutDays,3);
  assert.equal(a.trainN,192);
- assert.equal(a.holdoutN,144);
+ assert.equal(a.holdoutN,142); // Embargo excludes first 30 min on the first holdout day.
  assert.ok(a.holdoutSelected.n>=25);
  assert.equal(a.holdoutSelected.favorablePct,100);
  assert.ok(a.holdoutBrier.learnedModel<a.holdoutBrier.constantTrainingRate);
