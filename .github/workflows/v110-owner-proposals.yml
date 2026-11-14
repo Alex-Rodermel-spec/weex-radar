@@ -105,6 +105,22 @@ jobs:
               -f message="research(v110): draft inert $policy candidate module" \
               -f branch="$branch" -f content="$code_contents" >/dev/null
           fi
+          # Only metrics actually present in the screened aggregate are shown.
+          # Five-horizon and latency metrics require separate observed records.
+          screening_report="$(jq -r '
+            "Screening holdout (not independent prospective evidence):\\n" +
+            "- Direction: " + .direction + "\\n" +
+            "- Training: " + (.training.days|tostring) + " days, " + (.training.n|tostring) + " forecasts\\n" +
+            "- Holdout: " + (.screeningHoldout.days|tostring) + " days, " + (.screeningHoldout.n|tostring) + " forecasts\\n" +
+            "- Baseline favorable: " + (.screeningHoldout.baselineFavorablePct|tostring) + "%\\n" +
+            "- Candidate favorable: " + (.screeningHoldout.proposedFavorablePct|tostring) + "%\\n" +
+            "- Baseline mean: " + (.screeningHoldout.baselineMeanBps|tostring) + " bps\\n" +
+            "- Candidate mean: " + (.screeningHoldout.proposedMeanBps|tostring) + " bps\\n" +
+            "- Baseline 30m favorable: " + (.screeningHoldout.baselineFavorable30mPct|tostring) + "%\\n" +
+            "- Candidate 30m favorable: " + (.screeningHoldout.proposedFavorable30mPct|tostring) + "%\\n" +
+            "- 1/5/10m and latency: unavailable in this aggregate; do not infer.\\n" +
+            "- Recommendation: KEEP_108 pending independent forward evidence."
+          ' "$RUNNER_TEMP/v110-proposal.json")"
           title="V110 research proposal: $policy (forward test required)"
           # Only inert aggregate JSON is committed: no live strategy source.
           body="$(cat <<'EOF'
@@ -122,6 +138,9 @@ jobs:
           No live trading rules, forecast rules, keys, or orders change in this PR.
           EOF
           )"
+          body="$body
+
+          $screening_report"
           if gh pr create --draft --base main --head "$branch" \
               --title "$title" --body "$body" >/dev/null; then
             # GITHUB_TOKEN-created PRs do not trigger normal PR workflow runs.
