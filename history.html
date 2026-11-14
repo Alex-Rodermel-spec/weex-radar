@@ -91,6 +91,10 @@ progress{width:100%;height:15px;accent-color:#ac7bf5}
  <details><summary>Разбивка по силе STRONG / STANDARD / CAUTION</summary>
  <div class="table-box"><table><thead><tr><th>Направление · сила</th><th>Наблюдено 30м</th><th>+0,10% первым</th><th>−0,10% первым</th><th>Доля + первым</th><th>Медиана + порога</th><th>Не определено</th></tr></thead><tbody id="v110TimingStrengthRows"></tbody></table></div>
  </details>
+ <details><summary>До уведомления: раннее или уже прошедшее движение?</summary>
+ <p class="muted">По каждой стороне отдельно: за 5 минут ДО публикации цена прошла менее +0,10% или не менее +0,10% в сторону прогноза. Неизвестная предыстория показана отдельно, а не засчитана как ранний сигнал. Сравнение историческое, не фильтр входа.</p>
+ <div class="table-box"><table><thead><tr><th>Направление · до прогноза за 5м</th><th>Наблюдено 30м</th><th>+0,10% первым</th><th>−0,10% первым</th><th>Доля + первым</th><th>Не определено</th></tr></thead><tbody id="v110PriorMoveRows"></tbody></table></div>
+ </details>
  <p class="muted">Процент считается только среди известных первых пересечений и скрывается при менее 20 наблюдениях. Медиана скрыта при менее 20 измеренных достижениях. «Не определено» — порог не достигнут либо не хватает минутных свечей. Это не подтверждение торговой прибыли или превосходства стратегии.</p>
 </section>
 <section class="card" aria-labelledby="v110-forward-title">
@@ -204,6 +208,11 @@ function v110TimingRows(diagnostics){
    all.push({group:'strength',label:label+' · '+name,
     order:first?.thresholdOrderByStrength?.[strength],median:null});
   }
+  for(const [group,name] of [['BELOW_10BPS','Меньше +0,10%'],
+   ['AT_LEAST_10BPS','Уже ≥+0,10%'],['UNKNOWN','Нет данных ДО']]){
+   all.push({group:'prior5m',label:label+' · '+name,
+    order:first?.thresholdOrderByPrior5mMove?.[group],median:null});
+  }
   for(const part of all){
    const o=part.order||{},resolved=o.resolvedFirstCrossings;
    const unresolved=Number.isSafeInteger(o.neitherRecordedOrUnknown)&&Number.isSafeInteger(o.ambiguousTie)?
@@ -226,13 +235,17 @@ function v110TimingRows(diagnostics){
 }
 function renderV110Timing(diagnostics){
  const entries=v110TimingRows(diagnostics);
- for(const [group,id] of [['summary','v110TimingRows'],['strength','v110TimingStrengthRows']]){
+ for(const [group,id] of [['summary','v110TimingRows'],['strength','v110TimingStrengthRows'],
+  ['prior5m','v110PriorMoveRows']]){
   const body=$(id);body.replaceChildren();
   for(const row of entries.filter(x=>x.group===group)){
    const tr=document.createElement('tr');
-   for(const value of [row.label,row.matured,row.favorable,row.adverse,
+   const cells=[row.label,row.matured,row.favorable,row.adverse,
     row.favorablePct===null?'—':row.favorablePct+'%',
-    row.medianMinute===null?'—':new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(row.medianMinute)+' мин',row.unresolved]){
+    ...(group==='prior5m'?[]:[row.medianMinute===null?'—':
+     new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(row.medianMinute)+' мин']),
+    row.unresolved];
+   for(const value of cells){
     const td=document.createElement('td');
     td.textContent=value===null?'—':String(value);
     tr.appendChild(td);

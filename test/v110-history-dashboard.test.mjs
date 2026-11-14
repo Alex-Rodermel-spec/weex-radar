@@ -18,6 +18,17 @@ test('history V110 timing model shows only aggregate data, with denominator and 
     firstFavorable:19,firstAdverse:6,firstFavorablePctAmongResolved:76,
     neitherRecordedOrUnknown:4,ambiguousTie:1},
    favorable:{recorded:22,medianMinute:6.5},
+   thresholdOrderByPrior5mMove:{
+    BELOW_10BPS:{maturedWithObserved30m:20,resolvedFirstCrossings:20,
+     firstFavorable:16,firstAdverse:4,firstFavorablePctAmongResolved:80,
+     neitherRecordedOrUnknown:0,ambiguousTie:0},
+    AT_LEAST_10BPS:{maturedWithObserved30m:5,resolvedFirstCrossings:4,
+     firstFavorable:2,firstAdverse:2,firstFavorablePctAmongResolved:50,
+     neitherRecordedOrUnknown:1,ambiguousTie:0},
+    UNKNOWN:{maturedWithObserved30m:5,resolvedFirstCrossings:1,
+     firstFavorable:1,firstAdverse:0,firstFavorablePctAmongResolved:null,
+     neitherRecordedOrUnknown:4,ambiguousTie:0}
+   },
    thresholdOrderByStrength:{STANDARD:{maturedWithObserved30m:2,
     resolvedFirstCrossings:2,firstFavorable:1,firstAdverse:1,
     firstFavorablePctAmongResolved:50,neitherRecordedOrUnknown:0,
@@ -29,7 +40,7 @@ test('history V110 timing model shows only aggregate data, with denominator and 
     favorable:{recorded:1,medianMinute:null}}}
  }};
  const rows=getRows(d);
- assert.equal(rows.length,8);
+ assert.equal(rows.length,14);
  const l=rows.find(r=>r.label==='🟢 LONG');
  assert.equal(l.matured,30);
  assert.equal(l.favorable,19);
@@ -37,6 +48,16 @@ test('history V110 timing model shows only aggregate data, with denominator and 
  assert.equal(l.favorablePct,76);
  assert.equal(l.medianMinute,6.5);
  assert.equal(l.unresolved,5);
+ const before=rows.find(r=>r.label==='🟢 LONG · Меньше +0,10%');
+ assert.equal(before.matured,20);
+ assert.equal(before.favorablePct,80);
+ const after=rows.find(r=>r.label==='🟢 LONG · Уже ≥+0,10%');
+ assert.equal(after.favorable,2);
+ assert.equal(after.favorablePct,null); // 4 resolved is below the 20-event guard.
+ const unknown=rows.find(r=>r.label==='🟢 LONG · Нет данных ДО');
+ assert.equal(unknown.matured,5);
+ assert.equal(unknown.favorablePct,null);
+ assert.equal(unknown.unresolved,4);
  const s=rows.find(r=>r.label==='🔴 SHORT');
  assert.equal(s.favorablePct,null);
  assert.equal(s.medianMinute,null);
@@ -50,14 +71,15 @@ test('history V110 timing model shows only aggregate data, with denominator and 
 
 test('empty diagnostic payload never manufactures zero sample sizes or favorable rates',()=>{
  const rows=getRows(null);
- assert.equal(rows.length,8);
+ assert.equal(rows.length,14);
  assert.ok(rows.every(r=>r.matured===null&&r.favorable===null&&
   r.adverse===null&&r.favorablePct===null&&r.medianMinute===null));
 });
 
 test('journal UI script parses and only reads aggregate API with safe text rendering',()=>{
  assert.doesNotThrow(()=>new Script(script));
- for(const id of ['v110TimingStatus','v110TimingRows','v110TimingStrengthRows'])
+ for(const id of ['v110TimingStatus','v110TimingRows','v110TimingStrengthRows',
+  'v110PriorMoveRows'])
   assert.ok(html.includes('id="'+id+'"'));
  assert.ok(script.includes('renderV110Timing(report.directionDiagnostics)'));
  const ui=script.slice(end,script.indexOf('function display(){',end));

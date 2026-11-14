@@ -151,3 +151,54 @@ test('first +10bps onset median is arithmetic for even cohort and middle for odd
  assert.equal(output.ordersSent,0);
  assert.equal(output.changesLiveSignals,false);
 });
+
+test('first threshold order partitions by PRE-alert 5m movement, including missing history',()=>{
+ const early=Array.from({length:20},(_,i)=>record(1400+i,'LONG',{
+  preMove5mBps:i===0?-2:9.9,
+  firstFavorable10bpsMinute:i<16?3:null,
+  firstAdverse10bpsMinute:i<16?null:6
+ }));
+ const chased=Array.from({length:20},(_,i)=>record(1500+i,'LONG',{
+  preMove5mBps:i===0?10:24,
+  firstFavorable10bpsMinute:i<7?2:null,
+  firstAdverse10bpsMinute:i<7?null:4
+ }));
+ const missing=[
+  record(1600,'LONG',{preMove5mBps:null,firstFavorable10bpsMinute:3}),
+  record(1601,'LONG',{preMove5mBps:NaN,firstAdverse10bpsMinute:5}),
+  record(1602,'LONG',{preMove5mBps:undefined}),
+  record(1603,'LONG',{preMove5mBps:null,firstFavorable10bpsMinute:8,
+   firstAdverse10bpsMinute:8})
+ ];
+ const notMature=record(1604,'LONG',{sentAt:now-15*MIN,
+  preMove5mBps:50,firstFavorable10bpsMinute:2});
+ const invalidWindow=record(1605,'LONG',{preMove5mBps:10,
+  windows:{30:{status:'NO_DATA',moveBps:null}},firstFavorable10bpsMinute:2});
+ const shorts=Array.from({length:20},(_,i)=>record(1700+i,'SHORT',{
+  preMove5mBps:null,firstAdverse10bpsMinute:9
+ }));
+ const v=evaluate([...early,...chased,...missing,notMature,invalidWindow,...shorts],now);
+ const l=v.byDirection.LONG.firstMove10bps;
+ const a=l.thresholdOrderByPrior5mMove;
+ assert.equal(l.eligibleMature30m,44);
+ assert.equal(a.BELOW_10BPS.maturedWithObserved30m,20);
+ assert.equal(a.BELOW_10BPS.firstFavorable,16);
+ assert.equal(a.BELOW_10BPS.firstAdverse,4);
+ assert.equal(a.BELOW_10BPS.firstFavorablePctAmongResolved,80);
+ assert.equal(a.AT_LEAST_10BPS.maturedWithObserved30m,20);
+ assert.equal(a.AT_LEAST_10BPS.firstFavorable,7);
+ assert.equal(a.AT_LEAST_10BPS.firstAdverse,13);
+ assert.equal(a.AT_LEAST_10BPS.firstFavorablePctAmongResolved,35);
+ assert.equal(a.UNKNOWN.maturedWithObserved30m,4);
+ assert.equal(a.UNKNOWN.neitherRecordedOrUnknown,1);
+ assert.equal(a.UNKNOWN.ambiguousTie,1);
+ assert.equal(a.UNKNOWN.firstFavorablePctAmongResolved,null);
+ assert.equal(Object.values(a).reduce((s,x)=>s+x.maturedWithObserved30m,0),l.eligibleMature30m);
+ const s=v.byDirection.SHORT.firstMove10bps.thresholdOrderByPrior5mMove;
+ assert.equal(s.UNKNOWN.maturedWithObserved30m,20);
+ assert.equal(s.UNKNOWN.firstFavorablePctAmongResolved,0);
+ assert.equal(s.BELOW_10BPS.maturedWithObserved30m,0);
+ assert.equal(s.AT_LEAST_10BPS.maturedWithObserved30m,0);
+ assert.equal(v.changesLiveSignals,false);
+ assert.equal(v.ordersSent,0);
+});
