@@ -4,6 +4,7 @@
 import {readFileSync} from 'node:fs';
 import {adaptV110ForecastJournal} from '../lib/v110-journal-adapter.mjs';
 import {compareV110ForwardOutcomes} from '../lib/v110-forward-comparison.mjs';
+import {validateV110EvaluationTimes} from '../lib/v110-evaluation-time.mjs';
 const path=process.argv[2];
 if(!path){console.error('Usage: node scripts/v110-compare-forward.mjs <verified-outcomes.json>');process.exitCode=2;}
 else {
@@ -11,7 +12,9 @@ else {
   const raw=readFileSync(path,'utf8');
   if(raw.length>5_000_000)throw Error('INPUT_TOO_LARGE');
   const records=JSON.parse(raw);
-  const adapted=adaptV110ForecastJournal(records);
+  const timing=validateV110EvaluationTimes(records);
+  if(timing.status!=='VALIDATED'||timing.rejected.length)throw Error('UNVERIFIED_FORECAST_EVALUATION_TIMES');
+  const adapted=adaptV110ForecastJournal(timing.valid);
   if(adapted.status!=='ADAPTED')throw Error('INVALID_JOURNAL');
   const comparison=compareV110ForwardOutcomes(adapted);
   process.stdout.write(JSON.stringify({inputRows:records.length,acceptedRows:adapted.baseline.length+adapted.candidate.length,skipped:adapted.skipped,...comparison},null,2)+'\n');
