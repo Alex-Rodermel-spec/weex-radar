@@ -12,6 +12,7 @@ else {
   const raw=readFileSync(path,'utf8');
   if(raw.length>5_000_000)throw Error('INPUT_TOO_LARGE');
   const records=JSON.parse(raw);
+  if(!Array.isArray(records)||records.some(r=>typeof r?.symbol!=='string'||!/^[A-Z0-9]{2,30}$/.test(r.symbol)))throw Error('MARKET_SYMBOL_REQUIRED');
   const timing=validateV110EvaluationTimes(records);
   if(timing.status!=='VALIDATED'||timing.rejected.length)throw Error('UNVERIFIED_FORECAST_EVALUATION_TIMES');
   const adapted=adaptV110ForecastJournal(timing.valid);
