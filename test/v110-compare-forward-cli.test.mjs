@@ -29,3 +29,14 @@ test('read-only CLI rejects malformed input',()=>{
   assert.match(p.stderr,/V110_READ_ONLY_COMPARISON_FAILED/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('read-only CLI refuses contradictory market prices for the same observation',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'v110-'));
+ try{
+  const file=join(dir,'conflict.json');
+  const base={symbol:'XRPUSDT',alertId:'same',direction:'LONG',horizonMinutes:5,entryPrice:100,observedAt:'2026-11-13T12:00:00Z',evaluatedAt:'2026-11-13T12:05:00Z',outcomeKnownAt:'2026-11-13T12:05:01Z',source:'independent-forward'};
+  writeFileSync(file,JSON.stringify([{...base,model:'V108',outcomePrice:101},{...base,model:'V110',outcomePrice:110}]));
+  const p=spawnSync(process.execPath,[cli,file],{encoding:'utf8'});
+  assert.equal(p.status,1);assert.match(p.stderr,/CONFLICTING_PAIRED_MARKET_PRICES/);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
