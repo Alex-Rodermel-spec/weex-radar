@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {TWO_STAGE_POLICY,expectedPrebreakIds,
+import {TWO_STAGE_POLICY,STRONG_MIN_OPPOSING_ROOM_R,checkStrongLevelRoom,expectedPrebreakIds,
  classifyTwoStageConfirmation,linkConfirmedForecasts}
  from '../lib/two-stage-confirmation.mjs';
 
@@ -14,7 +14,11 @@ function signal(patch={}){
  return {symbol:'XRPUSDT',exchange:'WEEX',status:'ok',
   level:'STRONG',direction:'SHORT',candleCloseTime:CLOSE,
   expiresAt:CLOSE+180_000,indicators:{volumeRatio:1.6},
-  closedFiveMinuteMoveBps:18,entryQuality:{ok:true},
+  closedFiveMinuteMoveBps:18,livePrice:100,stop:101,take:97,
+  levelReview:{mode:'CLOSED_5M_OBSERVATION',interval:'5m',
+   candleCloseTime:CLOSE,support:100.5,resistance:104,
+   candleState:'BREAK_DOWN',breakoutDirection:'SHORT',closeQuality:'SUPPORTED'},
+  entryQuality:{ok:true,nearestLevel:98},
   advisor:{status:'REVIEW'},costReview:{status:'PASS_ESTIMATE'},
   retest:{SHORT:{status:'UNKNOWN'}},...patch};
 }
@@ -88,6 +92,39 @@ test('six separate groups have bounded evidence requirements',()=>{
   assert.equal(classifyTwoStageConfirmation(
    {...s,closedFiveMinuteMoveBps:cap+0.1},[earlyNotice(s)],NOW).level,'NORMAL');
  }
+});
+test('STRONG SHORT must hold broken support and leave 1.5R before next support',()=>{
+ const s=signal(),notice=earlyNotice(s);
+ assert.equal(STRONG_MIN_OPPOSING_ROOM_R,1.5);
+ assert.equal(checkStrongLevelRoom(s).ok,true);
+ const near=signal({entryQuality:{ok:true,nearestLevel:99.2}});
+ assert.equal(checkStrongLevelRoom(near).reason,'OPPOSING_PIVOT_TOO_CLOSE');
+ assert.equal(classifyTwoStageConfirmation(near,[notice],NOW).level,'NORMAL');
+ const slipped=signal({livePrice:100.6});
+ assert.equal(classifyTwoStageConfirmation(slipped,[notice],NOW).twoStage.reason,
+  'BROKEN_LEVEL_NOT_HELD');
+ const weak=signal({levelReview:{...s.levelReview,closeQuality:'WEAK'}});
+ assert.equal(classifyTwoStageConfirmation(weak,[notice],NOW).level,'NORMAL');
+ const missing=signal({levelReview:null});
+ assert.equal(classifyTwoStageConfirmation(missing,[notice],NOW).level,'NORMAL');
+});
+test('STRONG LONG checks resistance above entry and holds broken 5m resistance',()=>{
+ const levels={mode:'CLOSED_5M_OBSERVATION',interval:'5m',
+  candleCloseTime:CLOSE,support:97,resistance:99.5,
+  candleState:'BREAK_UP',breakoutDirection:'LONG',closeQuality:'SUPPORTED'};
+ const s=signal({direction:'LONG',livePrice:100,stop:99,take:103,
+  levelReview:levels,entryQuality:{ok:true,nearestLevel:102}});
+ assert.equal(classifyTwoStageConfirmation(s,[earlyNotice(s)],NOW).level,'STRONG');
+ const tooNear=signal({...s,entryQuality:{ok:true,nearestLevel:101.2}});
+ assert.equal(classifyTwoStageConfirmation(tooNear,[earlyNotice(s)],NOW).level,'NORMAL');
+ const underResistance=signal({...s,livePrice:99.4});
+ assert.equal(checkStrongLevelRoom(underResistance).reason,'BROKEN_LEVEL_NOT_HELD');
+ const invalidPivot=signal({...s,entryQuality:{ok:true,nearestLevel:97}});
+ assert.equal(checkStrongLevelRoom(invalidPivot).ok,false);
+ const noPivot=signal({...s,entryQuality:{ok:true,nearestLevel:null}});
+ assert.equal(checkStrongLevelRoom(noPivot).reason,'NO_OPPOSING_PIVOT_FOUND');
+ const missingPivotData=signal({...s,entryQuality:{ok:true}});
+ assert.equal(checkStrongLevelRoom(missingPivotData).reason,'OPPOSING_LEVEL_DATA_MISSING');
 });
 test('ordinary historical signals are never promoted into strong',()=>{
  const s=signal({level:'NORMAL'});
