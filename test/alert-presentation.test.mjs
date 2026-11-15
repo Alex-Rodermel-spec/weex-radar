@@ -78,7 +78,7 @@ test('phone alerts give one simple action without changing calculation or title'
   mode:'PRE_BREAK_SCENARIO',direction:'SHORT',horizonMinutes:5,
   triggerPrice:4047,invalidationPrice:4053,rsi1:42,volumeRatio:1.5
  }},{early:true});
- assert.match(pre.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИТЬ\./);
+ assert.match(pre.message,/^👀 НАБЛЮДАЙ · НЕ ВХОДИ\./);
  assert.doesNotMatch(pre.message,/SL [0-9]|TP [0-9]/);
 });
 
@@ -206,4 +206,37 @@ test('V108: journal still parses risk-check message including exact TP/SL and CH
  assert.equal(parsed.decisionAtAlert,'CHECK');
  assert.equal(parsed.stop,base.stop);
  assert.equal(parsed.take,base.take);
+});
+
+test('ntfy direction square arrows preserve exact confirmed journal fields and never classify an early idea as entry',async()=>{
+ const {parseConfirmedNotification}=await import('../lib/signal-quality.mjs');
+ const short=formatPhoneAlert({...base,retest,costReview:cost},{deadline:'18:23:00'});
+ assert.match(short.title,/XAUTUSDT 🟥 ⬇️ SHORT/);
+ assert.doesNotMatch(short.title,/🔴 SHORT|🟢 LONG/);
+ const raw={event:'message',time:Date.UTC(2026,10,15,17,20,30)/1000,
+  title:short.title,message:short.message+'\n🕒 Свеча 18:20:00 · отправка 18:20:30 · задержка 30с',
+  sequence_id:'c'.repeat(32)};
+ const row=parseConfirmedNotification(raw);
+ assert.ok(row);
+ assert.equal(row.direction,'SHORT');
+ assert.equal(row.level,'NORMAL');
+ assert.equal(row.decisionAtAlert,'CHECK');
+ assert.equal(row.stop,base.stop);
+ assert.equal(row.take,base.take);
+ assert.equal(row.expiresAt,Date.UTC(2026,10,15,17,23,0));
+ const long={...base,direction:'LONG',stop:4047.1116,take:4050.0042,
+  retest:{LONG:{status:'CONFIRMED',trendAligned:true}}};
+ const longAlert=formatPhoneAlert({...long,costReview:cost},{deadline:'18:23:00'});
+ assert.match(longAlert.title,/XAUTUSDT 🟩 ⬆️ LONG/);
+ const longRow=parseConfirmedNotification({...raw,title:longAlert.title,
+  message:longAlert.message+'\n🕒 Свеча 18:20:00 · отправка 18:20:30 · задержка 30с'});
+ assert.ok(longRow);
+ assert.equal(longRow.direction,'LONG');
+ const pre=formatPhoneAlert({...base,watchType:'PRE_BREAK',forecast:{mode:'PRE_BREAK_SCENARIO',
+  direction:'SHORT',triggerPrice:4047,invalidationPrice:4053}},{early:true,deadline:'17:58'});
+ assert.match(pre.title,/XAUTUSDT 🟥 ⬇️ SHORT/);
+ assert.match(pre.message,/^👀 НАБЛЮДАЙ · НЕ ВХОДИ/);
+ assert.match(pre.message,/Подтверждение: ниже 4047/);
+ assert.match(pre.message,/Отмена сценария: выше 4053/);
+ assert.equal(parseConfirmedNotification({...raw,title:pre.title,message:pre.message}),null);
 });

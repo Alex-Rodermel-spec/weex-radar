@@ -78,7 +78,7 @@ test('owner ntfy topic sends once per candle, with exact Berlin time, without Bl
   assert.equal(again.duplicates,1);
   assert.equal(posts.length,1);
   assert.equal(posts[0].topic,topic);
-  assert.equal(posts[0].title,'🟡 ЖДАТЬ · ALGOUSDT LONG · 🟣 СИЛЬНЫЙ');
+  assert.equal(posts[0].title,'🟡 ЖДАТЬ · ALGOUSDT 🟩 ⬆️ LONG · 🟣 СИЛЬНЫЙ');
   assert.match(posts[0].sequence_id,/^[a-f0-9]{32}$/);
   assert.match(posts[0].message,/Свеча \d\d:\d\d:\d\d · отправка \d\d:\d\d:\d\d · задержка \d+с/);
   assert.match(posts[0].message,/До \d\d:\d\d:\d\d/);
@@ -114,7 +114,7 @@ test('if ntfy cache is unavailable, retain emergency delivery using stable seque
   assert.equal(result.delivered,1);
   assert.equal(result.failed,0);
   assert.equal(sends.length,1);
-  assert.equal(sends[0].title,'🟡 ЖДАТЬ · BTCUSDT LONG · 🔔 ОБЫЧНЫЙ');
+  assert.equal(sends[0].title,'🟡 ЖДАТЬ · BTCUSDT 🟩 ⬆️ LONG · 🔔 ОБЫЧНЫЙ');
   assert.match(sends[0].message,/Свеча/);
  }finally{
   globalThis.fetch=oldFetch;

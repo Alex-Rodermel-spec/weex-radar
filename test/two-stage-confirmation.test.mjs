@@ -136,3 +136,20 @@ test('production hook sends ordinary pre-break and conservatively links strong',
  assert.match(alerts,/CONFIRMED_AFTER_EARLY/);
  assert.doesNotMatch(early+dispatch+alerts,/\/capi\/v3\/order/);
 });
+
+test('styled early PRE_BREAK title links to later STRONG only with matching direction',()=>{
+ const s=signal(),old=earlyNotice(s);
+ const styled={...old,title:'🔮 ПРОГНОЗ · XRPUSDT 🟥 ⬇️ SHORT · 🔵 ОБЫЧНЫЙ · 🟡 ЖДАТЬ'};
+ const wrongColor={...styled,title:'🔮 ПРОГНОЗ · XRPUSDT 🟩 ⬆️ SHORT · 🔵 ОБЫЧНЫЙ · 🟡 ЖДАТЬ'};
+ const wrongSide={...styled,title:'🔮 ПРОГНОЗ · XRPUSDT 🟩 ⬆️ LONG · 🔵 ОБЫЧНЫЙ · 🟡 ЖДАТЬ'};
+ for(const notice of [old,styled]){
+  const result=classifyTwoStageConfirmation(s,[notice],NOW);
+  assert.equal(result.level,'STRONG');
+  assert.equal(result.twoStage.stage,'CONFIRMED_AFTER_EARLY');
+ }
+ for(const notice of [wrongColor,wrongSide]){
+  const result=classifyTwoStageConfirmation(s,[notice],NOW);
+  assert.equal(result.level,'NORMAL');
+  assert.equal(result.twoStage.stage,'ORDINARY_5M');
+ }
+});

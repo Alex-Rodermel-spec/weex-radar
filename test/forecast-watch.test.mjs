@@ -61,7 +61,7 @@ test('phone notification explicitly says FORECAST, direction, confirm, invalidat
  assert.match(msg.message,/Возможный РОСТ/);
  assert.match(msg.message,/Подтверждение: выше/);
  assert.match(msg.message,/Отмена сценария: ниже/);
- assert.match(msg.message,/НЕ ВХОДИТЬ/);
+ assert.match(msg.message,/НЕ ВХОДИ/);
  assert.doesNotMatch(msg.message,/Прибыль \(TP\)|Стоп \(SL\)|R\/R|✅ Прибыль/);
 });
 test('repeat forecast dedupes by symbol + direction in ten-minute buckets',()=>{

@@ -47,8 +47,8 @@ test('only coherent fresh three-timeframe directional forecasts qualify',()=>{
 });
 test('notification clearly separates forecast hypothesis from LONG/SHORT entry',()=>{
  const m=forecastMessage(fixture());
- assert.match(m.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT 🔴 SHORT$/u);
- assert.match(m.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./);
+ assert.match(m.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT 🟥 ⬇️ SHORT$/u);
+ assert.match(m.message,/^👀 НАБЛЮДАЙ · НЕ ВХОДИ\./);
  assert.match(m.message,/1М \/ 5М \/ 10М/);
  assert.match(m.message,/НЕ сигнал входа/);
  assert.doesNotMatch(m.message,/Bollinger|EMA20|RSI14|Объём 1М/);
@@ -57,7 +57,7 @@ test('notification clearly separates forecast hypothesis from LONG/SHORT entry',
 });
 test('colored direction is easy to distinguish; historical title is still auditable',()=>{
  for(const [bias,mark,side] of [
-  ['LONG_BIAS','🟢','LONG'],['SHORT_BIAS','🔴','SHORT']
+  ['LONG_BIAS','🟩 ⬆️','LONG'],['SHORT_BIAS','🟥 ⬇️','SHORT']
  ]){
   const m=forecastMessage(fixture('XRPUSDT',bias));
   assert.ok(m.title.endsWith(mark+' '+side),'badge is next to direction');
@@ -69,18 +69,18 @@ test('colored direction is easy to distinguish; historical title is still audita
   assert.equal(parser(original).direction,side,'new title recorded correctly');
   assert.equal(parser({...original,title:m.title.replace(mark+' ','')}).direction,
    side,'legacy titles still parsed');
-  const mismatched=side==='LONG'?'🔴 LONG':'🟢 SHORT';
+  const mismatched=side==='LONG'?'🟥 ⬇️ LONG':'🟩 ⬆️ SHORT';
   assert.equal(parser({...original,title:m.title.replace(mark+' '+side,mismatched)}),
    null,'wrong color never misclassified');
-  assert.ok(m.message.startsWith('👀 НАБЛЮДАЙ. НЕ ВХОДИ.'));
+  assert.ok(m.message.startsWith('👀 НАБЛЮДАЙ · НЕ ВХОДИ.'));
  }
 });
 test('plain-language forecast action keeps ntfy title, V2 and encrypted journal parser compatible',()=>{
  const f=fixture();
  const m=forecastMessage(f);
- assert.match(m.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./u);
+ assert.match(m.message,/^👀 НАБЛЮДАЙ · НЕ ВХОДИ\./u);
  assert.match(m.message,/📉 Возможное ПАДЕНИЕ/);
- assert.match(m.message,/⏳ Жди подтверждения\./);
+ assert.match(m.message,/⏳ Жди подтверждения 5М\./);
  assert.match(m.message,/Цена 1М: 99\.5000 USDT/);
  assert.match(m.message,/НЕ сигнал входа/);
  assert.doesNotMatch(m.message,/SL [0-9]|TP [0-9]|Прибыль \(TP\)/);
@@ -106,7 +106,7 @@ test('plain-language forecast action keeps ntfy title, V2 and encrypted journal 
  risky.timeframes[2].rsi14=25;
  const unsafe=forecastMessage(risky);
  assert.match(unsafe.title,/ПОВЫШЕННЫЙ РИСК/);
- assert.match(unsafe.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИ\./);
+ assert.match(unsafe.message,/^👀 НАБЛЮДАЙ · НЕ ВХОДИ\./);
 });
 
 test('V2 timing line never turns observation into strong 5m confirmation',()=>{
@@ -114,7 +114,7 @@ test('V2 timing line never turns observation into strong 5m confirmation',()=>{
  strong.strongV2Review={baselineLevel:'STRONG',sampleReady:true,
   status:'REVIEW_DOWNGRADE',proposedLevel:'STANDARD'};
  const late=forecastMessage(strong);
- assert.match(late.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT 🔴 SHORT$/u);
+ assert.match(late.title,/^🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT 🟥 ⬇️ SHORT$/u);
  assert.match(late.message,/V2: возможное опоздание/);
  assert.match(late.message,/НЕ сигнал входа/);
  assert.doesNotMatch(late.message,/SL \d|TP \d/);
@@ -251,4 +251,23 @@ test('main LONG/SHORT push, forecast topic and health are separated and do not p
  for(const bad of [/placeOrder\(/,/trade-confirm/,/trade-prepare/,/capi\/v3\/order/,/WEEX_API_SECRET/]){
   assert.doesNotMatch(source,bad);
  }
+});
+
+test('new square arrows preserve historical forecast journal identity and reject wrong side',()=>{
+ const f=fixture('BTCUSDT','SHORT_BIAS');
+ const data=forecastMessage(f),t=forecastTopic(env),timestamp=Math.floor((now-1000)/1000);
+ const input={event:'message',topic:t,time:timestamp,sequence_id:'f'.repeat(32),
+  title:data.title,message:data.message};
+ const current=parsePublishedForecast(input,t,now);
+ const old=parsePublishedForecast({...input,title:'🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT 🔴 SHORT'},t,now);
+ const plain=parsePublishedForecast({...input,title:'🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT SHORT'},t,now);
+ for(const sample of [current,old,plain]){
+  assert.ok(sample);
+  assert.equal(sample.symbol,'BTCUSDT');
+  assert.equal(sample.direction,'SHORT');
+  assert.equal(sample.reference,99.5);
+  assert.equal(sample.strength,'STANDARD');
+ }
+ assert.equal(parsePublishedForecast({...input,
+  title:data.title.replace('🟥 ⬇️ SHORT','🟩 ⬆️ SHORT')},t,now),null);
 });
