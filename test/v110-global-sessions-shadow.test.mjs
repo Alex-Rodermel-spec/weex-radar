@@ -13,14 +13,14 @@ test('IANA local windows correctly use Tokyo, London and NY DST',()=>{
  assert.equal(globalSessionAt(D('2026-11-15T00:30:00Z')).cohort,'TOKYO');
  assert.equal(globalSessionAt(D('2026-11-15T08:30:00Z')).cohort,'TOKYO+LONDON');
  assert.equal(globalSessionAt(D('2026-07-01T07:30:00Z')).cohort,'TOKYO+LONDON');
- assert.equal(globalSessionAt(D('2026-07-01T13:30:00Z')).cohort,'NEW_YORK');
+ assert.equal(globalSessionAt(D('2026-07-01T13:30:00Z')).cohort,'LONDON+NEW_YORK');
  assert.equal(globalSessionAt(D('2026-11-15T14:30:00Z')).cohort,'LONDON+NEW_YORK');
  assert.equal(globalSessionAt(D('2026-11-15T18:30:00Z')).cohort,'NEW_YORK');
  assert.equal(globalSessionAt(D('2026-11-15T23:59:00Z')).cohort,'OFF_HOURS');
  assert.equal(globalSessionAt(null),null);
 });
 test('US-Europe mismatched DST switch weeks are not shifted by static offset',()=>{
- assert.equal(globalSessionAt(D('2026-03-15T13:30:00Z')).cohort,'NEW_YORK');
+ assert.equal(globalSessionAt(D('2026-03-15T13:30:00Z')).cohort,'LONDON+NEW_YORK');
  assert.equal(globalSessionAt(D('2026-03-01T13:30:00Z')).cohort,'LONDON');
  assert.equal(globalSessionAt(D('2026-10-27T13:30:00Z')).cohort,'LONDON+NEW_YORK');
 });
