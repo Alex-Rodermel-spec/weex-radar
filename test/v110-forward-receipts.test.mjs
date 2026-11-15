@@ -25,7 +25,8 @@ test('freeze early and aligned control BEFORE future data, no paid requests or t
  assert.equal(x.direction,'LONG_BIAS');
  assert.equal(x.referencePrice,0.9);
  assert.equal(x.frozenAt,at);
- assert.equal(x.notPublishedSignal,true);
+ assert.equal(x.publicationStatus,'UNKNOWN_NOT_VERIFIED');
+ assert.equal(Object.hasOwn(x,'notPublishedSignal'),false);
  assert.equal(x.noTrade,true);
  const same=freezeV110ForwardReceipt(doc(),'ONE_MINUTE_LEADS_NEUTRAL_FIVE',at+5000);
  assert.equal(x.id,same.id);
@@ -33,6 +34,9 @@ test('freeze early and aligned control BEFORE future data, no paid requests or t
   'THREE_TIMEFRAME_ALIGNMENT_CONTROL',at);
  assert.equal(aligned.kind,'THREE_TIMEFRAME_ALIGNMENT_CONTROL');
  assert.equal(aligned.direction,'SHORT_BIAS');
+ // A fully aligned control could be published; receipt must not lie.
+ assert.equal(aligned.publicationStatus,'UNKNOWN_NOT_VERIFIED');
+ assert.equal(Object.hasOwn(aligned,'notPublishedSignal'),false);
  assert.equal(POLICY.noNewStorage,true);
  assert.equal(POLICY.noNewPaidServices,true);
  assert.equal(POLICY.forwardResultsNotYetAutomatic,true);
