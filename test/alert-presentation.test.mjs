@@ -112,7 +112,7 @@ test('compact texts keep ntfy precision, outcome journal and independent forecas
   costReview:cost,retest};
  const notification=formatPhoneAlert(sample,{deadline:'18:23:00'});
  assert.ok(notification.message.split('\n').length<=10,'short phone message');
- assert.match(notification.message,/^🟢 ПРОВЕРЬ ВХОД ВРУЧНУЮ/);
+ assert.match(notification.message,/^🟠 ПРОВЕРЬ РИСК/);
  assert.doesNotMatch(notification.message,/R\/R до расходов|ЧТО ДЕЛАТЬ|Сравни цену с входом/);
  const arrived=parseConfirmedNotification({
   event:'message',time:Math.floor(Date.UTC(2026,10,11,17,20,29)/1000),
