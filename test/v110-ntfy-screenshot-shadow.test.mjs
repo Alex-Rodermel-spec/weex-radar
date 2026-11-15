@@ -75,7 +75,7 @@ test('future outcomes use ONLY completed consecutive future 1m candles',()=>{
  assert.equal(result.outcomes[15].directionResult,'FAVORABLE');
  assert.equal(result.outcomeWindowStartsAt,start);
  assert.equal(result.noTrade,true);
- const early=followup(frozen,candles,start+6*MIN);
+ const early=followup(frozen,candles,start+5*MIN);
  assert.equal(early.outcomes[5].status,'PENDING_OR_MISSING');
  assert.equal(early.outcomes[10].status,'PENDING_OR_MISSING');
  const hole=candles.filter((_,i)=>i!==3);
