@@ -80,7 +80,7 @@ test('plain-language forecast action keeps ntfy title, V2 and encrypted journal 
  const m=forecastMessage(f);
  assert.match(m.message,/^👀 НАБЛЮДАЙ · НЕ ВХОДИ\./u);
  assert.match(m.message,/📉 Возможное ПАДЕНИЕ/);
- assert.match(m.message,/⏳ Жди подтверждения\./);
+ assert.match(m.message,/⏳ Жди подтверждения 5М\./);
  assert.match(m.message,/Цена 1М: 99\.5000 USDT/);
  assert.match(m.message,/НЕ сигнал входа/);
  assert.doesNotMatch(m.message,/SL [0-9]|TP [0-9]|Прибыль \(TP\)/);
@@ -251,4 +251,23 @@ test('main LONG/SHORT push, forecast topic and health are separated and do not p
  for(const bad of [/placeOrder\(/,/trade-confirm/,/trade-prepare/,/capi\/v3\/order/,/WEEX_API_SECRET/]){
   assert.doesNotMatch(source,bad);
  }
+});
+
+test('new square arrows preserve historical forecast journal identity and reject wrong side',()=>{
+ const f=fixture('BTCUSDT','SHORT_BIAS');
+ const data=forecastMessage(f),t=forecastTopic(env),timestamp=Math.floor((now-1000)/1000);
+ const input={event:'message',topic:t,time:timestamp,sequence_id:'f'.repeat(32),
+  title:data.title,message:data.message};
+ const current=parsePublishedForecast(input,t,now);
+ const old=parsePublishedForecast({...input,title:'🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT 🔴 SHORT'},t,now);
+ const plain=parsePublishedForecast({...input,title:'🔮 🔵 ОБЫЧНЫЙ ПРОГНОЗ · BTCUSDT SHORT'},t,now);
+ for(const sample of [current,old,plain]){
+  assert.ok(sample);
+  assert.equal(sample.symbol,'BTCUSDT');
+  assert.equal(sample.direction,'SHORT');
+  assert.equal(sample.reference,99.5);
+  assert.equal(sample.strength,'STANDARD');
+ }
+ assert.equal(parsePublishedForecast({...input,
+  title:data.title.replace('🟥 ⬇️ SHORT','🟩 ⬆️ SHORT')},t,now),null);
 });
