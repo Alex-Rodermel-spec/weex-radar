@@ -174,11 +174,26 @@ export default async function handler(req,res){
     String(e.message||e).slice(0,95));
    independentForecast.failed=1;
   }
+  // Owner-requested no-cost screenshot inbox. Manual ntfy screenshot posts
+  // trigger only existing read-only public WEEX forecast observations.
+  // Runs AFTER critical 5m ntfy signals and independent forecast delivery;
+  // fails independently and cannot alter #108's live signal gates/orders.
+  let freeScreenshotResearch={configured:false,due:false,accepted:0,
+   studiesFrozen:0,studiesCompleted:0,paidModelCalls:0,imagesDownloaded:0};
+  try{
+   const {runFreeScreenshotInbox}=await import('../lib/v110-ntfy-free-screenshot-inbox.mjs');
+   freeScreenshotResearch=await runFreeScreenshotInbox();
+   if(freeScreenshotResearch.accepted||freeScreenshotResearch.studiesCompleted)
+    console.info('WEEX_RADAR_FREE_SCREENSHOT_STUDY '+JSON.stringify(freeScreenshotResearch));
+  }catch(e){
+   console.warn('WEEX_RADAR_FREE_SCREENSHOT_UNAVAILABLE '+String(e.message||e).slice(0,75));
+  }
   return reply(res,source,200,{
    ok:true,deliveryMode:'ntfy-only',signals:signals.length,
    delivered:ntfy.delivered,failed:ntfy.failed,duplicates:ntfy.duplicates,
    early,ntfy,forecastFollowup,independentForecast,directionalDiagnostics,
    notificationPolicy:PHONE_POLICY.mode,
+   freeScreenshotResearch,
    telegram:{enabled:false},chrome:{enabled:false}
   },healthMarkets);
  }catch(e){
