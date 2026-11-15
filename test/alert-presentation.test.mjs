@@ -78,7 +78,7 @@ test('phone alerts give one simple action without changing calculation or title'
   mode:'PRE_BREAK_SCENARIO',direction:'SHORT',horizonMinutes:5,
   triggerPrice:4047,invalidationPrice:4053,rsi1:42,volumeRatio:1.5
  }},{early:true});
- assert.match(pre.message,/^👀 НАБЛЮДАЙ\. НЕ ВХОДИТЬ\./);
+ assert.match(pre.message,/^👀 НАБЛЮДАЙ · НЕ ВХОДИ\./);
  assert.doesNotMatch(pre.message,/SL [0-9]|TP [0-9]/);
 });
 
