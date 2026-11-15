@@ -115,7 +115,9 @@ test('research has no paid model, market fetch, secret, user data, order API, or
  for(const word of ['fetch(', 'process.env','@vercel/blob','placeOrder(', 'trade-confirm',
   'publishNtfy', 'AI_GATEWAY','NTFY_TOPIC','api-contract.weex.com'])
   assert.equal(m.includes(word),false,word);
- assert.match(n,/all32EarlyCohortResearch=summarizeV110All32EarlyCohorts\(researchObservations,now\)/);
+ assert.match(n,/const earlyCensus=summarizeV110All32EarlyCohorts\(researchObservations,now\)/);
+ assert.match(n,/result\.all32EarlyCohortResearch=\{\.\.\.safeCensus/);
+ assert.doesNotMatch(m,/if\(early\.kind='[^=]/);
  assert.equal(P.noNewNetworkRequests,true);
  assert.equal(P.noNewAlerts,true);
  assert.equal(P.noLiveSignalsChanged,true);
