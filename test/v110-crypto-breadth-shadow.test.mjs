@@ -28,7 +28,7 @@ test('universe has 16 genuine crypto markets vs 16 equity/FX/metals',()=>{
 test('same-close 16 crypto 5m snapshot registers broad down with XRP countertrend and no 24h claims',()=>{
  const c=crypto.map((symbol,i)=>spy(symbol,i<13?-20:30,
   i<13?'SHORT_BIAS':'LONG_BIAS',
-  i===0?'LONG_BIAS':i<13?'SHORT_BIAS':'LONG_BIAS'));
+  i<13?'SHORT_BIAS':'LONG_BIAS'));
  // ensure XRP is explicitly rising against negative majority
  const x=c.find(d=>d.symbol==='XRPUSDT');
  x.timeframes[1].lastCandleBodyBps=120;
