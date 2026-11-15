@@ -68,6 +68,29 @@ test('old or inconsistent 5m candle closes cannot be mixed',()=>{
  assert.equal(x.eligibleCryptoObservations,15);
  assert.equal(x.closed5m.regime,'UNKNOWN');
 });
+test('stale 16/16 5m cohort is UNKNOWN even when all symbols have same old close',()=>{
+ // Real production 15 Nov: first 10:50Z scan still held 10:40Z closes,
+ // subsequent 10:51Z scan had 10:50Z closes. These are NOT the same
+ // expected latest closed candle and must not be directly compared.
+ const rows=crypto.map(s=>spy(s,100,'LONG_BIAS','LONG_BIAS'));
+ for(const d of rows)d.timeframes[1].closedAt-=2*FIVE;
+ const x=breadth(rows,now);
+ assert.equal(x.status,'INCOMPLETE_CRYPTO16_COHORT');
+ assert.equal(x.eligibleCryptoObservations,0);
+ assert.equal(x.missingCryptoCount,16);
+ assert.equal(x.closed5m.regime,'UNKNOWN');
+ assert.equal(x.closed5m.upPct,null);
+ assert.equal(x.latestExpected5mCloseAt,Math.floor((now-1000)/FIVE)*FIVE);
+});
+test('fail closed when latest 5m bar has not fully closed yet',()=>{
+ // At exactly 03:40:00, the 03:35–03:40 bar is not yet confirmed
+ // by the forecast closed-candle rule's 1-second safety margin.
+ const exactly=Date.UTC(2026,10,15,3,40,0);
+ const rows=crypto.map(s=>spy(s,-10));
+ const x=breadth(rows,exactly);
+ assert.equal(x.closed5m.regime,'UNKNOWN');
+ assert.equal(x.status,'INCOMPLETE_CRYPTO16_COHORT');
+});
 test('future, stale, duplicate, non-WEEX and malformed data cannot create false complete sample',()=>{
  let rows=crypto.map(s=>spy(s,20));
  rows[0].timeframes[0].closedAt=now+5000;
