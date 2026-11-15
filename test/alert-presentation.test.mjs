@@ -17,7 +17,8 @@ test('four independent signal/risk presentation variants',()=>{
  const amber=alertPresentation({...base,retest:{SHORT:{status:'PENDING'}},costReview:cost});
  assert.equal(amber.status,'CHECK');
  assert.match(amber.message||amber.reason,/ретест ещё не подтверждён/);
- assert.match(amber.title,/🟢 ПРОВЕРИТЬ/);
+ assert.match(amber.title,/🟠 ПРОВЕРИТЬ РИСК/);
+ assert.equal(amber.cautionCheck,true);
  const red=alertPresentation({...base,retest:{SHORT:{status:'FAILED'}},costReview:cost});
  assert.equal(red.status,'SKIP');
  assert.match(red.title,/🔴 ПРОПУСТИТЬ/);
@@ -83,7 +84,8 @@ test('phone alerts give one simple action without changing calculation or title'
 
 test('green CHECK explains already moved 5m candle without altering original notification status',()=>{
  const fast=formatPhoneAlert({...base,retest,costReview:cost,closedFiveMinuteMoveBps:47.6});
- assert.match(fast.title,/^🟢 ПРОВЕРИТЬ/);
+ assert.match(fast.title,/^🟠 ПРОВЕРИТЬ РИСК/);
+ assert.equal(fast.cautionCheck,true);
  assert.match(fast.message,/За 5М до сигнала: \+0,48% по направлению/);
  assert.match(fast.message,/Цена уже сдвинулась\. Не догоняй/);
  assert.match(fast.message,/SL 4050.0042 · TP 4047.1116/);
@@ -110,7 +112,7 @@ test('compact texts keep ntfy precision, outcome journal and independent forecas
   costReview:cost,retest};
  const notification=formatPhoneAlert(sample,{deadline:'18:23:00'});
  assert.ok(notification.message.split('\n').length<=10,'short phone message');
- assert.match(notification.message,/^🟢 ПРОВЕРЬ ВХОД ВРУЧНУЮ/);
+ assert.match(notification.message,/^🟠 ПРОВЕРЬ РИСК/);
  assert.doesNotMatch(notification.message,/R\/R до расходов|ЧТО ДЕЛАТЬ|Сравни цену с входом/);
  const arrived=parseConfirmedNotification({
   event:'message',time:Math.floor(Date.UTC(2026,10,11,17,20,29)/1000),
@@ -150,4 +152,58 @@ test('presentation does not modify live scanner, notification dedup, or cron',()
  assert.match(n,/formatPhoneAlert\(s,\{early:isEarly,deadline\}\)/);
  assert.match(p,/ntfySend\('confirmed',signals\)/);
  assert.doesNotMatch(p,/webpush|telegramSend|telegramPoll/);
+});
+
+test('V108: no green CHECK with a missing or unconfirmed retest; never suppress alert',()=>{
+ const missing=alertPresentation({...base,costReview:cost});
+ const pending=alertPresentation({...base,costReview:cost,
+  retest:{SHORT:{status:'PENDING'}}});
+ for(const x of [missing,pending]){
+  assert.equal(x.status,'CHECK');
+  assert.equal(x.cautionCheck,true);
+  assert.match(x.title,/^🟠 ПРОВЕРИТЬ РИСК/);
+ }
+ const alert=formatPhoneAlert({...base,costReview:cost,
+  retest:{SHORT:{status:'PENDING'}},closedFiveMinuteMoveBps:68});
+ assert.equal(alert.status,'CHECK');
+ assert.match(alert.message,/^🟠 ПРОВЕРЬ РИСК\. НЕ ВХОДИ ПО ОДНОМУ СИГНАЛУ/);
+ assert.match(alert.message,/За 5М до сигнала: \+0,68% по направлению/);
+ assert.match(alert.message,/Ретест не подтверждён/);
+ assert.match(alert.message,/SL 4050\.0042 · TP 4047\.1116/);
+});
+test('V108: confirmed retest stays green only if closed 5m had not already moved >=10bps',()=>{
+ const green=alertPresentation({...base,costReview:cost,retest,
+  closedFiveMinuteMoveBps:9.99});
+ assert.equal(green.status,'CHECK');
+ assert.equal(green.cautionCheck,false);
+ assert.match(green.title,/^🟢 ПРОВЕРИТЬ/);
+ const amber=alertPresentation({...base,costReview:cost,retest,
+  closedFiveMinuteMoveBps:10});
+ assert.equal(amber.status,'CHECK');
+ assert.equal(amber.cautionCheck,true);
+ assert.match(amber.title,/^🟠 ПРОВЕРИТЬ РИСК/);
+ const adverse=alertPresentation({...base,costReview:cost,retest,
+  closedFiveMinuteMoveBps:-25});
+ assert.match(adverse.title,/^🟢 ПРОВЕРИТЬ/);
+ const early=alertPresentation({...base,closedFiveMinuteMoveBps:100},
+  {early:true});
+ assert.equal(early.status,'WAIT');
+ assert.match(early.title,/EARLY WATCH/);
+});
+test('V108: journal still parses risk-check message including exact TP/SL and CHECK decision',async()=>{
+ const {parseConfirmedNotification}=await import('../lib/signal-quality.mjs');
+ const output=formatPhoneAlert({...base,costReview:cost,
+  retest:{SHORT:{status:'PENDING'}},closedFiveMinuteMoveBps:68},
+  {deadline:'18:23:00'});
+ const parsed=parseConfirmedNotification({
+  event:'message',time:Date.UTC(2026,10,15,17,20,30)/1000,
+  title:output.title,
+  message:output.message+'\n🕒 Свеча 18:20:00 · отправка 18:20:30 · задержка 30с',
+  sequence_id:'b'.repeat(32)
+ });
+ assert.ok(parsed);
+ assert.equal(parsed.direction,'SHORT');
+ assert.equal(parsed.decisionAtAlert,'CHECK');
+ assert.equal(parsed.stop,base.stop);
+ assert.equal(parsed.take,base.take);
 });
