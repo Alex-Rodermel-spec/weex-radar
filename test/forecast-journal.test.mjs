@@ -307,7 +307,7 @@ test('historical repair obtains only closed WEEX candles for archived NO_DATA fo
  assert.equal(recovery.rows[0].preMove15mBps!==null,true);
  assert.match(urls[0],/\/market\/historyKlines\?/);
  assert.match(urls[0],/priceType=LAST/);
- assert.ok(urls[0].includes('startTime='+(bound-17*MIN)));
+ assert.ok(urls[0].includes('startTime='+(bound-62*MIN)));
  assert.ok(urls[0].includes('endTime='));
  const merged=mergeForecastArchive([stale],recovery.rows,now);
  assert.equal(merged.updated,1);
@@ -460,4 +460,52 @@ test('six asset groups and post-rollout 30m measurements are independent, includ
  assert.equal(a.postSafeguardCohort.at30m.observed,3);
  assert.equal(a.postSafeguardCohort.byMarketGroup.MAJOR_CRYPTO.total,0);
  assert.match(a.postSafeguardCohort.labeling,/NOT persisted build version/);
+});
+
+test('encrypted archive can capture 30m/60m directional move already finished BEFORE ntfy alert',()=>{
+ const boundary=Math.floor(sentAt/MIN)*MIN;
+ // Close-to-close decline in prior hour. All candles precede publishing,
+ // with no forward data in either the 30m or 60m momentum.
+ const prior=Array.from({length:61},(_,i)=>{
+  const age=60-i,close=100+age*.025;
+  return [boundary-(age+1)*MIN,close,close+.04,close-.04,close,40];
+ });
+ const all=normalizeForecastMinutes([...prior,...futureRaw()],now);
+ const scored=evaluatePublishedForecast(emitted,all,now);
+ assert.ok(scored.preMove30mBps>70&&scored.preMove30mBps<80);
+ assert.ok(scored.preMove60mBps>140&&scored.preMove60mBps<155);
+ const encrypted=encryptJournal([],env,[],[scored]);
+ assert.ok(!JSON.stringify(encrypted).includes('preMove60mBps'));
+ const restored=decryptJournalArchive(encrypted,env).forecastRows[0];
+ assert.equal(restored.preMove30mBps,scored.preMove30mBps);
+ assert.equal(restored.preMove60mBps,scored.preMove60mBps);
+ const summary=summarizeForecastArchive([restored],now).windows[30];
+ assert.equal(summary.before60m.observed,1);
+ assert.equal(summary.before60m.already100bps,1);
+ assert.equal(summary.before30m.already30bps,1);
+ assert.equal(summary.before60m.already200bps,0);
+ assert.equal(summary.byDirection.SHORT.before60m.already100bps,1);
+});
+test('old archive missing 30/60m pre-alert fields stays UNKNOWN until historical candles repair it',()=>{
+ const base=evaluatePublishedForecast(emitted,normalizeForecastMinutes(futureRaw(),now),now);
+ const legacy={...base};
+ delete legacy.preMove30mBps;
+ delete legacy.preMove60mBps;
+ const prior=Array.from({length:61},(_,i)=>{
+  const age=60-i,close=100+age*.025,boundary=Math.floor(sentAt/MIN)*MIN;
+  return [boundary-(age+1)*MIN,close,close+.04,close-.04,close,40];
+ });
+ const recovered=evaluatePublishedForecast(emitted,
+  normalizeForecastMinutes([...prior,...futureRaw()],now),now);
+ const before=mergeForecastArchive([],[legacy],now);
+ assert.equal(before.rows[0].preMove30mBps,null);
+ assert.equal(before.rows[0].preMove60mBps,null);
+ const after=mergeForecastArchive(before.rows,[recovered],now);
+ assert.equal(after.updated,1);
+ assert.equal(after.rows[0].preMove30mBps,recovered.preMove30mBps);
+ assert.equal(after.rows[0].preMove60mBps,recovered.preMove60mBps);
+ assert.equal(mergeForecastArchive(after.rows,[legacy],now).changed,false);
+ const missingRecent=normalizeForecastMinutes([...prior.slice(1),...futureRaw()],now);
+ assert.equal(evaluatePublishedForecast(emitted,missingRecent,now).preMove60mBps,null,
+  'missing minute cannot silently be called a clean early warning');
 });
