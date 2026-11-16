@@ -116,7 +116,7 @@ test('pure module does not access private archive, trade or exchange APIs',()=>{
    'trade-confirm','weex-order','NTFY_TOPIC','api-contract.weex.com'])
   assert.equal(src.includes(word),false,word);
  assert.equal(scan.includes('v110-crypto-followers-shadow'),false);
- assert.match(dispatcher,/leaderFollowerResearch=summarizeV110CryptoFollowers\(researchObservations,now\)/);
+ assert.match(dispatcher,/const leadLag=summarizeV110CryptoFollowers\(researchObservations,now\)/);
  assert.equal(policy.automaticFutureOutcomeScoring,false);
  assert.equal(policy.extraMarketRequests,0);
  assert.equal(policy.extraAlerts,0);
