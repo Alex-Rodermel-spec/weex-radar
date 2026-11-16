@@ -265,7 +265,7 @@ test('forecast audit is isolated from trading, cron and phone push',()=>{
  const source=readFileSync(new URL('../lib/forecast-journal.mjs',import.meta.url),'utf8');
  assert.deepEqual(FORECAST_HORIZONS,[1,5,10,15,20,30]);
  assert.match(route,/recentForecastResearch/);
- assert.match(route,/encryptJournal\(merged.rows,process.env,earlyMerged.rows,forecastMerged.rows,confirmedMerged.rows\)/);
+ assert.match(route,/encryptJournal\(merged.rows,process.env,earlyMerged.rows,\s*forecastMerged.rows,confirmedMerged.rows,leadLagMerged.rows\)/);
  assert.ok(script);
  assert.doesNotThrow(()=>new Script(script[1]));
  for(const pattern of [/placeOrder/,/trade-confirm/,/trade-prepare/,/capi\/v3\/order/,/NTFY_TOPIC\s*=/]){
