@@ -78,7 +78,7 @@ test('cron emits prebreak ordinary alerts without skip/followup spam',()=>{
  assert.match(push,/ntfySend\('confirmed',signals\)/);
  assert.match(early,/export async function observeEarlyPush/);
  assert.match(early,/suppressedNotifications:Math.max/);
- assert.match(early,/await ntfySend\('early',forecasts.slice\(0,2\)\)/);
+ assert.match(early,/await ntfySend\('early',deliverableForecasts.slice\(0,2\)\)/);
  assert.match(health,/fullForecastDiagnostics\(marketResult.value,now\)/);
  assert.match(monitor,/recorded-in-diagnostics-only/);
  assert.doesNotMatch(monitor,/await publishNtfy\(main/);
