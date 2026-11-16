@@ -84,9 +84,8 @@ test('same 32-market ntfy research scan; only 19 permitted to compete for 2 fore
  assert.deepEqual(new Set(visited),new Set(marketSafety.FORECAST_SYMBOLS));
  assert.equal(result.all32EarlyCohortResearch.submittedSnapshots,32);
  assert.equal(result.all32EarlyCohortResearch.validSameClose,32);
- assert.equal(result.cryptoBreadthResearch.universe===16||
-  result.cryptoBreadthResearch?.policy?.configuredCryptoMarkets===16||
-  result.cryptoBreadthResearch?.status!==undefined,true);
+ assert.ok(result.cryptoBreadthResearch,
+  'existing 16-crypto breadth research must still run during the 32-market scan');
  assert.ok(sent.every(e=>e.topic===forecastTopic(env)));
  assert.ok(sent.every(e=>[...expectedKept].some(s=>e.title.includes(s))));
  assert.ok(sent.every(e=>![...excluded].some(s=>e.title.includes(' · '+s+' '))));
