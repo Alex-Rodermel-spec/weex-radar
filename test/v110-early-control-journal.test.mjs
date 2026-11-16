@@ -50,6 +50,9 @@ test('rotates four of the real 16 crypto markets, bounded to 8 public WEEX reads
  assert.deepEqual(a.map(x=>crypto.indexOf(x)).sort((a,b)=>a-b),
   [...new Set(a.map(x=>crypto.indexOf(x)))].sort((a,b)=>a-b));
  assert.equal(a.filter(s=>b.includes(s)).length,0);
+ const fullCycle=Array.from({length:4},(_,slot)=>sampledV110EarlySymbols(NOW+slot*20*M)).flat();
+ assert.equal(fullCycle.length,16);
+ assert.equal(new Set(fullCycle).size,16,'each crypto must be sampled once per four scheduled 20m snapshots');
  assert.equal(V110_EARLY_CONTROL_POLICY.extraPublicWeexKlineRequestsPerRunMax,8);
  assert.equal(V110_EARLY_CONTROL_POLICY.noOrders,true);
  assert.equal(V110_EARLY_CONTROL_POLICY.automaticPromotion,false);
