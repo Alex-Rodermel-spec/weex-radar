@@ -57,6 +57,20 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
  <div id="derived-topic" class="topic-secret" hidden></div>
  <p class="legend">Не отправляй свою тему ntfy другим людям и не присылай её в чат. Доставка зависит от ntfy и разрешений Android.</p>
 </section>
+<section id="follower-watch" class="panel" aria-label="Отдельные уведомления возможных догоняющих монет">
+ <div class="heading"><h2>👣 WEEX FOLLOW · возможная догоняющая</h2><span class="pill">№110 · ИССЛЕДОВАНИЕ</span></div>
+ <p class="lead">Если <strong>минимум 6 из 16 криптовалют</strong> уже пошли вверх или вниз на последней закрытой свече 5М, а другая монета почти стоит, №110 может прислать наблюдение <b>LONG?</b> или <b>SHORT?</b>. Это гипотеза о будущем движении через 5 / 10 / 15 минут — <strong>НЕ сигнал входа</strong>, её точность пока не доказана.</p>
+ <p class="lead">Отдельный канал <b>WEEX FOLLOW</b>: максимум одно уведомление за 30 минут. Обычные прогнозы и подтверждённые торговые LONG/SHORT остаются в своих каналах. Для получения уведомлений подпишись в ntfy один раз.</p>
+ <label for="follower-base-topic">Твоя существующая тема торгового ntfy</label>
+ <input class="topic-field" id="follower-base-topic" type="password" autocomplete="off" spellcheck="false" placeholder="wr-••••••••••••••••••••••••••••••••">
+ <div class="actions" style="margin-top:12px">
+  <button id="subscribe-follower" type="button" class="primary">👣 Подключить WEEX FOLLOW в ntfy</button>
+  <button id="copy-follower-topic" type="button" disabled>📋 Скопировать тему</button>
+ </div>
+ <div class="status" id="follower-subscribe-status" role="status">Канал ещё не подключён на телефоне. Даже после подключения уведомления появляются только при выполнении условия 6 лидеров → отстающая.</div>
+ <div id="derived-follower-topic" class="topic-secret" hidden></div>
+ <p class="legend">Тема рассчитывается только в твоём браузере, на сайт не отправляется. Не делись темами ntfy. Подписку на телефоне невозможно проверить автоматически. Никакой автоторговли.</p>
+</section>
 <section class="panel" aria-label="Новостной фон без влияния на сигналы">
  <div class="heading"><h2>📰 NEWS RADAR · новостной фон</h2><span class="pill">ТОЛЬКО ИНФОРМАЦИЯ</span></div>
  <div class="status" id="news-context" role="status" aria-live="polite">⚪ Нет подтверждённой новостной оценки. Прогнозы WEEX работают независимо.</div>
@@ -156,6 +170,41 @@ $('copy-forecast-topic').onclick=async()=>{
  try{await navigator.clipboard.writeText(derivedForecastTopic);
   $('subscribe-status').textContent='Тема прогнозов скопирована. В ntfy нажми «+» и добавь её как новую подписку.';
  }catch{$('subscribe-status').textContent='Скопируй тему из зелёной строки и добавь в ntfy вручную.'}
+};
+// Derive the same private follower topic as the server; only local WebCrypto.
+let derivedFollowerTopic=null;
+async function deriveFollowerTopic(){
+ const original=$('follower-base-topic').value.trim();
+ if(!/^[A-Za-z0-9_-]{16,64}$/.test(original))
+  throw Error('Вставь текущую тему торгового ntfy из приложения.');
+ const encoder=new TextEncoder();
+ const key=await crypto.subtle.importKey('raw',encoder.encode(original),
+  {name:'HMAC',hash:'SHA-256'},false,['sign']);
+ const bytes=new Uint8Array(await crypto.subtle.sign('HMAC',key,
+  encoder.encode('weex-radar-follower-topic-v1')));
+ derivedFollowerTopic='wr-'+Array.from(bytes,x=>
+  x.toString(16).padStart(2,'0')).join('').slice(0,32);
+ $('derived-follower-topic').hidden=false;
+ $('derived-follower-topic').textContent='WEEX FOLLOW: '+derivedFollowerTopic;
+ $('copy-follower-topic').disabled=false;
+ $('follower-base-topic').value='';
+ return derivedFollowerTopic;
+}
+$('subscribe-follower').onclick=async()=>{
+ try{
+  const topic=await deriveFollowerTopic();
+  $('follower-subscribe-status').textContent='Открываю ntfy. Подпишись на WEEX FOLLOW; это отдельное исследовательское наблюдение.';
+  window.location.href='ntfy://ntfy.sh/'+topic+'?display=WEEX+FOLLOW';
+ }catch(e){$('follower-subscribe-status').textContent=String(e.message||e)}
+};
+$('copy-follower-topic').onclick=async()=>{
+ if(!derivedFollowerTopic)return;
+ try{
+  await navigator.clipboard.writeText(derivedFollowerTopic);
+  $('follower-subscribe-status').textContent='Тема скопирована. В ntfy нажми «+» и добавь её как новую подписку.';
+ }catch{
+  $('follower-subscribe-status').textContent='Скопируй тему из строки WEEX FOLLOW и добавь её вручную в ntfy.';
+ }
 };
 function label(x){
  return x==='LONG_BIAS'?'↗ LONG-прогноз':x==='SHORT_BIAS'?'↘ SHORT-прогноз':'— нейтрально';
