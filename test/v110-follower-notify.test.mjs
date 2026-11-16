@@ -146,10 +146,13 @@ test('one existing 16-crypto 10m scan remains research-only; follower topic is i
  assert.equal(r.leaderFollowerResearch.candidateCount,10);
  assert.equal(r.followerNotices.delivered,1);
  assert.equal(r.delivered,0,'regular forecast flow did not falsely treat a lagger as 3TF aligned');
- assert.equal(sent.length,1);
- assert.equal(sent[0].topic,followerTopic(env));
- assert.notEqual(sent[0].topic,forecastTopic(env));
- assert.notEqual(sent[0].topic,env.NTFY_TOPIC);
+ const followerSent=sent.filter(x=>x.topic===followerTopic(env));
+ const ownerInvites=sent.filter(x=>x.topic===env.NTFY_TOPIC);
+ assert.equal(followerSent.length,1);
+ assert.equal(ownerInvites.length,1,'one-tap invitation is distinct from research watch');
+ assert.equal(followerSent[0].topic,followerTopic(env));
+ assert.notEqual(followerSent[0].topic,forecastTopic(env));
+ assert.notEqual(followerSent[0].topic,env.NTFY_TOPIC);
  assert.equal(r.ordersSent,0);
 });
 test('source and opt-in page preserve all trade paths and expose no server secrets',()=>{
