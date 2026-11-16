@@ -271,3 +271,56 @@ test('new square arrows preserve historical forecast journal identity and reject
  assert.equal(parsePublishedForecast({...input,
   title:data.title.replace('🟥 ⬇️ SHORT','🟩 ⬆️ SHORT')},t,now),null);
 });
+
+test('owner receives ONE tap-to-subscribe FOLLOW invite in existing ntfy, without manual topic entry',async()=>{
+ const t=Date.UTC(2026,10,16,17,50,30);
+ const cfg={NTFY_TOPIC:'wr-'+('c'.repeat(32)),VERCEL_ENV:'production'};
+ const events=[];
+ const fetcher=async url=>{
+  const parsed=new URL(url),topic=decodeURIComponent(parsed.pathname.split('/')[1]);
+  const rows=events.filter(e=>e.topic===topic).map(e=>JSON.stringify({
+   event:'message',topic,sequence_id:e.sequenceId,time:Math.floor(t/1000)
+  })).join('\\n');
+  return {ok:true,status:200,text:async()=>rows};
+ };
+ const publisher=async(topic,notice)=>{events.push({topic,...notice});return true};
+ const run=at=>runForecastNotifications({
+  now:at,clock:()=>at,env:cfg,symbols:[],fetchImpl:fetcher,
+  publish:publisher,reader:async()=>{throw Error('MUST_NOT_SCAN')}
+ });
+ const first=await run(t);
+ assert.equal(first.due,true);
+ assert.equal(first.followerSetupSent,1);
+ assert.equal(first.delivered,0);
+ assert.equal(first.scanned,0);
+ assert.equal(events.length,1);
+ assert.equal(events[0].topic,cfg.NTFY_TOPIC);
+ assert.match(events[0].title,/WEEX FOLLOW.*ПОДКЛЮЧИТЬ/);
+ assert.match(events[0].message,/подписку WEEX FOLLOW/);
+ assert.match(events[0].message,/НЕ сигнал входа/);
+ assert.match(events[0].click,/^ntfy:\/\/ntfy\.sh\/wr-[a-f0-9]{32}\?display=WEEX\+FOLLOW$/);
+ assert.notEqual(events[0].click,'ntfy://ntfy.sh/'+cfg.NTFY_TOPIC);
+ assert.equal(events[0].message.includes(cfg.NTFY_TOPIC),false);
+ const again=await run(t+10*60_000);
+ assert.equal(again.followerSetupSent,0);
+ assert.equal(events.length,1);
+});
+test('FOLLOW onboarding has no effect in preview, outside release window or when history is down',async()=>{
+ const t=Date.UTC(2026,10,16,17,50,30),envProd={
+  NTFY_TOPIC:'wr-'+('d'.repeat(32)),VERCEL_ENV:'production'
+ };
+ const events=[];
+ const publish=async(topic,notice)=>{events.push({topic,notice})};
+ const run=(at,env,fetchImpl)=>runForecastNotifications({
+  now:at,clock:()=>at,env,symbols:[],fetchImpl,publish
+ });
+ const empty=async()=>({ok:true,text:async()=>''});
+ const preview=await run(t,{...envProd,VERCEL_ENV:'preview'},empty);
+ assert.equal(preview.followerSetupSent,0);
+ const expired=await run(Date.UTC(2026,10,17,9,10,30),envProd,empty);
+ assert.equal(expired.followerSetupSent,0);
+ const offline=await run(t,envProd,async()=>{throw Error('ntfy offline')});
+ assert.equal(offline.followerSetupSent,0);
+ assert.equal(offline.delivered,0);
+ assert.equal(events.length,0);
+});
