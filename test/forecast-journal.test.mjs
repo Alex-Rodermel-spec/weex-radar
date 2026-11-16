@@ -307,7 +307,7 @@ test('historical repair obtains only closed WEEX candles for archived NO_DATA fo
  assert.equal(recovery.rows[0].preMove15mBps!==null,true);
  assert.match(urls[0],/\/market\/historyKlines\?/);
  assert.match(urls[0],/priceType=LAST/);
- assert.ok(urls[0].includes('startTime='+(bound-17*MIN)));
+ assert.ok(urls[0].includes('startTime='+(bound-62*MIN)));
  assert.ok(urls[0].includes('endTime='));
  const merged=mergeForecastArchive([stale],recovery.rows,now);
  assert.equal(merged.updated,1);
