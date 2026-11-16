@@ -81,7 +81,8 @@ test('future, incomplete, malformed and unknown archived forecast outcomes canno
  const r=evaluateV110MultiHorizonChase([...rows,incomplete,future,damage,damagedOutcome],now);
  assert.equal(r.eligible,7*8*8);
  assert.equal(r.uniquePublished,7*8*8+1);
- assert.equal(r.fullSample.byLookback[15].unknown.n,1);
+ assert.equal(r.fullSample.byLookback[15].unknown.n,0,
+  'duplicate-timestamp candidate is discarded, not counted twice');
  assert.equal(r.accuracyImproved,false);
 });
 test('does not claim results from one short day or absent data',()=>{
