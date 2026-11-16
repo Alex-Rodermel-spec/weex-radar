@@ -43,6 +43,7 @@ jobs:
           if [[ "$(jq -r '.changed' "${response}")" != "true" ]]; then
             echo "No new confirmed or early-signal observations. Existing archive is unchanged."
             echo "Archive is unchanged; checks completed." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Early-control study (encrypted): $(jq -r '.existingEarlyControl // 0' "${response}") archived; $(jq -r '.earlyControlMarkets // 0' "${response}") valid scanned crypto markets." >> "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
           # Avoid Linux MAX_ARG_STRLEN (~128 KiB): base64 grows with journal.
@@ -68,4 +69,6 @@ jobs:
             "repos/${GITHUB_REPOSITORY}/contents/data/journal.enc.json" \
             --input "${payload}" --silent
           echo "Encrypted journal updated, no plaintext exposed to GitHub Actions."
+          # Checkpoint only: aggregate counts, never coins, directions, prices or private rows.
+          echo "V110 early-control sample: $(jq -r '.earlyControlTotal // 0' "${response}") encrypted observations, new $(jq -r '.earlyControlAdded // 0' "${response}"), scored updates $(jq -r '.earlyControlUpdated // 0' "${response}")." >> "${GITHUB_STEP_SUMMARY}"
           echo "Saved encrypted journal. Confirmed: $(jq -r '.total' "${response}"); early: $(jq -r '.earlyTotal // 0' "${response}"); forecasts: $(jq -r '.forecastTotal // 0' "${response}") (new: $(jq -r '.forecastAdded // 0' "${response}"), updated: $(jq -r '.forecastUpdated // 0' "${response}"))." >> "${GITHUB_STEP_SUMMARY}"
