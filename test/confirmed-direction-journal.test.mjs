@@ -105,7 +105,7 @@ test('private research does not enable orders, new cron, or expose individual al
  const site=readFileSync(new URL('../history.html',import.meta.url),'utf8');
  assert.doesNotMatch(source,/placeOrder|trade-confirm|trade-prepare|order\/place|createPosition|NTFY_TOPIC\s*=/);
  assert.match(route,/recentConfirmedDirectionResearch/);
- assert.match(route,/encryptJournal\(merged.rows,process.env,earlyMerged.rows,forecastMerged.rows,confirmedMerged.rows\)/);
+ assert.match(route,/encryptJournal\(merged.rows,process.env,earlyMerged.rows,\s*forecastMerged.rows,confirmedMerged.rows,leadLagMerged.rows\)/);
  assert.match(site,/confirmedAuditDirection/);
  const script=site.match(/<script>([\s\S]*?)<\/script>/);
  assert.ok(script);assert.doesNotThrow(()=>new Script(script[1]));
