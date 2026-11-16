@@ -277,7 +277,7 @@ test('owner receives ONE tap-to-subscribe FOLLOW invite in existing ntfy, withou
  const cfg={NTFY_TOPIC:'wr-'+('c'.repeat(32)),VERCEL_ENV:'production'};
  const events=[];
  const fetcher=async url=>{
-  const parsed=new URL(url),topic=decodeURIComponent(parsed.pathname.slice(1));
+  const parsed=new URL(url),topic=decodeURIComponent(parsed.pathname.split('/')[1]);
   const rows=events.filter(e=>e.topic===topic).map(e=>JSON.stringify({
    event:'message',topic,sequence_id:e.sequenceId,time:Math.floor(t/1000)
   })).join('\\n');
