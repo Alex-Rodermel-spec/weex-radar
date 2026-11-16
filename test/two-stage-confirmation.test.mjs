@@ -129,7 +129,7 @@ test('production hook sends ordinary pre-break and conservatively links strong',
  const early=readFileSync(new URL('../lib/early-push.mjs',import.meta.url),'utf8');
  const dispatch=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
  const alerts=readFileSync(new URL('../lib/alert-presentation.mjs',import.meta.url),'utf8');
- assert.match(early,/await ntfySend\('early',forecasts.slice\(0,2\)\)/);
+ assert.match(early,/await ntfySend\('early',deliverableForecasts.slice\(0,2\)\)/);
  assert.match(dispatch,/await linkConfirmedForecasts\(review.accepted/);
  assert.match(dispatch,/ntfySend\('confirmed',signals\)/);
  assert.match(alerts,/🔵 ОБЫЧНЫЙ/);
