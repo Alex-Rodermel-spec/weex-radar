@@ -78,7 +78,7 @@ test('missing 1m and duplicate market bars are UNKNOWN rather than invented wins
  assert.equal(summary(stale.rows,NOW+126*M).byDirection.LONG.horizons[5].favorable,0);
  const dup=mkBars(cryptos[0],LATER);
  dup.push(dup[100]);
- assert.equal(normalizeFollowerMinutes(dup,LATER).length,124);
+ assert.equal(normalizeFollowerMinutes(dup,LATER).length,123); // one oldest bar is outside the 125m boundary, plus one duplicated time
 });
 test('missing crypto market, non-WEEX malformed or remote errors never freeze cherry-picked candidates',async()=>{
  let requests=0;
