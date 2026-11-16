@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {preBreakCandidate,forecastPreBreak} from '../lib/forecast-watch.mjs';
+import {preBreakCandidate,forecastPreBreak,PREBREAK_CONTEXT_GUARD} from '../lib/forecast-watch.mjs';
 import {formatPhoneAlert} from '../lib/alert-presentation.mjs';
 import {_test as ntfy} from '../lib/ntfy-alerts.mjs';
 const MINUTE=60000;
@@ -87,4 +87,61 @@ test('forecast uses closed 1m/5m/15m only; original breakout strategy is not cha
  assert.match(earlySource,/fetchCandles\(symbol,'5m'\)/);
  assert.match(dispatch,/ntfySend\('confirmed',signals\)/);
  assert.match(ntfySource,/candidates\.filter\(s=>s\.watchType==='PRE_BREAK'\)\.slice\(0,2\)/);
+});
+
+test('new 1m/5m/15m freshness guard rejects stale trend and missing close, never reads future',()=>{
+ const fresh=forecastPreBreak(one,five,fifteen,one.at(-1).close,now);
+ assert.ok(fresh,'fixture must otherwise qualify');
+ assert.equal(PREBREAK_CONTEXT_GUARD.strictLatestClosed15m,true);
+ assert.equal(PREBREAK_CONTEXT_GUARD.strictLatestClosed5m,true);
+ assert.equal(PREBREAK_CONTEXT_GUARD.lastConsecutiveCandles,50);
+ assert.equal(preBreakCandidate(one,fifteen.slice(0,-1),now),null,'stale 15m may mislead');
+ assert.equal(forecastPreBreak(one,five.slice(0,-1),fifteen,one.at(-1).close,now),null,
+  'stale 5m may contradict currently forming trend');
+ assert.equal(preBreakCandidate(one.slice(0,-1),fifteen,now),null,'old 1m source rejected');
+ const gapped15=[...fifteen.slice(0,-6),...fifteen.slice(-5)];
+ assert.equal(preBreakCandidate(one,gapped15,now),null,'missing latest 15m series candle');
+ const gapped5=[...five.slice(0,-7),...five.slice(-6)];
+ assert.equal(forecastPreBreak(one,gapped5,fifteen,one.at(-1).close,now),null,
+  'missing latest 5m series candle');
+ const future5=five.map((c,i)=>i===five.length-1?{...c,closeTime:c.closeTime+300000}:c);
+ assert.equal(forecastPreBreak(one,future5,fifteen,one.at(-1).close,now),null);
+});
+test('PRE_BREAK LONG does not issue alert when latest fully closed 5m candle strongly reverses DOWN',()=>{
+ const original=forecastPreBreak(one,five,fifteen,one.at(-1).close,now);
+ assert.equal(original?.direction,'LONG');
+ const last=five.at(-1),opposingOpen=last.close+0.75;
+ const oppositeFive=[...five.slice(0,-1),{
+  ...last,open:opposingOpen,high:Math.max(last.high,opposingOpen+0.05),
+  low:Math.min(last.low,last.close-0.03)
+ }];
+ assert.equal(forecastPreBreak(one,oppositeFive,fifteen,one.at(-1).close,now),null,
+  'reversal candle must override still-positive lagging EMA');
+});
+test('PRE_BREAK SHORT obeys symmetric opposite-green 5m guard',()=>{
+ const mirror=rows=>rows.map(c=>({
+  ...c,open:200-c.open,close:200-c.close,
+  high:200-c.low,low:200-c.high
+ }));
+ const short1=mirror(one),short5=mirror(five),short15=mirror(fifteen);
+ const original=forecastPreBreak(short1,short5,short15,short1.at(-1).close,now);
+ assert.equal(original?.direction,'SHORT');
+ const last=short5.at(-1),opposingOpen=last.close-0.75;
+ const oppositeFive=[...short5.slice(0,-1),{
+  ...last,open:opposingOpen,low:Math.min(last.low,opposingOpen-0.05),
+  high:Math.max(last.high,last.close+0.03)
+ }];
+ assert.equal(forecastPreBreak(short1,oppositeFive,short15,short1.at(-1).close,now),null);
+});
+test('strict gate is read-only and preserves 5m confirmed + ntfy routes',()=>{
+ const source=readFileSync(new URL('../lib/forecast-watch.mjs',import.meta.url),'utf8');
+ const dispatcher=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
+ assert.match(source,/currentClosedContext\(one,1,now\)/);
+ assert.match(source,/currentClosedContext\(five,5,now\)/);
+ assert.match(source,/currentClosedContext\(fifteen,15,now\)/);
+ assert.match(source,/opposingBody>=PREBREAK_CONTEXT_GUARD\.opposing5mBodyAtr\*atr5/);
+ assert.doesNotMatch(source,/placeOrder\(|trade-confirm|\/capi\/v3\/order|fetch\(|process\.env/);
+ assert.match(dispatcher,/ntfySend\('confirmed',signals\)/);
+ assert.equal(PREBREAK_CONTEXT_GUARD.noOrders,true);
+ assert.equal(PREBREAK_CONTEXT_GUARD.unvalidatedAccuracyImpact,true);
 });
