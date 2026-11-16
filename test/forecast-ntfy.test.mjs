@@ -298,7 +298,7 @@ test('owner receives ONE tap-to-subscribe FOLLOW invite in existing ntfy, withou
  assert.match(events[0].title,/WEEX FOLLOW.*ПОДКЛЮЧИТЬ/);
  assert.match(events[0].message,/подписку WEEX FOLLOW/);
  assert.match(events[0].message,/НЕ сигнал входа/);
- assert.match(events[0].click,/^ntfy:\\/\\/ntfy\\.sh\\/wr-[a-f0-9]{32}\\?display=WEEX\\+FOLLOW$/);
+ assert.match(events[0].click,/^ntfy:\/\/ntfy\.sh\/wr-[a-f0-9]{32}\?display=WEEX\+FOLLOW$/);
  assert.notEqual(events[0].click,'ntfy://ntfy.sh/'+cfg.NTFY_TOPIC);
  assert.equal(events[0].message.includes(cfg.NTFY_TOPIC),false);
  const again=await run(t+10*60_000);
