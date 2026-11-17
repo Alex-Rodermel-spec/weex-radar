@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
-import {PHONE_POLICY,MAX_UNRETESTED_5M_CHASE_BPS,phoneGate,filterPhoneCandidates} from '../lib/directional-notification-policy.mjs';
+import {PHONE_POLICY,phoneGate,filterPhoneCandidates} from '../lib/directional-notification-policy.mjs';
+import {formatPhoneAlert} from '../lib/alert-presentation.mjs';
 import {fullForecastDiagnostics} from '../lib/full-forecast-diagnostics.mjs';
 
 const now=Date.UTC(2026,10,10,5,30,0);
@@ -94,29 +95,25 @@ test('health page is valid browser JS and shows every 5m market diagnostic',()=>
  assert.match(page,/td\.textContent=val/);
 });
 
-test('№108 accuracy-first safety: extended closed 5m without verified retest never enters ntfy',()=>{
- assert.equal(MAX_UNRETESTED_5M_CHASE_BPS,30);
- assert.equal(PHONE_POLICY.maxUnretestedClosed5mChaseBps,30);
+test('№108 restores orange WATCH-RISK for late 5m observations, while hard safety gates remain',()=>{
+ assert.equal(PHONE_POLICY.mode,'CONFIRMED_LONG_SHORT_ONLY');
+ assert.ok(!PHONE_POLICY.requires.includes('NO_EXTENDED_5M_WITHOUT_RETEST'));
  for(const direction of ['LONG','SHORT']){
-  const retest={status:'CONFIRMED',trendAligned:true};
-  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:32}),now),
-   'UNRETESTED_EXTENDED_5M_CHASE');
-  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:30,
-   retest:{[direction]:{status:'PENDING'}}}),now),
-   'UNRETESTED_EXTENDED_5M_CHASE');
-  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:30,
-   retest:{[direction]:{status:'CONFIRMED',trendAligned:false}}}),now),
-   'UNRETESTED_EXTENDED_5M_CHASE');
-  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:29.99}),now),
-   'PHONE_LONG_SHORT');
-  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:31,
-   retest:{[direction]:retest}}),now),'PHONE_LONG_SHORT');
-  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:-30}),now),
-   'PHONE_LONG_SHORT');
-  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:null}),now),
-   'PHONE_LONG_SHORT');
+  const late=signal({direction,closedFiveMinuteMoveBps:32,
+   retest:{[direction]:{status:'PENDING'}}});
+  assert.equal(phoneGate(late,now),'PHONE_LONG_SHORT');
+  const alert=formatPhoneAlert({...late,level:'NORMAL',price:late.livePrice,stop:2.05,take:2.2});
+  assert.match(alert.title,/^🟠 ПРОВЕРИТЬ РИСК/);
+  assert.match(alert.message,/НЕ ВХОДИ ПО ОДНОМУ СИГНАЛУ/);
+  assert.match(alert.message,/Не догоняй/);
   assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:32,
    retest:{[direction]:{status:'FAILED'}}}),now),'FAILED_RETEST');
+  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:32,
+   entryQuality:{ok:false}}),now),'ENTRY_RISK');
+  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:32,
+   costReview:{mode:'SHADOW_COSTS',status:'LOW_NET_RR',netRR:0.5}}),now),'COST_RISK');
+  assert.equal(phoneGate(signal({direction,closedFiveMinuteMoveBps:32,
+   candleCloseTime:now-95_000}),now),'STALE_CANDLE');
  }
  const candidates=[
   signal({symbol:'DOGEUSDT',closedFiveMinuteMoveBps:32}),
@@ -125,8 +122,7 @@ test('№108 accuracy-first safety: extended closed 5m without verified retest n
    retest:{SHORT:{status:'CONFIRMED',trendAligned:true}}})
  ];
  const filtered=filterPhoneCandidates(candidates,now);
- assert.deepEqual(filtered.accepted.map(x=>x.symbol),['XRPUSDT','ETHUSDT']);
- assert.equal(filtered.diagnostics.blocked.UNRETESTED_EXTENDED_5M_CHASE,1);
- assert.equal(filtered.diagnostics.allowed,2);
+ assert.deepEqual(filtered.accepted.map(x=>x.symbol),['DOGEUSDT','XRPUSDT','ETHUSDT']);
+ assert.equal(filtered.diagnostics.allowed,3);
  assert.equal(filtered.diagnostics.notATrade,true);
 });
