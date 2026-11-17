@@ -49,7 +49,7 @@ test('32 markets unchanged; crypto16 + metals3 may notify, FX6 + equities7 canno
  for(const s of ['BTCUSDT','XRPUSDT','1000SHIBUSDT','XAUUSDT','XAGUSDT'])
   assert.equal(forecastNotificationAllowed(s),true);
 });
-test('PRE_BREAK 1m forecast from 32 scan sends ONLY eligible crypto/metals to EXISTING Forecast ntfy, not owner Radar',async()=>{
+test('PRE_BREAK 1m warning from 32 scan returns to ORIGINAL Radar ntfy for eligible crypto/metals only',async()=>{
  const primary='wr-'+('a'.repeat(32));
  await captured(primary,async({posts,reads})=>{
   const signals=['AMDUSDT','MSFTUSDT','EURUSDT','BTCUSDT','XAUUSDT']
@@ -59,14 +59,14 @@ test('PRE_BREAK 1m forecast from 32 scan sends ONLY eligible crypto/metals to EX
   assert.equal(r.failed,0);
   assert.equal(posts.length,2);
   assert.deepEqual(posts.map(p=>p.title.match(/(?:BTCUSDT|XAUUSDT)/)?.[0]),['BTCUSDT','XAUUSDT']);
-  assert.ok(posts.every(p=>p.topic===forecastTopic({NTFY_TOPIC:primary})));
-  assert.ok(posts.every(p=>p.topic!==primary));
-  assert.ok(reads.every(url=>url.includes(forecastTopic({NTFY_TOPIC:primary}))));
+  assert.ok(posts.every(p=>p.topic===primary));
+  assert.ok(posts.every(p=>p.topic!==forecastTopic({NTFY_TOPIC:primary})));
+  assert.ok(reads.every(url=>url.includes(primary)));
   assert.ok(posts.every(p=>p.message.includes('НЕ ВХОДИ')));
   assert.ok(posts.every(p=>!p.message.includes('WEEX\\nWEEX')));
  });
 });
-test('all 13 excluded symbols make ZERO forecast notifications, not a fallback to primary Radar',async()=>{
+test('all 13 excluded FX/equities still make ZERO Radar early notifications',async()=>{
  const primary='wr-'+('b'.repeat(32));
  await captured(primary,async({posts})=>{
   const r=await ntfySend('early',RESEARCH_ONLY_FORECAST_NOTIFICATION_SYMBOLS.map(s=>candidate(s)));
@@ -88,7 +88,7 @@ test('confirmed 5m alert continues to use original WEEX Radar topic',async()=>{
   assert.ok(reads.every(x=>x.includes(primary)));
  });
 });
-test('missing topic cannot send early forecast to Blob/old primary fallback',async()=>{
+test('missing primary topic cannot leak early messages to Blob/Forecast',async()=>{
  const old=process.env.NTFY_TOPIC;
  const fetch0=globalThis.fetch;let calls=0;
  delete process.env.NTFY_TOPIC;
@@ -103,7 +103,7 @@ test('missing topic cannot send early forecast to Blob/old primary fallback',asy
   if(old!==undefined)process.env.NTFY_TOPIC=old;
  }
 });
-test('fix fully separates early forecast from 5m entry and leaves all32 source scan in place',()=>{
+test('early PRE_BREAK and confirmed 5m both route to Radar, 10m Forecast remains separate',()=>{
  const early=readFileSync(new URL('../lib/early-push.mjs',import.meta.url),'utf8');
  const main=readFileSync(new URL('../api/push-dispatch.mjs',import.meta.url),'utf8');
  const topic=readFileSync(new URL('../lib/ntfy-forecast-topic.mjs',import.meta.url),'utf8');
@@ -111,7 +111,8 @@ test('fix fully separates early forecast from 5m entry and leaves all32 source s
  assert.match(early,/scanEarlyMarkets\(undefined,undefined,metrics\)/);
  assert.match(early,/deliverableForecasts=forecasts\.filter\(x=>forecastNotificationAllowed\(x\.symbol\)\)/);
  assert.match(early,/ntfySend\('early',deliverableForecasts\.slice\(0,2\)\)/);
- assert.match(ntfy,/forecastTopic\(\{NTFY_TOPIC:directTopic\}\)/);
+ assert.match(ntfy,/sendEnvironmentNtfy\('early',selected,directTopic\)/);
+ assert.doesNotMatch(ntfy,/sendEnvironmentNtfy\('early',selected,dedicated\)/);
  assert.match(ntfy,/signals\.filter\(x=>forecastNotificationAllowed\(x\?\.symbol\)\)/);
  assert.match(main,/ntfySend\('confirmed',signals\)/);
  assert.match(topic,/weex-radar-forecast-topic-v1/);
