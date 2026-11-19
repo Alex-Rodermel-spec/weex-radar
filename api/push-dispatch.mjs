@@ -188,12 +188,26 @@ export default async function handler(req,res){
   }catch(e){
    console.warn('WEEX_RADAR_FREE_SCREENSHOT_UNAVAILABLE '+String(e.message||e).slice(0,75));
   }
+  // Owner-opted automatic PAPER simulator: 5 distinct crypto coins at 15
+  // VIRTUAL EUR each. Runs only after confirmed ntfy alerts and forecasts.
+  // It never calls WEEX private trade endpoints; failures cannot block alerts.
+  let paperTrading={mode:'PAPER_ONLY',enabled:false,ordersSent:0};
+  try{
+   const {runPaperTrading}=await import('../lib/paper-trading-store.mjs');
+   paperTrading=await runPaperTrading({confirmed:signals,
+    quoteReader:symbol=>marketSafety.fetchCurrentQuote(symbol,'WEEX')});
+   console.info('WEEX_RADAR_PAPER_CYCLE '+JSON.stringify(paperTrading));
+  }catch(e){
+   console.warn('WEEX_RADAR_PAPER_FAILED '+String(e?.message||e).slice(0,100));
+   paperTrading={mode:'PAPER_ONLY',enabled:false,ordersSent:0,
+    error:'PAPER_CYCLE_FAILED_NO_REAL_ORDERS'};
+  }
   return reply(res,source,200,{
    ok:true,deliveryMode:'ntfy-only',signals:signals.length,
    delivered:ntfy.delivered,failed:ntfy.failed,duplicates:ntfy.duplicates,
    early,ntfy,forecastFollowup,independentForecast,directionalDiagnostics,
    notificationPolicy:PHONE_POLICY.mode,
-   freeScreenshotResearch,
+   freeScreenshotResearch,paperTrading,
    telegram:{enabled:false},chrome:{enabled:false}
   },healthMarkets);
  }catch(e){
