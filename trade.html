@@ -192,6 +192,8 @@ async function post(endpoint,payload){
  }
  return data;
 }
+async function ownerPreflight(symbol){return post('/api/trade-preflight',{symbol});}
+async function ownerPrepare(symbol){return post('/api/trade-prepare',{symbol});}
 async function run(button,fn){
  if(busy)return;busy=true;button.disabled=true;
  try{await fn()}catch(e){message('Ошибка: '+String(e.message||e));}
@@ -261,7 +263,7 @@ $('preflight').onclick=()=>run($('preflight'),async()=>{
  const out=$('preflight-result');
  out.textContent='⏳ Проверяю WEEX без отправки заявок…';
  try {
-  const d=await post('/api/trade-preflight',{symbol:$('symbol').value});
+  const d=await ownerPreflight($('symbol').value);
   const captions={accountTradeFlag:'Аккаунт разрешает торговлю',hedgeMode:'Двусторонний режим',
    collateralWithFees:'Доступно ≥17 USDT',positionCapacity:'Меньше 5 активных позиций RADAR (ручные не входят)',
    noSameCoinPosition:'Нет позиции на этой монете',noPendingEntryOrders:'Нет открытых ордеров на вход',
@@ -307,7 +309,7 @@ $('preview').onclick=()=>run($('preview'),async()=>{
 });
 $('prepare').onclick=()=>run($('prepare'),async()=>{
  reset();$('released').hidden=true;message('Проверяю твои открытые позиции, сигнал и ограничения…');
- const d=await post('/api/trade-prepare',{symbol:$('symbol').value});
+ const d=await ownerPrepare($('symbol').value);
  render(d.trade);approvalToken=d.proposal;expiresAt=d.expiresAt;
  if(!d.liveEnabled){message('План готов, но реальная торговля в Vercel пока выключена.');return;}
  $('approval').hidden=false;message('Проверь уровни и подтверди только если согласен. Срок — 45 секунд.');
@@ -359,13 +361,13 @@ async function autoReviewScan(){
    if(autoSeen.size>120)autoSeen.delete(autoSeen.values().next().value);
    try{
     out.textContent='🛡 Проверяю WEEX для '+candidate.symbol+' (без ордера)…';
-    const check=await post('/api/trade-preflight',{symbol:candidate.symbol});
+    const check=await ownerPreflight(candidate.symbol);
     if(!check.passed||!check.liveEnabled)continue;
     if(!autoReviewOn||!sessionActive||document.hidden||busy||
      !$('released').hidden)return;
     // The protected server independently re-scans this symbol, checks
     // positions, collateral and pending orders before creating a 45s proposal.
-    const d=await post('/api/trade-prepare',{symbol:candidate.symbol});
+    const d=await ownerPrepare(candidate.symbol);
     if(!autoReviewOn||!sessionActive||document.hidden||busy||
      !$('released').hidden)return;
     if(!d.liveEnabled||!d.proposal||d.trade?.symbol!==candidate.symbol||
