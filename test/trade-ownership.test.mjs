@@ -102,6 +102,6 @@ test('preflight, confirm and release all resolve bot ownership before allowing n
  assert.match(confirm,/if\(same\.length>1\)/);
  assert.match(confirm,/CONFIRM_REAL_WEEX_ORDER/);
  const trade=readFileSync(new URL('../trade.html',import.meta.url),'utf8');
- assert.match(trade,/до 2 одновременно открытых позиций RADAR/);
+ assert.match(trade,/до 5 одновременно открытых позиций RADAR/);
  assert.match(trade,/ручные позиции WEEX учитываются отдельно/);
 });
