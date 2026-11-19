@@ -28,10 +28,12 @@ test('semi-auto uses only confirmed fresh WEEX REVIEW crypto, never forecast or 
  assert.match(semi,/autoSeen\.has\(id\)/);
 });
 test('server preflight and proposal are automatic but real execution remains click-only',()=>{
- assert.match(semi,/post\('\/api\/trade-preflight'/);
+ assert.match(semi,/ownerPreflight\(candidate\.symbol\)/);
+ assert.match(script,/post\('\/api\/trade-preflight'/);
  assert.match(semi,/if\(!check\.passed\|\|!check\.liveEnabled\)continue/);
- assert.match(semi,/post\('\/api\/trade-prepare'/);
- assert.doesNotMatch(semi,/\/api\/trade-confirm|weex\.placeOrder|post\('\/api\/trade-passkey'|verifyPhonePasskey/);
+ assert.match(semi,/ownerPrepare\(candidate\.symbol\)/);
+ assert.match(script,/post\('\/api\/trade-prepare'/);
+ assert.doesNotMatch(semi,/post\('\/api\/trade-confirm'|weex\.placeOrder|post\('\/api\/trade-passkey'|verifyPhonePasskey/);
  assert.match(script,/\$\('confirm'\)\.onclick=.+/);
  assert.match(script,/confirmation:'CONFIRM_REAL_WEEX_ORDER'/);
  assert.match(script,/if\(passkeyEnrolled\)/);
