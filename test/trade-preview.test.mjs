@@ -8,8 +8,8 @@ const market={symbol:'XRPUSDT',quoteAsset:'USDT',marginAsset:'USDT',contractType
 test('preview is never executable and uses fixed limits',()=>{
   const p=createReadOnlyPlan(signal,book,market,now);
   assert.equal(p.canPlaceOrder,false);assert.equal(p.status,'PREVIEW_ONLY');
-  assert.equal(p.leverage,10);assert.equal(p.marginUsdt,50);assert.equal(p.maxConcurrent,2);
-  assert.ok(p.notionalEstimate<=500);assert.ok(p.estimatedLossUsdt<=TRADE_LIMITS.maxRiskUsdt);
+  assert.equal(p.leverage,10);assert.equal(p.marginUsdt,15);assert.equal(p.maxConcurrent,5);
+  assert.ok(p.notionalEstimate<=150);assert.ok(p.estimatedLossUsdt<=TRADE_LIMITS.maxRiskUsdt);
   assert.equal(p.costGate,'PASS_ESTIMATE');
   assert.ok(p.estimatedNetLossUsdt>=p.estimatedLossUsdt);
   assert.ok(p.estimatedNetLossUsdt<=TRADE_LIMITS.maxRiskUsdt);
@@ -39,15 +39,15 @@ test('WEEX quantityPrecision -1 safely falls back to documented baseAssetPrecisi
  const m={...market,quantityPrecision:-1,baseAssetPrecision:4,minOrderSize:10};
  const result=createReadOnlyPlan(signal,book,m,now);
  assert.match(result.quantity,/^\d+(?:\.\d{1,4})?$/);
- assert.ok(result.notionalEstimate<=500&&result.notionalEstimate>=475);
+ assert.ok(result.notionalEstimate<=150&&result.notionalEstimate>=135);
  assert.throws(()=>createReadOnlyPlan(signal,book,{...m,baseAssetPrecision:-1},now),/precision/);
  assert.throws(()=>createReadOnlyPlan(signal,book,{...m,quantityPrecision:-2},now),/precision/);
 });
 
 
-test('no live proposal if gross risk passes but modeled risk WITH costs exceeds 10 USDT',()=>{
- const tight={...signal,stop:1.965,take:2.09};
- // Approx 9 USDT stop before costs; fees, spread and slippage push it over 10.
+test('no live proposal if gross risk passes but modeled risk WITH costs exceeds 3 USDT',()=>{
+ const tight={...signal,stop:1.964,take:2.09};
+ // Stop fits the 3 USDT pre-cost cap, fees and slippage push it above 3.
  assert.throws(()=>createReadOnlyPlan(tight,book,market,now),/after fees and slippage/);
 });
 

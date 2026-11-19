@@ -58,6 +58,6 @@ export default async function handler(req,res){
   return res.status(200).json({ok:true,connected:true,canTrade:account.canTrade,
     hedgeMode:account.dualSidePosition,openPositions:portfolio.totalOpenPositions,
     botOpenPositions:portfolio.botOpenPositions,manualOpenPositions:portfolio.manualOpenPositions,
-    liveEnabled:liveEnabled(),marginUsdt:50,leverage:10,maxConcurrent:TRADE_LIMITS.maxConcurrent,
-    note:'Only verified RADAR-owned positions count toward the two-position cap. Manual WEEX positions still affect free margin and same-symbol checks. No order placed.'});
+    liveEnabled:liveEnabled(),marginUsdt:TRADE_LIMITS.marginUsdt,leverage:TRADE_LIMITS.leverage,maxConcurrent:TRADE_LIMITS.maxConcurrent,
+    note:'Only verified RADAR-owned positions count toward the five-position cap. Manual WEEX positions still affect free margin and same-symbol checks. No order placed.'});
 }

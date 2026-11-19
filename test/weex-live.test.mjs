@@ -9,10 +9,10 @@ import {
   orderPayload,isAccepted,clientOrderId,verifyAccount,parseExchangeResponse
 } from '../lib/weex-order.mjs';
 const creds={key:'example_public',secret:'fake_test_secret',passphrase:'fake_test_passphrase'};
-const plan={symbol:'XRPUSDT',exchange:'WEEX',direction:'LONG',marginUsdt:50,leverage:10,
-  estimatedLossUsdt:5,estimatedNetLossUsdt:6.7,estimatedNetProfitUsdt:12.9,
+const plan={symbol:'XRPUSDT',exchange:'WEEX',direction:'LONG',marginUsdt:15,leverage:10,
+  estimatedLossUsdt:1.5,estimatedNetLossUsdt:2.1,estimatedNetProfitUsdt:4.5,
   estimatedNetRR:1.92,costGate:'PASS_ESTIMATE',
-  stopLoss:1.98,takeProfit:2.06,entryEstimate:2,quantity:'250',candleCloseTime:1794027000000};
+  stopLoss:1.98,takeProfit:2.06,entryEstimate:2,quantity:'75',candleCloseTime:1794027000000};
 const backup={...process.env};
 test('WEEX V3 signature includes body and GET queries',()=>{
   const body=JSON.stringify({symbol:'XRPUSDT',type:'MARKET'});
@@ -30,8 +30,8 @@ test('WEEX V3 signature includes body and GET queries',()=>{
 test('rejects missing authentication, cross-site requests and disabled live flag',()=>{
   process.env.WEEX_TRADE_APPROVAL_PASSWORD='test-password-with-more-than-20-chars';
   process.env.WEEX_TRADING_ENABLED='false';
-  process.env.WEEX_CONFIRM_EACH_ORDER='true';process.env.WEEX_MARGIN_USDT='50';
-  process.env.WEEX_LEVERAGE='10';process.env.WEEX_MAX_OPEN_POSITIONS='3';
+  process.env.WEEX_CONFIRM_EACH_ORDER='true';process.env.WEEX_MARGIN_USDT='15';
+  process.env.WEEX_LEVERAGE='10';process.env.WEEX_MAX_OPEN_POSITIONS='5';
   assert.equal(validateHumanPassword('test-password-with-more-than-20-chars'),true);
   assert.equal(validateHumanPassword('bad'),false);
   assert.equal(liveEnabled(),false);
@@ -41,24 +41,27 @@ test('rejects missing authentication, cross-site requests and disabled live flag
   assert.equal(requireSameOrigin({...req,headers:{...req.headers,origin:'https://other.example'}}),false);
   assert.equal(requireSameOrigin({...req,headers:{...req.headers,host:'weex-radar-preview.vercel.app'}}),false);
   process.env.WEEX_TRADING_ENABLED='true';assert.equal(liveEnabled(),true);
-  process.env.WEEX_MAX_OPEN_POSITIONS='4';assert.equal(liveEnabled(),false);
+  process.env.WEEX_MAX_OPEN_POSITIONS='6';assert.equal(liveEnabled(),false);
   Object.assign(process.env,backup);
 });
-test('two bot-owned slots; manual positions on other coins excluded, same coin blocked',()=>{
+test('five bot-owned slots; manual positions on other coins excluded, same coin blocked',()=>{
   const p=(symbol)=>({symbol,size:'0.5'});
   const owned=(active,botCount)=>({active,bot:active.slice(0,botCount),manual:active.slice(botCount)});
   assert.equal(checkPositions([],'XRPUSDT',owned([],0)),0);
   const manual=[p('BTCUSDT'),p('ETHUSDT')];
   assert.equal(checkPositions(manual,'XRPUSDT',owned(manual,0)),0);
   assert.equal(checkPositions(manual,'XRPUSDT',owned(manual,1)),1);
-  assert.throws(()=>checkPositions(manual,'XRPUSDT',owned(manual,2)),/maximum 2/i);
+  assert.equal(checkPositions(manual,'XRPUSDT',owned(manual,2)),2);
+  const five=['BTCUSDT','ETHUSDT','SOLUSDT','ADAUSDT','AVAXUSDT'].map(p);
+  assert.equal(checkPositions(five,'XRPUSDT',owned(five,4)),4);
+  assert.throws(()=>checkPositions(five,'XRPUSDT',owned(five,5)),/maximum 5/i);
   assert.throws(()=>checkPositions([p('XRPUSDT')],'XRPUSDT',owned([p('XRPUSDT')],0)),/already/);
   assert.throws(()=>checkPositions(manual,'XRPUSDT'),/ownership/);
   assert.throws(()=>checkOrders([{symbol:'BTCUSDT',reduceOnly:false}]),/Pending/);
   assert.doesNotThrow(()=>checkOrders([{symbol:'BTCUSDT',reduceOnly:true}]));
 });
-test('requires 55 USDT available futures collateral, isolated 10x config and hedge mode',()=>{
-  assert.throws(()=>checkAvailableMargin([{asset:'USDT',availableBalance:'50.00'}]),/55/);
+test('requires 17 USDT available futures collateral, isolated 10x config and hedge mode',()=>{
+  assert.throws(()=>checkAvailableMargin([{asset:'USDT',availableBalance:'16.00'}]),/17/);
   assert.doesNotThrow(()=>checkAvailableMargin([{asset:'USDT',availableBalance:'100'}]));
   assert.throws(()=>verifyAccount({canTrade:true,dualSidePosition:false}),/hedge/);
   assert.doesNotThrow(()=>verifyAccount({canTrade:true,dualSidePosition:true}));
@@ -80,7 +83,7 @@ test('single MARKET order includes mandatory TP SL and stable deterministic ID',
   assert.throws(()=>orderPayload({...plan,estimatedNetLossUsdt:10.01}),/Unsafe/);
   assert.throws(()=>orderPayload({...plan,estimatedNetProfitUsdt:0}),/Unsafe/);
   assert.throws(()=>orderPayload({...plan,estimatedNetRR:1.29}),/Unsafe/);
-  assert.throws(()=>orderPayload({...plan,estimatedNetLossUsdt:4.99}),/Unsafe/);
+  assert.throws(()=>orderPayload({...plan,estimatedNetLossUsdt:1.49}),/Unsafe/);
   assert.throws(()=>orderPayload({...plan,stopLoss:2.2}),/Wrong LONG/);
   const short=orderPayload({...plan,direction:'SHORT',stopLoss:2.02,takeProfit:1.94});
   assert.equal(short.side,'SELL');assert.equal(short.positionSide,'SHORT');
