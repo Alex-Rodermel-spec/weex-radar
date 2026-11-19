@@ -48,6 +48,13 @@ code{background:#272032;border-radius:4px;padding:1px 4px}
 </section>
 <section class="box">
 <h2>2. Выбери монету</h2>
+<div class="box" id="auto-review" style="border-color:#5a4289">
+<h2>🤖 Автоподбор · с твоим подтверждением</h2>
+<p class="muted">Когда ты вошёл в RADAR и эта вкладка открыта, робот ищет свежие 5М LONG/SHORT, проверяет готовность WEEX и сам подготавливает ОДНУ сделку для просмотра. До 5 разных монет по 15 USDT маржи, плечо 10×. <strong>Ордер никогда не отправляется автоматически.</strong></p>
+<button class="secondary" id="auto-toggle" disabled>▶ Включить автоподбор</button>
+<p id="auto-status" role="status" aria-live="polite" class="field-note">🔒 Сначала войди в RADAR. После включения оставь страницу открытой.</p>
+<p class="field-note">Каждый ордер требует отдельного нажатия, согласия с риском и Passkey/PIN, если он подключён. Если телефон заблокирован или вкладка скрыта — подбор приостанавливается. Не жми подтверждение не проверив уровни.</p>
+</div>
 <label for="symbol">Фьючерс</label>
 <select id="symbol"></select>
 <button class="secondary" id="preflight">🛡 Проверить готовность без сделки</button>
@@ -91,6 +98,8 @@ if(coin.includes(symbolFromSignal)){
  $('messages').textContent='Монета '+symbolFromSignal+' выбрана из сигнала. Проверь свежесть сигнала и план. Ордер не отправлен.';
 }
 let approvalToken=null,expiresAt=0,busy=false,passkeyEnrolled=false;
+let sessionActive=false,autoReviewOn=false,autoReviewBusy=false;
+const autoSeen=new Set(),AUTO_INTERVAL_MS=60000;
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const number=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:8});
 function message(s){$('messages').textContent=s;}
@@ -146,6 +155,13 @@ async function refreshPhoneStatus(){
   '🔐 Сначала войди по паролю и подключи отпечаток один раз; потом можно входить через Passkey.';
 }
 function sessionUI(active,until=0){
+ sessionActive=active;
+ $('auto-toggle').disabled=!active;
+ if(!active){
+  autoReviewOn=false;
+  $('auto-toggle').textContent='▶ Включить автоподбор';
+  $('auto-status').textContent='🔒 Сначала войди в RADAR. Ордера не отправлялись.';
+ }
  $('login-fields').hidden=active;
  $('finger-login').hidden=active;
  if(!active){passkeyEnrolled=false;$('finger-register').hidden=true;}
@@ -252,7 +268,7 @@ $('preflight').onclick=()=>run($('preflight'),async()=>{
    apiListed:'Фьючерс доступен через API',supportedMarket:'Фьючерс поддерживается',
    freshOrderBook:'Цены актуальные',compatiblePositionSettings:'Режим позиции поддерживается'};
   const messages=Object.entries(d.checks).map(([k,v])=>(v?'✅ ':'❌ ')+(captions[k]||k));
-  messages.push('📊 RADAR: '+d.botOpenPositions+'/2 · Ручные позиции WEEX: '+d.manualOpenPositions+'.');
+  messages.push('📊 RADAR: '+d.botOpenPositions+'/'+d.maxConcurrent+' · Ручные позиции WEEX: '+d.manualOpenPositions+'.');
   messages.push(d.requiresLeverageSetup?'⚠️ Перед входом понадобится установить изолированную маржу 10×.':'✅ Изолированная маржа 10×');
   messages.push('🔒 Право API на открытие реального ордера пока не проверено.');
   messages.push(d.liveEnabled?'⚠️ Реальные ордера включены в Vercel.':'🔒 Реальные ордера в Vercel выключены.');
@@ -296,6 +312,109 @@ $('prepare').onclick=()=>run($('prepare'),async()=>{
  if(!d.liveEnabled){message('План готов, но реальная торговля в Vercel пока выключена.');return;}
  $('approval').hidden=false;message('Проверь уровни и подтверди только если согласен. Срок — 45 секунд.');
 });
+// Semi-automatic CLIENT-SIDE selection only. This function never invokes
+// /api/trade-confirm, Passkey APIs or WEEX order endpoints. All server gates
+// remain active; no autonomous trading is possible through this workflow.
+function autoCandidate(s,now){
+ return s&&coin.includes(s.symbol)&&s.symbol!=='XAUTUSDT'&&
+  s.exchange==='WEEX'&&s.status==='ok'&&
+  (s.direction==='LONG'||s.direction==='SHORT')&&
+  s.advisor?.status==='REVIEW'&&s.entryQuality?.ok===true&&
+  s.costReview?.status==='PASS_ESTIMATE'&&
+  Number.isFinite(s.candleCloseTime)&&s.candleCloseTime<=now&&
+  now-s.candleCloseTime<=90000&&
+  Number.isFinite(s.expiresAt)&&s.expiresAt>now+45000;
+}
+function autoSignalKey(s){
+ return s.symbol+'|'+s.direction+'|'+s.candleCloseTime;
+}
+async function autoReviewScan(){
+ if(!autoReviewOn||!sessionActive||autoReviewBusy||busy||
+  document.hidden||!$('released').hidden)return;
+ if(approvalToken&&Date.now()<expiresAt-12000)return;
+ autoReviewBusy=true;
+ const out=$('auto-status');
+ try{
+  if(approvalToken)reset();
+  out.textContent='🔎 Ищу подтверждённые свежие сигналы WEEX…';
+  const r=await fetch('/api/signals',{cache:'no-store',credentials:'same-origin'});
+  if(!r.ok)throw Error('Сканер недоступен: HTTP '+r.status);
+  const data=await r.json(),now=Date.now();
+  if(!Number.isFinite(data.generatedAt)||now-data.generatedAt>90000||
+   !Array.isArray(data.symbols))throw Error('Результат сканера устарел');
+  const available=data.symbols.filter(s=>autoCandidate(s,now))
+   .sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0)||
+    a.symbol.localeCompare(b.symbol));
+  if(!autoReviewOn||!sessionActive||document.hidden)return;
+  if(!available.length){
+   out.textContent='🟡 Подходящих подтверждённых сигналов пока нет. Проверю снова через минуту.';
+   return;
+  }
+  for(const candidate of available.slice(0,3)){
+   if(!autoReviewOn||!sessionActive||document.hidden||busy||
+    !$('released').hidden)return;
+   const id=autoSignalKey(candidate);
+   if(autoSeen.has(id))continue;
+   autoSeen.add(id);
+   if(autoSeen.size>120)autoSeen.delete(autoSeen.values().next().value);
+   try{
+    out.textContent='🛡 Проверяю WEEX для '+candidate.symbol+' (без ордера)…';
+    const check=await post('/api/trade-preflight',{symbol:candidate.symbol});
+    if(!check.passed||!check.liveEnabled)continue;
+    if(!autoReviewOn||!sessionActive||document.hidden||busy||
+     !$('released').hidden)return;
+    // The protected server independently re-scans this symbol, checks
+    // positions, collateral and pending orders before creating a 45s proposal.
+    const d=await post('/api/trade-prepare',{symbol:candidate.symbol});
+    if(!autoReviewOn||!sessionActive||document.hidden||busy||
+     !$('released').hidden)return;
+    if(!d.liveEnabled||!d.proposal||d.trade?.symbol!==candidate.symbol||
+     !Number.isFinite(d.expiresAt)||d.expiresAt<=Date.now()+12000)continue;
+    reset();
+    $('symbol').value=candidate.symbol;
+    render(d.trade);approvalToken=d.proposal;expiresAt=d.expiresAt;
+    $('approval').hidden=false;
+    out.textContent='✅ ПЛАН '+candidate.symbol+' '+d.trade.direction+
+     ' готов. Проверь цену, Stop-Loss, Take-Profit и подтверди лично до истечения 45 секунд.';
+    message('🤖 Автоподбор подготовил план. Реальный ордер НЕ отправлен.');
+    $('approval').scrollIntoView({block:'nearest',behavior:'smooth'});
+    return;
+   }catch(e){
+    if(!sessionActive)return;
+    // A failed coin is SKIPPED, never forced or retried on the same candle.
+    out.textContent='🟡 '+candidate.symbol+': '+String(e.message||e).slice(0,105);
+   }
+  }
+  out.textContent='🟡 Подходящие монеты пока не прошли проверки WEEX. Новая проверка через минуту.';
+ }catch(e){
+  out.textContent='⚠️ Автоподбор: '+String(e.message||e).slice(0,120)+'. Ордер не отправлен.';
+ }finally{
+  autoReviewBusy=false;
+ }
+}
+$('auto-toggle').onclick=()=>{
+ if(!sessionActive){$('auto-status').textContent='🔒 Войди в RADAR.';return;}
+ autoReviewOn=!autoReviewOn;
+ $('auto-toggle').textContent=autoReviewOn?'⏹ Остановить автоподбор':'▶ Включить автоподбор';
+ if(autoReviewOn){
+  $('auto-status').textContent='▶ Автоподбор запущен. Ты подтверждаешь каждый ордер лично.';
+  void autoReviewScan();
+ }else{
+  reset();
+  $('auto-status').textContent='⏸ Автоподбор остановлен. Неподтверждённый план сброшен.';
+ }
+};
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){
+  // A proposal expires quickly; discard it rather than showing a stale
+  // confirmation after returning from WEEX or locking the phone.
+  if(autoReviewOn&&approvalToken)reset();
+  if(autoReviewOn)$('auto-status').textContent='⏸ Вкладка скрыта: поиск приостановлен.';
+ }else if(autoReviewOn){
+  void autoReviewScan();
+ }
+});
+setInterval(()=>{if(autoReviewOn)void autoReviewScan()},AUTO_INTERVAL_MS);
 $('accept').onchange=()=>{$('confirm').disabled=!$('accept').checked||!approvalToken};
 $('confirm').onclick=()=>run($('confirm'),async()=>{
  if(!$('accept').checked||!approvalToken||Date.now()>expiresAt-12000)throw Error('Одобрение истекло. Запроси новый план.');
