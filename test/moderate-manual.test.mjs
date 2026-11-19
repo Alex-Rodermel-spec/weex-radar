@@ -28,8 +28,8 @@ test('moderate profile changes reward target and cost acceptance, never the loss
  assert.equal(ACTIVE_STRATEGY.takeAtr,3);
  assert.equal(ACTIVE_STRATEGY.minNetRR,1.3);
  assert.equal(COST_MIN_NET_RR,1.3);
- assert.deepEqual(TRADE_LIMITS,{marginUsdt:50,leverage:10,
-  maxConcurrent:2,maxRiskUsdt:10});
+ assert.deepEqual(TRADE_LIMITS,{marginUsdt:15,leverage:10,
+  maxConcurrent:5,maxRiskUsdt:3});
  assert.equal(ACTIVE_STRATEGY.phase,'EXPERIMENTAL');
 });
 test('cost-passing normal fresh breakout is visible as manual check even without a completed retest',()=>{
@@ -49,9 +49,9 @@ test('a moderate candidate can generate ONLY a read-only guarded market proposal
  assert.equal(plan.status,'PREVIEW_ONLY');
  assert.equal(plan.costGate,'PASS_ESTIMATE');
  assert.ok(plan.estimatedNetRR>=1.3&&plan.estimatedNetRR<1.5);
- assert.ok(plan.estimatedNetLossUsdt<=10);
+ assert.ok(plan.estimatedNetLossUsdt<=3);
  assert.ok(plan.estimatedNetLossUsdt>=plan.estimatedLossUsdt);
- assert.equal(plan.marginUsdt,50);
+ assert.equal(plan.marginUsdt,15);
  assert.equal(plan.leverage,10);
  const payload=orderPayload(plan);
  assert.equal(payload.type,'MARKET');
