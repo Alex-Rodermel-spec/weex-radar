@@ -21,7 +21,7 @@ test('readiness is only facts, not proof of real order ability',()=>{
 });
 test('preflight rejects API-blocked coins, insufficient margin, same-coin positions and stale quotes',()=>{
  assert.equal(readinessSummary({...example,apiTradingSymbols:['BTCUSDT']},now).checks.apiListed,false);
- assert.equal(readinessSummary({...example,balance:[{asset:'USDT',availableBalance:'49'}]},now).checks.collateral55Usdt,false);
+ assert.equal(readinessSummary({...example,balance:[{asset:'USDT',availableBalance:'16'}]},now).checks.collateralWithFees,false);
  assert.equal(readinessSummary({...example,positions:[{symbol:'XRPUSDT',size:'1'}]},now).checks.noSameCoinPosition,false);
  const manual=[{symbol:'BTCUSDT',size:'1'}];
  assert.equal(readinessSummary({...example,positions:manual,
@@ -30,7 +30,10 @@ test('preflight rejects API-blocked coins, insufficient margin, same-coin positi
   portfolio:{active:manual,bot:[manual[0]],manual:[],botOpenPositions:1,manualOpenPositions:0}},now).checks.positionCapacity,true);
  const both=[{symbol:'BTCUSDT',size:'1'},{symbol:'ETHUSDT',size:'1'}];
  assert.equal(readinessSummary({...example,positions:both,
-  portfolio:{active:both,bot:both,manual:[],botOpenPositions:2,manualOpenPositions:0}},now).checks.positionCapacity,false);
+  portfolio:{active:both,bot:both,manual:[],botOpenPositions:2,manualOpenPositions:0}},now).checks.positionCapacity,true);
+ const five=['BTCUSDT','ETHUSDT','SOLUSDT','ADAUSDT','AVAXUSDT'].map(symbol=>({symbol,size:'1'}));
+ assert.equal(readinessSummary({...example,positions:five,
+  portfolio:{active:five,bot:five,manual:[],botOpenPositions:5,manualOpenPositions:0}},now).checks.positionCapacity,false);
  assert.equal(readinessSummary({...example,book:{...example.book,time:now-60000}},now).checks.freshOrderBook,false);
 });
 test('unsupported setting can be detected before any trade',()=>{
