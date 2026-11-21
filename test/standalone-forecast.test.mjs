@@ -44,6 +44,9 @@ test('forecasts on 1m 5m and completed 10m are independent, not orders',()=>{
  assert.equal(d.primaryContext.actualLiquidityUnknown,true);
  assert.equal(d.primaryContext.orderBookChecked,false);
  assert.equal(d.filterOverlapStudy.available,true);
+ assert.equal(d.forecastV5?.mode,'V5_5M_DIRECTION_RESEARCH');
+ assert.equal(d.forecastV5?.noTrade,true);
+ assert.equal(d.forecastV5?.ordersSent,0);
  assert.equal(d.filterOverlapStudy.ordersSent,0);
  assert.equal(d.filterOverlapStudy.tradeSignal,false);
  assert.equal(d.filterOverlapStudy.overlap.tenMinuteDerivedFromFiveMinute,true);

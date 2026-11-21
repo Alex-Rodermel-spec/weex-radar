@@ -45,6 +45,7 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
 <p class="lead">Самостоятельный прогнозный монитор на <strong>1М, 5М и 10М</strong>. Использует закрытые свечи WEEX, EMA20/50, RSI14, Bollinger20/2, объём, ATR и видимые уровни структуры. Это гипотезы направления, <strong>не разрешение открывать сделку</strong>. LONG/SHORT торгового радара остаются полностью независимыми.</p>
 <section class="panel" aria-label="Отдельные уведомления прогнозов">
  <div class="heading"><h2>🔔 Уведомления прогнозиста на телефон</h2><span class="pill">ОТДЕЛЬНЫЙ NTFY-КАНАЛ</span></div>
+ <p class="lead"><strong>🧪 V5 · 5М</strong> — новый независимый алгоритм направления (EMA-наклон, RSI, объём, импульс 1М, боковик). Пока это исследование: отдельная колонка не меняет ntfy, не открывает сделки и не означает доказанной точности. Сравнивай с обычным прогнозом на новых закрытых свечах.</p>
  <p class="lead">Прогнозист отправляет только отдельные <b>🔮 ПРОГНОЗ LONG / SHORT</b> по согласованности 1М / 5М / 10М — не чаще двух за десятиминутное окно. Торговые <b>LONG / SHORT</b> останутся в прежнем канале и не изменятся. Прогноз <b>не является входом</b>.</p>
  <p class="lead">Подписаться можно по одноразовому сообщению «🔮 ПОДКЛЮЧИТЬ ПРОГНОЗЫ» в твоём существующем ntfy. Если сообщение пропущено, вставь <b>текущую тему ntfy</b> из приложения ниже. Она обрабатывается только в твоём браузере и никуда с этой страницы не передаётся.</p>
  <label for="base-topic">Твоя существующая тема торгового ntfy</label>
@@ -95,8 +96,8 @@ details{margin:16px 0}summary{cursor:pointer;color:#cbbeff;font-weight:850}pre{w
  </div>
  <div class="status" role="status" id="status">Запусти проверку. Прогнозы не отправляют торговые уведомления и не открывают ордера.</div>
  <div class="scroll"><table>
-  <thead><tr><th>Пара</th><th>Оценка силы / риска</th><th>1М</th><th>5М</th><th>10М</th><th>RSI · объём 1М</th><th>Bollinger</th><th>Структура 5М</th><th>Обновлено</th></tr></thead>
-  <tbody id="rows"><tr><td colspan="9">Нет проверки</td></tr></tbody>
+  <thead><tr><th>Пара</th><th>Оценка силы / риска</th><th>1М</th><th>5М</th><th>10М</th><th>🧪 V5 · 5М</th><th>RSI · объём 1М</th><th>Bollinger</th><th>Структура 5М</th><th>Обновлено</th></tr></thead>
+  <tbody id="rows"><tr><td colspan="10">Нет проверки</td></tr></tbody>
  </table></div>
  <p class="legend">🟣 «Сильный» означает согласованные RSI, EMA, Bollinger, структуру и объём без обнаруженных предупреждений. 🟡 «Повышенный риск» отмечает перепроданность/перекупленность, слабый объём или возможность позднего входа. Оценки эвристические, не вероятность прибыли. Нет сигнала входа, торговых ордеров, маржи, плеча или автоторговли. Будущие свечи не используются. Теневая V2 проверяет движение за 15 минут, удалённость от EMA20 и всплеск объёма; Шесть рыночных профилей для 32 инструментов: BTC/ETH, альткоины, мемкоины, металлы, валютные и акции WEEX. Теперь порог опоздания за 1М/3М адаптируется к 60 ранее закрытым минутам КАЖДОГО инструмента; если история неполная, остаётся прежний порог 0,10% (не означает, что прогноз ранний). V2 продолжает предупреждать об опоздании. Это экспериментальная защита от догоняющих уведомлений, а не подтверждённая торговая стратегия. Это не гарантия раннего входа или прибыли.</p>
 </section>
@@ -262,6 +263,7 @@ function showDetail(){
   intervals:d.timeframes,marketStructure:d.primaryContext,
   forecastStrengthAndRisk:d.strengthRisk,
   strongV2Review:d.strongV2Review,
+  forecastV5:d.forecastV5,
   arrivalTiming:d.arrivalTiming,
   disclaimer:d.disclaimer
  },null,2):'Нет свежих данных выбранной монеты';
@@ -282,6 +284,7 @@ function render(){
   const m1=frames[0],ctx=d?.primaryContext;
   const values=[symbol,riskLabel(d?.strengthRisk,d?.strongV2Review,d?.arrivalTiming)+profileLine(d?.arrivalTiming),
    ...[0,1,2].map(i=>frames[i]?label(frames[i].direction):'Нет данных'),
+   d?.forecastV5?.available?label(d.forecastV5.direction):'Нет данных',
    m1?'RSI '+m1.rsi14+' · Vol ×'+m1.relativeVolume:'—',
    m1?'BB '+m1.bollinger20.position+' · '+m1.bollinger20.widthPct+'%':'—',
    ctx?ctx.structure:'—',d?.available?stamp(d.generatedAt):'Ошибка WEEX'];
@@ -289,13 +292,14 @@ function render(){
   for(let i=0;i<values.length;i++){
    const cell=document.createElement('td');cell.textContent=values[i];
    if(i>=2&&i<=4)cell.className=css(frames[i-2]?.direction);
+   if(i===5)cell.className=css(d?.forecastV5?.direction);
    row.appendChild(cell);
   }
   tbody.appendChild(row);
  }
  if(!tbody.children.length){
   const row=document.createElement('tr'),cell=document.createElement('td');
-  cell.colSpan=9;cell.textContent='Нет прогнозов для выбранного фильтра';
+  cell.colSpan=10;cell.textContent='Нет прогнозов для выбранного фильтра';
   row.appendChild(cell);tbody.appendChild(row);
  }
  const selector=$('details-symbol'),old=selector.value;

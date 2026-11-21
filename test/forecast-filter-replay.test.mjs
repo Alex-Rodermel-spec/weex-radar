@@ -29,7 +29,7 @@ test('closed WEEX 1m and 5m replay: matched future 5/15/30m assessments for four
  assert.ok(q.snapshots>0&&q.snapshots<=10);
  assert.equal(q.ordersSent,0);
  assert.equal(q.noLookahead,true);
- for(const k of ['live','emaRsi','emaBollinger','fiveMinutePriority']){
+ for(const k of ['live','emaRsi','emaBollinger','fiveMinutePriority','v5']){
   const m=q.models[k];
   assert.equal(m.totalSnapshots,q.snapshots);
   assert.equal(m.at30m.observed,m.candidates);
@@ -39,6 +39,8 @@ test('closed WEEX 1m and 5m replay: matched future 5/15/30m assessments for four
  }
  assert.equal(FILTER_REPLAY_POLICY.maxMarketRequestsPerCall,2);
  assert.equal(FILTER_REPLAY_POLICY.ordersSent,0);
+ assert.equal(q.models.v5.totalSnapshots,q.snapshots);
+ assert.equal(q.models.v5.at5m.observed,q.models.v5.candidates);
 });
 test('incomplete or unsupported history cannot produce fictional backtest wins',()=>{
  const one=completedForecastBars(raw(MIN),MIN,now);
