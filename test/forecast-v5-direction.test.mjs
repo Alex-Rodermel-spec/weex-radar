@@ -66,6 +66,11 @@ test('dashboard exposes V5 independent read-only column without modifying ntfy',
  assert.match(page,/🧪 V5 · 5М/);
  assert.match(page,/forecastV5/);
  const ntfy=readFileSync(new URL('../lib/forecast-ntfy.mjs',import.meta.url),'utf8');
- assert.doesNotMatch(ntfy,/forecastV5\.direction/);
+ // V5 is now copied to the existing receipt at send time solely for
+ // observational validation. Direction/eligibility and slots remain V4.
+ assert.match(ntfy,/const side=d.combinedDirection==='LONG_BIAS'/);
+ assert.match(ntfy,/rankForecastV4\(b\)\.score/);
+ assert.match(ntfy,/🧪 V5: /);
+ assert.doesNotMatch(ntfy,/d\.combinedDirection\s*=\s*d\.forecastV5/);
  assert.equal(FORECAST_V5_POLICY.marketRequestsAdded,0);
 });
