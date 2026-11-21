@@ -16,7 +16,7 @@ const sample=sampledV110EarlySymbols(now);
 function snapshot(symbol,legacy='MIXED',v5='SHORT_BIAS'){
  return {exchange:'WEEX',available:true,symbol,combinedDirection:legacy,
   timeframes:[{intervalMinutes:1,closedAt:start-M,
-    price:100,direction:'SHORT_BIAS'},
+    price:100,direction:'NEUTRAL'},
    {intervalMinutes:5,closedAt:fiveClose,direction:'NEUTRAL'},
    {intervalMinutes:10,closedAt:fiveClose-5*M,direction:'NEUTRAL'}],
   forecastV5:{available:true,direction:v5,closedAt1m:start-M,
