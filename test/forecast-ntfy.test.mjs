@@ -324,3 +324,35 @@ test('FOLLOW onboarding has no effect in preview, outside release window or when
  assert.equal(offline.delivered,0);
  assert.equal(events.length,0);
 });
+
+
+test('V5 MIXED/opposite is visibly flagged on phone without changing delivered V4 direction',()=>{
+ const f=fixture('1000PEPEUSDT','SHORT_BIAS');
+ const [one]=f.timeframes;
+ const topicId=forecastTopic(env);
+ const parse=m=>parsePublishedForecast({
+  event:'message',topic:topicId,sequence_id:'a'.repeat(32),
+  time:Math.floor((now-1000)/1000),title:m.title,message:m.message
+ },topicId,now);
+ f.forecastV5={available:true,direction:'MIXED',closedAt1m:one.closedAt};
+ const mixed=forecastMessage(f);
+ assert.match(mixed.message,/^👀 НАБЛЮДАЙ · НЕ ВХОДИ\.\n⚠️ V5 MIXED:/);
+ assert.match(mixed.message,/независимого подтверждения НЕТ/);
+ assert.match(mixed.title,/1000PEPEUSDT 🟥 ⬇️ SHORT$/u);
+ assert.equal(parse(mixed).v5Direction,'MIXED');
+ assert.equal(parse(mixed).direction,'SHORT');
+ f.forecastV5.direction='LONG_BIAS';
+ const opposite=forecastMessage(f);
+ assert.match(opposite.message,/КОНФЛИКТ V4 \/ V5/);
+ assert.equal(parse(opposite).v5Direction,'LONG');
+ f.forecastV5.direction='SHORT_BIAS';
+ const agrees=forecastMessage(f);
+ assert.doesNotMatch(agrees.message,/КОНФЛИКТ V4|независимого подтверждения НЕТ/);
+ assert.equal(parse(agrees).v5Direction,'SHORT');
+ f.forecastV5.closedAt1m-=60000;
+ const stale=forecastMessage(f);
+ assert.doesNotMatch(stale.message,/КОНФЛИКТ V4|V5 MIXED|🧪 V5:/);
+ assert.equal(parse(stale).v5Direction,null);
+ assert.equal(forecastEligible(f,now),true,'V4 policy remains unchanged');
+ assert.equal(mixed.priority,3);
+});
