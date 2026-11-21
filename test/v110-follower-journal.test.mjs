@@ -125,7 +125,7 @@ test('isolation: no order API, push, extra cron, plaintext archive, or live 108 
  const writer=readFileSync(new URL('../.github/workflows/signal-journal.yml',import.meta.url),'utf8');
  assert.match(route,/collectV110FollowerJournal\(now\)/);
  assert.match(route,/leadLagForwardStudy:summarizeV110FollowerJournal\(leadLagRows,now\)/);
- assert.match(route,/leadLagMerged.rows,\s*earlyControlMerged.rows\)/);
+ assert.match(route,/leadLagMerged.rows,\s*earlyControlMerged.rows,\s*v5IndependentMerged.rows\)/);
  assert.match(writer,/7,27,47/);
  assert.equal(engine.includes('v110-follower-journal'),false);
  for(const forbidden of ['process.env','publishNtfy','trade-confirm','placeOrder',
