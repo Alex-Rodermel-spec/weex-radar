@@ -10,8 +10,8 @@ function trade(day,index,{pnl,coin='BTCUSDT',schema=true,exitDay=day}={}){
  return {
   id:'paper-'+day+'-'+index,
   symbol:coin,direction:'SHORT',reason:isProfit?'TAKE':'STOP',
-  enteredAt:start+day*86400000+index*60000,
-  exitedAt:start+exitDay*86400000+(index+1)*60000,
+  enteredAt:start+day*86400000+(index+60)*60000,
+  exitedAt:start+exitDay*86400000+(index+61)*60000,
   netPnlEur:pnl,
   ...(schema?{entryFeatures:{
    schema:'v110-paper-entry-v1',riskPolicy:'RISK_CAP_3_EUR',
