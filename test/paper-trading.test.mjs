@@ -9,7 +9,7 @@ const quote=(p=tick,at=t)=>({bid:p-0.01,ask:p+0.01,time:at});
 const signal=(symbol,direction='LONG',extras={})=>({
  symbol,direction,status:'ok',exchange:'WEEX',price:tick,
  candleCloseTime:t-10_000,expiresAt:t+90_000,
- stop:direction==='LONG'?98:102,
+ stop:direction==='LONG'?99:101,
  take:direction==='LONG'?106:94,...extras
 });
 const symbols=['BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','DOGEUSDT','ADAUSDT'];
@@ -21,6 +21,10 @@ test('15 virtual EUR per different coin, max five concurrent and 10x; NO live or
  assert.deepEqual(x.portfolio.active.map(p=>p.symbol),symbols.slice(0,5));
  assert.ok(x.portfolio.active.every(p=>p.marginEur===15&&p.leverage===10&&p.notionalEur===150));
  assert.equal(x.metrics.ordersSent,0);
+ assert.equal(PAPER_POLICY.maxModeledLossEur,3);
+ assert.ok(x.portfolio.active.every(p=>p.entryFeatures?.schema==='v110-paper-entry-v1'&&
+  p.entryFeatures.riskPolicy==='RISK_CAP_3_EUR'));
+
  assert.equal(publicPaperStatus(x.portfolio).totalAllocatedMarginEur,75);
  const replay=stepPaperPortfolio(x.portfolio,symbols.map(s=>signal(s)),quotes(),t+1000);
  assert.equal(replay.metrics.opened,0);
@@ -39,6 +43,25 @@ test('only WEEX confirmed fresh crypto, not forecast, stock, metal, 32-market WA
  const o=stepPaperPortfolio(null,s,q,t);
  assert.equal(o.metrics.opened,1);
  assert.equal(o.portfolio.active[0].symbol,'ADAUSDT');
+});
+test('paper rejects new entries with modeled stop loss above 3 virtual EUR',()=>{
+ const rejected=stepPaperPortfolio(null,[signal('BTCUSDT','LONG',{stop:97})],
+  {BTCUSDT:quote()},t);
+ assert.equal(rejected.metrics.opened,0);
+ const good=stepPaperPortfolio(null,[signal('BTCUSDT','LONG',{
+  closedFiveMinuteMoveBps:14.2,
+  indicators:{rsi:62,volumeRatio:1.35,trend15:'UP',atr:0.4},
+  retest:{LONG:{status:'CONFIRMED'}},
+  costReview:{netRR:1.85,status:'PASS_ESTIMATE'},
+  entryQuality:{ok:true}
+ })],{BTCUSDT:quote()},t);
+ assert.equal(good.metrics.opened,1);
+ assert.deepEqual({
+  late:good.portfolio.active[0].entryFeatures.preMove5mBps,
+  rsi:good.portfolio.active[0].entryFeatures.rsi5m,
+  netRR:good.portfolio.active[0].entryFeatures.modeledNetRR,
+  retest:good.portfolio.active[0].entryFeatures.retestStatus
+ },{late:14.2,rsi:62,netRR:1.85,retest:'CONFIRMED'});
 });
 test('stop, take, time-out, duplicate and same-symbol protections',()=>{
  const opened=stepPaperPortfolio(null,[signal('BTCUSDT'),signal('ETHUSDT','SHORT')],
