@@ -91,6 +91,46 @@ test('drawdown stop blocks further simulation entries',()=>{
  const out=stepPaperPortfolio(seed,[signal('BTCUSDT')],{BTCUSDT:quote()},t);
  assert.equal(out.metrics.opened,0);
 });
+test('daily virtual research budget rolls only when flat, lifetime PAPER losses persist',()=>{
+ const state=emptyPaperPortfolio(t);
+ state.realizedNetEur=-16;
+ const stopped=stepPaperPortfolio(state,[signal('BTCUSDT')],
+  {BTCUSDT:quote()},t);
+ assert.equal(stopped.metrics.opened,0);
+ assert.equal(stopped.metrics.paperDayPaused,true);
+ const next=t+24*60*60_000;
+ const rolled=stepPaperPortfolio(stopped.portfolio,
+  [signal('BTCUSDT','LONG',{candleCloseTime:next-10000,expiresAt:next+90000})],
+  {BTCUSDT:quote(tick,next)},next);
+ assert.equal(rolled.metrics.opened,1);
+ assert.equal(rolled.portfolio.realizedNetEur,-16);
+ assert.equal(rolled.portfolio.researchSession.rollovers,1);
+ assert.equal(rolled.portfolio.researchSession.baselineRealizedEur,-16);
+ assert.equal(rolled.metrics.sessionNetEur,0);
+ assert.equal(rolled.metrics.paperDayPaused,false);
+ const pub=publicPaperStatus(rolled.portfolio);
+ assert.equal(pub.realizedNetEur,-16);
+ assert.equal(pub.researchSession.netEur,0);
+ assert.equal(pub.researchSession.virtualResearchOnly,true);
+});
+test('legacy paper journal migrates without deleting historic losses',()=>{
+ const old=emptyPaperPortfolio(t);
+ delete old.researchSession;
+ old.realizedNetEur=-10.3825;
+ const next=stepPaperPortfolio(old,[],{},t+90000);
+ assert.equal(next.portfolio.realizedNetEur,-10.3825);
+ assert.equal(next.portfolio.researchSession.baselineRealizedEur,-10.3825);
+ assert.equal(next.portfolio.researchSession.rollovers,0);
+});
+test('never roll research budget while old simulated position cannot be priced',()=>{
+ const opened=stepPaperPortfolio(null,[signal('BTCUSDT')],{BTCUSDT:quote()},t).portfolio;
+ const future=t+24*60*60_000;
+ const stale=stepPaperPortfolio(opened,[],{},future);
+ assert.equal(stale.metrics.missingQuotes,1);
+ assert.equal(stale.portfolio.active.length,1);
+ assert.equal(stale.portfolio.researchSession.utcDay,new Date(t).toISOString().slice(0,10));
+ assert.equal(stale.portfolio.researchSession.rollovers,0);
+});
 test('rejects corrupt ledger, wrong costs, inverted stops, stale/far quotes',()=>{
  assert.throws(()=>stepPaperPortfolio({...emptyPaperPortfolio(t),active:[{symbol:'BAD'}]},[],{},t),/INVALID_SAVED/);
  assert.equal(stepPaperPortfolio(null,[signal('BTCUSDT','LONG',{stop:110})],{BTCUSDT:quote()},t).metrics.opened,0);
