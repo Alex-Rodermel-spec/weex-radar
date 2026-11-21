@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111326">
+<title>WEEX RADAR · PRO контроль №108 / №110</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#e9effe;background:#0b1020;color-scheme:dark;--soft:#9ea9c3;--card:#151b2f;--line:#2a3650;--mint:#5fe0b2;--red:#ff8195;--amber:#ffd18a;--blue:#91b7ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% 0%,#20284d 0%,#0b1020 56%);min-height:100vh}main{max-width:1040px;margin:auto;padding:22px 15px 48px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}a{color:#b9c9ff}a:focus-visible,button:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.brand{font-size:15px;font-weight:800;letter-spacing:.07em}.brand span{color:var(--mint)}.back{font-size:13px;text-decoration:none;color:#ccd8ee;border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+h1{font-size:clamp(29px,5vw,43px);letter-spacing:-.045em;margin:26px 0 9px;line-height:1.1}h2{font-size:16px;margin:0 0 12px}
+.lead{color:var(--soft);max-width:730px;line-height:1.55;margin:0 0 20px}
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 16px}
+button{border:1px solid #5972ac;background:#304778;color:white;font:inherit;font-weight:650;border-radius:11px;padding:10px 15px;cursor:pointer}button:disabled{opacity:.55;cursor:wait}
+#updated{font-size:13px;color:var(--soft)}
+.warning{background:#291f23;border:1px solid #75505b;border-radius:13px;padding:14px 16px;color:#ffd2d8;margin-bottom:18px;line-height:1.5}
+.banner{border:1px solid var(--line);background:linear-gradient(115deg,#1e2945,#141b31);padding:17px;border-radius:16px;margin:0 0 17px}
+.banner .heading{font-size:13px;color:#b6c7e8;letter-spacing:.05em;font-weight:700}.banner strong{font-size:24px;display:block;margin:6px 0}.banner p{font-size:13px;color:var(--soft);margin:0;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:16px;min-width:0}
+.card .meta{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#a4b9d7;font-weight:700}.card h2{margin:8px 0 10px;font-size:19px}
+.primary{font-size:28px;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.danger{color:var(--red)}.good{color:var(--mint)}.caution{color:var(--amber)}
+.detail{font-size:13px;color:var(--soft);line-height:1.55;min-height:42px;margin:7px 0 11px;white-space:pre-line;overflow-wrap:anywhere}
+.state{font-size:12px;font-weight:700;display:inline-flex;gap:5px;align-items:center;border:1px solid #44526f;color:#cfd8f1;padding:4px 8px;border-radius:100px}
+.state.good{border-color:#317861;color:#90edc7}.state.warn{border-color:#8d653d;color:#ffd18a}.state.bad{border-color:#99495a;color:#ffb2bf}
+.links{margin-top:16px;display:flex;gap:12px;flex-wrap:wrap}.links a{font-size:12px;text-decoration:none}.foot{margin-top:24px;border-top:1px solid var(--line);padding-top:14px;color:var(--soft);font-size:12px;line-height:1.55}
+@media(max-width:780px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:500px){.grid{grid-template-columns:1fr}h1{margin-top:20px}.card{padding:14px}.primary{font-size:26px}}
+</style>
+</head>
+<body><main>
+<header>
+ <div class="brand">◈ WEEX RADAR <span>PRO · КОНТРОЛЬ</span></div>
+ <a class="back" href="/">← Основной радар</a>
+</header>
+<h1>Что робот делает <span style="color:var(--mint)">на самом деле</span></h1>
+<p class="lead">Единый пульт №108 (сигналы), №110 (исследовательский ИИ), FORECAST V5, NEWS RADAR и виртуальной торговли. Только проверенные данные сервера — без выдуманной «точности 90%».</p>
+<div class="toolbar">
+ <button id="refresh" type="button">↻ Проверить состояние</button>
+ <span id="updated" role="status" aria-live="polite">Подключаемся к рабочему серверу…</span>
+</div>
+<div class="warning" role="note"><strong>Реальные деньги под защитой:</strong> эта страница ничего не покупает, не открывает ордера и не включает автоторговлю. Пока независимые проверки не подтвердили прибыльность, считать алгоритм готовым для торговли на последние деньги нельзя.</div>
+<section class="banner" aria-label="Решение о готовности">
+ <div class="heading">ОБЪЕКТИВНАЯ ГОТОВНОСТЬ К АВТОМАТИЧЕСКОЙ ТОРГОВЛЕ</div>
+ <strong id="ready">Проверка…</strong>
+ <p id="reason">Рассчитываем статус только по проверяемым метрикам. Данные не гарантия дохода.</p>
+</section>
+<div class="grid">
+<section class="card" aria-label="Статус сканера 108">
+ <div class="meta">№108 · Сканер LONG / SHORT</div>
+ <h2>Работа рынков</h2>
+ <div class="primary" id="scanner-num">—</div>
+ <p class="detail" id="scanner-text">Состояние рынка ещё не получено.</p>
+ <span class="state" id="scanner-state">ЗАГРУЗКА</span>
+ <div class="links"><a href="/health.html">Подробный HEALTH</a><a href="/">Текущие сигналы</a></div>
+</section>
+<section class="card" aria-label="FORECAST V4 статистика">
+ <div class="meta">Прогнозист V4 · Журнал</div>
+ <h2>5 минут после прогноза</h2>
+ <div class="primary" id="v4-num">—</div>
+ <p class="detail" id="v4-text">Ждём проверенные итоги отправленных прогнозов.</p>
+ <span class="state" id="v4-state">ЗАГРУЗКА</span>
+ <div class="links"><a href="/forecast.html">Открыть FORECAST</a></div>
+</section>
+<section class="card" aria-label="Состояние независимого FORECAST V5">
+ <div class="meta">№110 · Новый FORECAST V5</div>
+ <h2>Независимые наблюдения</h2>
+ <div class="primary" id="v5-num">—</div>
+ <p class="detail" id="v5-text">Проверяем свежесть журнала, число направлений и воздержаний MIXED.</p>
+ <span class="state" id="v5-state">ЗАГРУЗКА</span>
+ <div class="links"><a href="/api/signals?mode=journal">Сводка №110</a></div>
+</section>
+<section class="card" aria-label="Статус обучаемой модели">
+ <div class="meta">ИИ №110 · Machine Learning</div>
+ <h2>Обучение и проверка</h2>
+ <div class="primary" id="ml-num">—</div>
+ <p class="detail" id="ml-text">Проверяем независимую выборку и наличие доказанного улучшения.</p>
+ <span class="state" id="ml-state">ЗАГРУЗКА</span>
+ <div class="links"><a href="/api/signals?mode=journal">Агрегаты модели</a></div>
+</section>
+<section class="card" aria-label="Виртуальная торговля">
+ <div class="meta">PAPER · Только виртуальные сделки</div>
+ <h2>Результат после расходов</h2>
+ <div class="primary" id="paper-num">—</div>
+ <p class="detail" id="paper-text">Текущая статистика виртуальных сделок без доступа к реальному счёту.</p>
+ <span class="state" id="paper-state">ЗАГРУЗКА</span>
+ <div class="links"><a href="/api/paper-trading">Отчёт PAPER</a></div>
+</section>
+<section class="card" aria-label="Новостной радар">
+ <div class="meta">NEWS RADAR · Влияние новостей</div>
+ <h2>Подтверждённые события</h2>
+ <div class="primary" id="news-num">—</div>
+ <p class="detail" id="news-text">Проверяем, было ли событие известно до прогноза.</p>
+ <span class="state" id="news-state">ЗАГРУЗКА</span>
+ <div class="links"><a href="/api/signals?mode=v110-news-forecast">NEWS × прогнозы</a><a href="https://github.com/Alex-Rodermel-spec/weex-radar/issues/62" rel="noopener" target="_blank">Журнал новостей</a></div>
+</section>
+</div>
+<p class="foot">Источники: только общедоступные read-only API этого же WEEX RADAR. Обновление страницы — сразу и при возвращении на вкладку, периодическая проверка — каждые 5 минут, пока вкладка открыта. Доставка ntfy на конкретный телефон не может быть подтверждена с сервера. «Правильное направление» по закрытой свече не равно доходности после комиссий, спреда, проскальзывания и ликвидаций. Исследовательский ИИ не равен полностью автономному разработчику, который безопасно меняет торговые правила.</p>
+</main>
+<script type="module">
+const $=id=>document.getElementById(id);
+const state=(name,label,tone)=>{const x=$(name+'-state');x.textContent=label;x.className='state '+tone};
+const val=(name,value,tone='')=>{const x=$(name+'-num');x.textContent=value;x.className='primary '+tone};
+const info=(name,description)=>{$(name+'-text').textContent=description};
+const formatDate=at=>Number.isFinite(at)?new Date(at).toLocaleString('ru-RU',{timeZone:'Europe/Berlin',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'неизвестно';
+const num=n=>Number.isFinite(n)?new Intl.NumberFormat('ru-RU').format(n):'—';
+async function data(path){
+ const response=await fetch(path,{cache:'no-store',signal:AbortSignal.timeout(18000)});
+ if(!response.ok)throw Error('HTTP '+response.status);
+ return response.json();
+}
+function showHealth(d){
+ const m=d?.markets||{},c=d?.cron||{};
+ const healthy=m.total===32&&m.unavailable===0&&c.state==='HEALTHY';
+ val('scanner',(Number.isFinite(m.weex)?m.weex:0)+(Number.isFinite(m.bybit)?m.bybit:0)+' / '+(m.total||32));
+ info('scanner','Сканер '+(c.state||'UNKNOWN')+'. Недоступно рынков: '+num(m.unavailable)+
+  '. Последний фоновый контакт: '+formatDate(c.lastSeenAt)+'. Версия: '+(d.statusNotifications?.revision||'неизвестна'));
+ state('scanner',healthy?'ВСЕ РЫНКИ':'ТРЕБУЕТ ВНИМАНИЯ',healthy?'good':'warn');
+}
+function showJournal(d){
+ const f=d?.forecastStudy||{},window5=f.windows?.['30']?.at5m||{};
+ const total=f.archivedForecasts||0;
+ val('v4',Number.isFinite(window5.favorablePct)?window5.favorablePct.toFixed(1)+'%':'—');
+ info('v4','Движение в сторону прогноза через 5 минут. Наблюдений: '+num(window5.observed)+
+  '; всего архивных FORECAST: '+num(total)+'. Не прибыльность.');
+ state('v4',window5.observed?'ИЗМЕРЕНО / НЕ ДОХОДНОСТЬ':'НЕТ ДАННЫХ',window5.observed?'warn':'bad');
+ const v=d?.forecastV5Independent||{},x=v.collectionDiagnostics||{};
+ const archived=Number.isFinite(v.archiveCount)?v.archiveCount:0;
+ val('v5',num(archived));
+ info('v5','Направленных прогнозов: '+num(x.v5DirectionalCandidates??0)+
+  '; MIXED (воздержался): '+num(x.v5MixedAbstentions??v.v5Abstentions??0)+
+  '. Последний снимок: '+formatDate(x.lastFrozenAt)+
+  '. Дней: '+num(v.distinctUtcDays)+'. 5М оценено: '+num(v.v5FiveMinute?.observed));
+ const v5Recent=x.state==='RECENT_SAMPLES';
+ state('v5',v5Recent?'СОБИРАЕТ ДАННЫЕ':x.state==='STALE_SAMPLES'?'СБОР ЗАДЕРЖАН':'ЕЩЁ НЕТ ПОДТВЕРЖДЁННОЙ ВЫБОРКИ',v5Recent?'good':'warn');
+ const ml=d?.mlShadow||{},sel=ml.holdoutSelected||{},baseline=ml.holdoutBaseline||{};
+ val('ml',num(ml.holdoutN));
+ info('ml','Проверочных наблюдений. Модель обучена: '+(ml.modelTrained?'да':'нет')+
+  '. Исходная доля '+(baseline.favorablePct??'—')+'%; отбор модели '+(sel.favorablePct??'—')+
+  '% (разные размеры выборок). Статус: '+(ml.status||'UNKNOWN')+'.');
+ state('ml',ml.futurePredictionApproved?'ПОТРЕБУЕТ ПРОВЕРКИ':'НЕ ДОКАЗАНО ПРЕИМУЩЕСТВО','warn');
+ return {v5:v,ml};
+}
+function showPaper(d){
+ const pnl=Number.isFinite(d.realizedNetEur)?d.realizedNetEur:null;
+ val('paper',pnl===null?'—':pnl.toFixed(2)+' €',pnl!==null&&pnl<0?'danger':'');
+ info('paper','Модельных завершённых сделок: '+num(d.closedCount)+
+  '; открытых: '+num(d.openCount)+'. Все суммы виртуальные. Отправлено реальных ордеров из PAPER: '+num(d.ordersSent)+'.');
+ state('paper',pnl===null?'НЕТ ДАННЫХ':pnl>=0?'ПРИБЫЛЬ В МОДЕЛИ НЕ ДОКАЗАНА':'УБЫТОК В МОДЕЛИ',pnl!==null&&pnl<0?'bad':'warn');
+ return pnl;
+}
+function showNews(d,joined){
+ val('news',num(d.structuredEvents??0));
+ info('news','Всего текстовых наблюдений: '+num(d.rawPublicComments)+
+  '. Пригодных событий: '+num(d.structuredEvents)+
+  '. Связано с прогнозами до публикации: '+num(joined?.eventLinkedForecasts??0)+
+  '. Новости пока не управляют №108.');
+ state('news',(d.structuredEvents??0)>0?'ИДЁТ СРАВНЕНИЕ':'ПОКА НЕДОСТАТОЧНО СОБЫТИЙ','warn');
+}
+async function refresh(){
+ const button=$('refresh');button.disabled=true;
+ $('updated').textContent='Проверяем сервер…';
+ const names=['health','journal','paper','news','news-forecast'];
+ const paths=[
+  '/api/signals?mode=health','/api/signals?mode=journal',
+  '/api/paper-trading','/api/signals?mode=v110-news',
+  '/api/signals?mode=v110-news-forecast'
+ ];
+ const answers=await Promise.allSettled(paths.map(data));
+ const received={};let failed=0;
+ for(let i=0;i<names.length;i++){
+  if(answers[i].status==='fulfilled')received[names[i]]=answers[i].value;
+  else failed++;
+ }
+ if(received.health)showHealth(received.health);
+ else{state('scanner','СЕРВЕР НЕ ОТВЕТИЛ','bad');info('scanner','Нет подтверждения состояния сканера.')}
+ let v5=null;
+ if(received.journal){v5=showJournal(received.journal)}
+ else{for(const name of ['v4','v5','ml']){state(name,'ЖУРНАЛ НЕДОСТУПЕН','bad');info(name,'Нет надёжных данных; нельзя считать готовым.')}}
+ let pnl=null;
+ if(received.paper)pnl=showPaper(received.paper);
+ else{state('paper','НЕТ ДАННЫХ','bad');info('paper','Нет подтверждённых результатов виртуальных сделок.')}
+ if(received.news)showNews(received.news,received['news-forecast']);
+ else{state('news','НЕТ ДАННЫХ','bad');info('news','Публичный новостной источник недоступен.')}
+ const verifiedProfit=false; // NOT a user toggle: independently proven strategy required.
+ const fullyAutonomousTrading=false; // no trade permissions or real orders from this page.
+ const safe=failed===0&&pnl!==null&&pnl>0&&
+  v5?.v5?.enoughIndependentSample===true&&
+  v5?.ml?.futurePredictionApproved===true&&
+  verifiedProfit&&fullyAutonomousTrading;
+ $('ready').textContent=safe?'НЕЗАВИСИМО ПОДТВЕРЖДЕНА':'НЕ ГОТОВ К РЕАЛЬНОЙ АВТОТОРГОВЛЕ';
+ $('ready').className=safe?'good':'caution';
+ $('reason').textContent=failed?
+  'Часть источников сейчас недоступна ('+failed+'). Отсутствие данных не означает успех.' :
+  'Радар сканирует рынок, №110 исследует. Но прибыльность после расходов и безопасное автономное исполнение не доказаны. Виртуальный убыток не маскируется.';
+ $('updated').textContent='Проверено: '+formatDate(Date.now())+
+  (failed?' · недоступных источников: '+failed:' · все источники ответили');
+ button.disabled=false;
+}
+$('refresh').addEventListener('click',()=>{void refresh()});
+void refresh();
+setInterval(()=>{if(document.visibilityState==='visible')void refresh()},300000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void refresh()});
+</script>
+</body>
+</html>
