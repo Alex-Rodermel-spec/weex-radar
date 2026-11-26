@@ -46,6 +46,20 @@ test('forecast health counts both historic titles and new red/green direction ba
  assert.equal(out.recentTwoHours.CAUTION,1);
  assert.equal(out.recentTwoHours.STRONG,0);
 });
+test('unavailable WEEX symbols are named safely without marking them healthy',()=>{
+ const rows=[
+  {symbol:'BTCUSDT',exchange:'WEEX',status:'ok'},
+  {symbol:'CADUSDT',exchange:null,status:'error'},
+  {symbol:'<private>',exchange:null,status:'error'},
+  {symbol:'CADUSDT',exchange:null,status:'error'}
+ ];
+ const out=snapshotMarkets(rows);
+ assert.deepEqual(out,{total:4,weex:1,bybit:0,unavailable:3,
+  unavailableSymbols:['CADUSDT']});
+ assert.equal(snapshotMarkets([{symbol:'BTCUSDT',exchange:'WEEX',status:'ok'}])
+  .unavailableSymbols,undefined);
+});
+
 test('market health distinguishes WEEX, backup Bybit, and missing sources',()=>{
  assert.deepEqual(snapshotMarkets([{exchange:'WEEX',status:'ok'},
   {exchange:'Bybit',status:'ok'},{exchange:null,status:'error'}]),
