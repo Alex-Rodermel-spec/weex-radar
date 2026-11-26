@@ -51,6 +51,16 @@ test('status distinguishes initial boot, deploy, degradation, recovery and quiet
  assert.equal(already,null);
 });
 
+test('degraded status names failing symbols but does not claim a fix',()=>{
+ const current=heartbeat(false);
+ current.five.unavailableSymbols=['CADUSDT','<private>'];
+ const notice=decideStatusNotice(null,current,[],now);
+ assert.equal(notice.kind,'DEGRADED');
+ assert.match(notice.message,/Рынки WEEX: 30\/32 · Нет данных: CADUSDT/);
+ assert.doesNotMatch(notice.message,/<private>/);
+ assert.doesNotMatch(notice.title,/LONG|SHORT/);
+});
+
 test('status onboarding sends one private opt-in invitation only after readable history',async()=>{
  const sent=[];
  const fetchImpl=async(url,init)=>{
