@@ -1,0 +1,32 @@
+{
+  "schema": "v110-research-proposal-v1",
+  "policyId": "LONG_SKIP_CAUTION_CHASE",
+  "direction": "LONG",
+  "source": "WEEX_RADAR_ENCRYPTED_FORECAST_JOURNAL_AGGREGATES",
+  "sampleGeneratedAt": "2026-11-14T02:05:38.693Z",
+  "eligible": 697,
+  "training": {
+    "days": 3,
+    "n": 463
+  },
+  "screeningHoldout": {
+    "days": 2,
+    "n": 230,
+    "baselineN": 75,
+    "proposedN": 34,
+    "baselineFavorablePct": 37.3,
+    "proposedFavorablePct": 44.1,
+    "deltaFavorablePoints": 6.8,
+    "baselineMeanBps": -2.72,
+    "proposedMeanBps": 2.15,
+    "deltaMeanBps": 4.87,
+    "baselineFavorable30mPct": 46.7,
+    "proposedFavorable30mPct": 50
+  },
+  "readiness": "FORWARD_TEST_REQUIRED",
+  "requiresOwnerApproval": true,
+  "affectsLiveSignals": false,
+  "affectsOrders": false,
+  "canAutoMerge": false,
+  "disclaimer": "Exploratory holdout screening only; no proof of profitable execution. Independent untouched prospective test, latency and costs, owner approval, green CI and rollback are required before ANY change to live №108."
+}
